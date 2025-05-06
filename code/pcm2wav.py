@@ -9,9 +9,9 @@ output_dir = "C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성�
 os.makedirs(output_dir, exist_ok=True)
 
 # PCM 파일 설정
-sample_rate = 48000  # 원본 샘플링 레이트
-sample_width = 3     # 24비트 PCM (3바이트)
-channels = 1         # 모노
+sample_rate = 48000
+sample_width = 3
+channels = 1
 
 for filename in os.listdir(input_dir):
     if filename.endswith('.pcm'):

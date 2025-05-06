@@ -39,6 +39,10 @@ for json_filename in os.listdir(json_dir):
             print(f"[경고] {json_filename}의 {idx}번째 dialog에 필요한 키 없음. 건너뜀.")
             continue
 
+        # '&'가 포함된 텍스트는 제외
+        if "&" in dialog["text"]:
+            continue
+
         start_ms = int(float(dialog["startTime"]) * 1000)
         end_ms = int(float(dialog["endTime"]) * 1000)
 
@@ -58,3 +62,5 @@ with open(output_jsonl_path, 'w', encoding='utf-8') as f:
         f.write(json.dumps(line, ensure_ascii=False) + '\n')
 
 print(f"완료! 총 {len(jsonl_lines)}개의 샘플 저장됨.")
+
+#########################################다시 실행하면 안됨!!!#################################################
