@@ -75,7 +75,7 @@ def replace_phrases(text, kiosk_id, threshold=2):
     return ' '.join(tokens)
 
 
-#openai.api_key = "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"  # 너의 키로 교체
+openai.api_key = ""  # 너의 키로 교체
 
 model = WhisperForConditionalGeneration.from_pretrained("C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성발화 데이터_음식\\whisper_finetuned_ko\\checkpoint-217").to('cuda')
 #model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-medium").to('cuda')
