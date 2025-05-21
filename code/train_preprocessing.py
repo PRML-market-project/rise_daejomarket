@@ -26,11 +26,11 @@ model_name = "openai/whisper-small"
 
 # 데이터 불러오기
 train_dataset = load_dataset("json", data_files="C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성발화 데이터_음식\\processed_data_training_ko\\training_output_jsonl\\training_output.jsonl", split="train")
-val_dataset = load_dataset("json", data_files="C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성발화 데이터_음식\\processed_data_validation_ko\\validation_output_jsonl\\validation_output.jsonl", split="train")
+#val_dataset = load_dataset("json", data_files="C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성발화 데이터_음식\\processed_data_validation_ko\\validation_output_jsonl\\validation_output.jsonl", split="train")
 
 # 오디오 데이터 타입으로 변환
 train_dataset = train_dataset.cast_column("audio", Audio(sampling_rate=16000))
-val_dataset = val_dataset.cast_column("audio", Audio(sampling_rate=16000))
+#val_dataset = val_dataset.cast_column("audio", Audio(sampling_rate=16000))
 
 # Processor 불러오기 (tokenizer + feature extractor 통합)
 processor = WhisperProcessor.from_pretrained(model_name, language="Korean", task="transcribe")
@@ -45,13 +45,13 @@ def preprocess(batch):
 
 # 전처리 후 데이터 저장
 train_dataset_processed = train_dataset.map(preprocess)
-val_dataset_processed = val_dataset.map(preprocess)
+#val_dataset_processed = val_dataset.map(preprocess)
 
 # pickle로 저장
 with open("train_dataset_processed.pkl", "wb") as f:
     pickle.dump(train_dataset_processed, f)
 
-with open("val_dataset_processed.pkl", "wb") as f:
-    pickle.dump(val_dataset_processed, f)
+#with open("val_dataset_processed.pkl", "wb") as f:
+#    pickle.dump(val_dataset_processed, f)
 
 print("전처리된 데이터가 저장되었습니다.")

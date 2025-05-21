@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Any, List, Dict, Union
 
 # 모델 이름
-model_name = "openai/whisper-small"
+model_name = "openai/whisper-medium"
 
 # 저장된 전처리 데이터 불러오기
 with open("train_dataset_processed.pkl", "rb") as f:
@@ -23,6 +23,7 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # Processor와 모델 불러오기
 model = WhisperForConditionalGeneration.from_pretrained(model_name, torch_dtype=torch.float32)
+#model = WhisperForConditionalGeneration.from_pretrained("C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성발화 데이터_음식\\whisper_finetuned_ko\\checkpoint-1310", torch_dtype=torch.float32)
 model.to(device)
 processor = WhisperProcessor.from_pretrained(model_name, language='Korean')
 
@@ -63,23 +64,23 @@ data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 # 학습 세팅
 training_args = Seq2SeqTrainingArguments(
     output_dir="C:\\Users\\user\\Desktop\\4-1\\캡스톤디자인\\한-영 음성발화 데이터_음식\\whisper_finetuned_ko",
-    per_device_train_batch_size=2,
-    per_device_eval_batch_size=2,
-    gradient_accumulation_steps=8,
+    per_device_train_batch_size=1,
+    per_device_eval_batch_size=1,
+    gradient_accumulation_steps=16,
 
     learning_rate=1e-5,
-    warmup_steps=500,
-    max_steps=4000,
-    gradient_checkpointing=False,
+    warmup_steps=35,
+    max_steps=347,
+    gradient_checkpointing=True,
     predict_with_generate=True,
-    fp16=False,
+    fp16=True,
 
     evaluation_strategy="steps",
     #save_strategy="epoch",
 
     generation_max_length=128,
-    save_steps=1000,
-    eval_steps=1000,
+    save_steps=347,
+    eval_steps=347,
     logging_steps=50,
 
     #report_to=["tensorboard"],
