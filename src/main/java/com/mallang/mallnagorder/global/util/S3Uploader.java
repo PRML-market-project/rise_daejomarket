@@ -1,3 +1,5 @@
+
+/*
 package com.mallang.mallnagorder.global.util;
 
 import java.io.File;
@@ -83,3 +85,4 @@ public class S3Uploader {
         return dotIndex != -1 ? fileName.substring(dotIndex) : "";
     }
 }
+*/

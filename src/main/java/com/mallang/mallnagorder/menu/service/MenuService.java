@@ -9,7 +9,8 @@ import com.mallang.mallnagorder.category.domain.Category;
 import com.mallang.mallnagorder.category.exception.CategoryException;
 import com.mallang.mallnagorder.category.exception.CategoryExceptionType;
 import com.mallang.mallnagorder.category.repository.CategoryRepository;
-import com.mallang.mallnagorder.global.util.S3Uploader;
+//import com.mallang.mallnagorder.global.util.S3Uploader;
+import com.mallang.mallnagorder.global.util.LocalFileUploader;
 import com.mallang.mallnagorder.menu.domain.Menu;
 import com.mallang.mallnagorder.menu.domain.MenuCategory;
 import com.mallang.mallnagorder.menu.domain.MenuCategoryId;
@@ -40,7 +41,7 @@ public class MenuService {
     private final AdminRepository adminRepository;
     private final MenuRepository menuRepository;
     private final OrderItemRepository orderItemRepository;
-    private final S3Uploader s3Uploader;
+    private final LocalFileUploader localFileUploader;
     private final AdminPayloadService adminPayloadService;
 
     @Transactional
@@ -159,19 +160,20 @@ public class MenuService {
         return toResponse(updatedMenu);
     }
 
-
+    //이미지 가져오기, 디폴트 이미지
     private String uploadImageOrDefault(MenuRequest request) {
         if (request.getImage() != null && !request.getImage().isEmpty()) {
             if (request.getImage().getSize() > MAX_FILE_SIZE) {
                 throw new MenuException(MenuExceptionType.IMAGE_TOO_LARGE);
             }
             try {
-                return s3Uploader.upload(request.getImage(), "menu");
+                String relativePath = localFileUploader.upload(request.getImage(), "menu");
+                return "/images/" + relativePath;
             } catch (IOException e) {
                 throw new RuntimeException("이미지 업로드 실패", e);
             }
         }
-        return "https://mallangkiosk-menu-images.s3.ap-northeast-2.amazonaws.com/%E1%84%86%E1%85%A1%E1%86%AF%E1%84%85%E1%85%A1%E1%86%BC%E1%84%8B%E1%85%B5.png";
+        return "/images/default/default-image.png";
     }
 
     private Category getOrCreateDefaultCategory(Long adminId) {
@@ -192,6 +194,13 @@ public class MenuService {
         if (hasOrders) {
             throw new MenuException(MenuExceptionType.MENU_HAS_ORDER);
         }
+
+        // TODO: 로컬 파일 삭제 로직 추가 필요
+        // menu.getImageUrl()을 파싱해서 실제 로컬 파일을 찾아 삭제하는 로직을 추가할 수 있습니다.
+        // File fileToDelete = new File(uploadDir + menu.getImageUrl().replace("/images/", ""));
+        // if (fileToDelete.exists()) {
+        //     fileToDelete.delete();
+        // }
 
         menuRepository.delete(menu);
 
