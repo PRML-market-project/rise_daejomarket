@@ -9,10 +9,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
 
-    @Value("${file.resourceUrl}")
+    @Value("${file.resource-url}")
     private String resourceUrl;
 
-    @Value("${file.uploadDir}")
+    @Value("${file.upload-dir}")
     private String uploadDir;
 
     @Override
