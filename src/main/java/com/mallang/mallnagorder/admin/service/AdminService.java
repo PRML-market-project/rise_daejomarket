@@ -221,9 +221,9 @@ public class AdminService {
         if (adminRepository.existsByStoreName(storeName)){
             throw new AdminException(AdminExceptionType.ALREADY_EXIST_STORENAME);
         }
-        if (adminRepository.existsByStoreNameEn(storeNameEn)){
-            throw new AdminException(AdminExceptionType.ALREADY_EXIST_STORENAME_EN);
-        }
+        //if (adminRepository.existsByStoreNameEn(storeNameEn)){
+            //throw new AdminException(AdminExceptionType.ALREADY_EXIST_STORENAME_EN);
+        //}
         return new CheckResponse(true, "사용 가능한 가게 이름입니다.");
     }
 
