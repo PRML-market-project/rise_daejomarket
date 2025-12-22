@@ -17,7 +17,7 @@ import java.io.File;
 @Slf4j
 public class AdminPayloadForwardService {
 
-    @Value("${payload.forward.url:https://maggot-liked-virtually.ngrok-free.app}")
+    @Value("${payload.forward.url:http://localhost:8000/upload_jsons}")
     private String forwardUrl;
 
     private final RestTemplate restTemplate = new RestTemplate();

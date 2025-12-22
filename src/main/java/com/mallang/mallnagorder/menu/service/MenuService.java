@@ -168,6 +168,7 @@ public class MenuService {
             }
             try {
                 String relativePath = localFileUploader.upload(request.getImage(), "menu");
+                //return "http://localhost:8080/images/" + relativePath;
                 return "/images/" + relativePath;
             } catch (IOException e) {
                 throw new RuntimeException("이미지 업로드 실패", e);
