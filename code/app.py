@@ -13,12 +13,29 @@ from jamo import hangul_to_jamo
 import Levenshtein
 import langdetect
 import re
+import torch
+from dotenv import load_dotenv
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent / ".venv" / "data"
+BASE_DIR.mkdir(parents=True, exist_ok=True)
+
+print("📂 DATA BASE_DIR =", BASE_DIR)
+
+load_dotenv()
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 로그 파일 설정
 logging.basicConfig(filename="gpt_api_logs.log", level=logging.INFO)
 
 # OpenAI API 키 설정
-openai.api_key = ""
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+print("OPENAI_API_KEY loaded:", bool(openai.api_key))
+if not openai.api_key:
+    raise RuntimeError("OPENAI_API_KEY가 .env에서 로드되지 않았습니다.")
 
 def detect_language(text):
     try:
@@ -44,7 +61,7 @@ def correct_text_with_gpt(text):
 
 
 def load_menu_db(admin_id):
-    path = f"\\pj\\.venv\\data\\{admin_id}.json" ####################################################################### your path
+    path = BASE_DIR / f"{admin_id}.json"
     if not os.path.exists(path):
         raise FileNotFoundError(f"{path} 파일이 존재하지 않습니다.")
 
@@ -225,8 +242,8 @@ def gpt():
         kiosk_id = int(data['kiosk_id'])
         admin_id = int(data['admin_id'])
 
-        chat_history_path = f"/pj/.venv/data/chat_history{admin_id}_{kiosk_id}.json"
-        admin_json_path = f"/pj/.venv/data/{admin_id}.json"
+        chat_history_path = BASE_DIR / f"chat_history{admin_id}_{kiosk_id}.json"
+        admin_json_path = BASE_DIR / f"{admin_id}.json"
 
         chat_history = []
         if os.path.exists(chat_history_path):
@@ -400,6 +417,7 @@ def upload_jsons():
 
         for file in files:
             data = file.read().decode('utf-8')
+            #print(data) 잘됨.
             try:
                 json_data = json.loads(data)
             except Exception as e:
@@ -418,11 +436,7 @@ def upload_jsons():
             json_data['categories'] = filtered_categories
 
             # 저장 경로 및 파일명 설정
-            save_dir = "/pj/.venv/data"
-            os.makedirs(save_dir, exist_ok=True)
-            save_path = os.path.join(save_dir, f"{admin_id}.json")
-
-            # JSON 파일 저장
+            save_path = BASE_DIR / f"{admin_id}.json"
             with open(save_path, 'w', encoding='utf-8') as f:
                 json.dump(json_data, f, ensure_ascii=False, indent=2)
 
@@ -434,8 +448,12 @@ def upload_jsons():
         return jsonify({"error": str(e)}), 500
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
     port = 8000
     #public_url = ngrok.connect(port)
     #print(f" 공용 주소: {public_url}")
-    app.run(port=port)
+    #app.run(port=port)
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000, debug=True)
