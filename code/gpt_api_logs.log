@@ -1,0 +1,224 @@
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:06:05] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:06:06] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:06:29] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:06:29] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:07:56] "[33mGET /docs HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:07:57] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:08:00] "[33mGET / HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:08:36] "[31m[1mGET /gpt HTTP/1.1[0m" 405 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:11:27] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:11:28] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:11:42] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:11:42] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:12:30] "[31m[1mGET /gpt HTTP/1.1[0m" 405 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:14:20] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:14:21] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:19:35] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:19:35] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:21:47] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:21:47] "[33mPOST /gpt HTTP/1.1[0m" 404 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:43:34] "POST /upload_jsons HTTP/1.1" 200 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:44:49] "POST /upload_jsons HTTP/1.1" 200 -
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug: * Detected change in 'C:\\Users\\admin\\Desktop\\pj\\AI-server\\AI-server\\code\\app.py', reloading
+INFO:werkzeug: * Restarting with stat
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://223.195.35.75:8000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 140-057-924
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:51:57] "POST /upload_jsons HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:52:15] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:root:Sending messages to OpenAI: [{'role': 'system', 'content': '\nYou are a kiosk assistant. Your task is to classify the user\'s input into one of the following five intents and respond in JSON format with appropriate fields filled. You must correct any typos automatically \u2014 do not ask for clarification.\n\nThe 5 possible intents are:\n1. get_category: When the user requests a specific category ¡æ include category_id.\n2. get_menu: When the user requests a specific menu or asks for recommendations ¡æ include menu_id, category_id.\n3. update_cart: When the user adds or removes or remove all an item ¡æ include menu_id, quantity, and state ("add", "remove", or "removeall").\n4. place_order: When the user confirms the order.\n5. get_order_history: When the user asks to check their past orders.\n\nThe response should be a JSON object. If there are multiple items, include them in an array like: "items": [{...}, {...}]\n\n\nHere is the menu and category data:\n\ncategories and menu = {\n  "admin_id": 1,\n  "categories": [\n    {\n      "categoryId": 2,\n      "categoryName": "Å×½ºÆ®",\n      "categoryNameEn": "Tesk",\n      "menus": [\n        [\n          6,\n          "¼ö¹Ú",\n          "Watermelon",\n          18000\n        ]\n      ]\n    },\n    {\n      "categoryId": 3,\n      "categoryName": "½Ä´ç",\n      "categoryNameEn": "Restaurant",\n      "menus": []\n    },\n    {\n      "categoryId": 4,\n      "categoryName": "½Ä·áÇ°",\n      "categoryNameEn": "grocery store",\n      "menus": []\n    },\n    {\n      "categoryId": 5,\n      "categoryName": "ÀâÈ­",\n      "categoryNameEn": "General Goods",\n      "menus": []\n    },\n    {\n      "categoryId": 6,\n      "categoryName": "Á¤À°Ã»°ú¼ö»ê",\n      "categoryNameEn": "Meat / Produce / Seafood",\n      "menus": []\n    },\n    {\n      "categoryId": 7,\n      "categoryName": "³ó»ê¹°°¡°ø",\n      "categoryNameEn": "Agricultural Processing",\n      "menus": []\n    },\n    {\n      "categoryId": 8,\n      "categoryName": "ÀÇ·ù",\n      "categoryNameEn": "Clothing & Accessories",\n      "menus": []\n    },\n    {\n      "categoryId": 9,\n      "categoryName": "ÁÂÆÇ",\n      "categoryNameEn": "Street Stall",\n      "menus": []\n    },\n    {\n      "categoryId": 10,\n      "categoryName": "¼­¿ïÃ»°ú",\n      "categoryNameEn": "seoul fruit",\n      "menus": []\n    }\n  ]\n}\n\n\n\n\u2b07 ´ÙÀ½Àº ÃÖ±Ù »ç¿ëÀÚ¿ÍÀÇ ´ëÈ­ 3½ÖÀÌ¾ß. ¹®¸Æ ÆÄ¾ÇÀ» À§ÇØ Âü°íÇØ.\n'}, {'role': 'user', 'content': '¤¾¤·'}, {'role': 'system', 'content': '\nThe response MUST follow this format exactly, and the items field must be an array that can include one or more objects.\n\nJSON Format:\n{\n  "user_message": "<Corrected input sentence>",\n  "chat_message": "<Respond only in English>",\n  "result": {\n    "status": "success",\n    "intent": "<One of: get_category, get_menu, update_cart, place_order, get_order_history>",\n    "items": [\n      {\n        "menu_id": <Integer or null>,\n        "category_id": <Integer or null>,\n        "quantity": <Integer or null>,\n        "state": "<"add" or "remove" or "removeall" or null>"\n      }\n    ]\n  }\n}\n'}]
+INFO:root:Sending messages to OpenAI: [{'role': 'system', 'content': '\nYou are a kiosk assistant. Your task is to classify the user\'s input into one of the following five intents and respond in JSON format with appropriate fields filled. You must correct any typos automatically \u2014 do not ask for clarification.\n\nThe 5 possible intents are:\n1. get_category: When the user requests a specific category ¡æ include category_id.\n2. get_menu: When the user requests a specific menu or asks for recommendations ¡æ include menu_id, category_id.\n3. update_cart: When the user adds or removes or remove all an item ¡æ include menu_id, quantity, and state ("add", "remove", or "removeall").\n4. place_order: When the user confirms the order.\n5. get_order_history: When the user asks to check their past orders.\n\nThe response should be a JSON object. If there are multiple items, include them in an array like: "items": [{...}, {...}]\n\n\nHere is the menu and category data:\n\ncategories and menu = {\n  "admin_id": 1,\n  "categories": [\n    {\n      "categoryId": 2,\n      "categoryName": "Å×½ºÆ®",\n      "categoryNameEn": "Tesk",\n      "menus": [\n        [\n          6,\n          "¼ö¹Ú",\n          "Watermelon",\n          18000\n        ]\n      ]\n    },\n    {\n      "categoryId": 3,\n      "categoryName": "½Ä´ç",\n      "categoryNameEn": "Restaurant",\n      "menus": []\n    },\n    {\n      "categoryId": 4,\n      "categoryName": "½Ä·áÇ°",\n      "categoryNameEn": "grocery store",\n      "menus": []\n    },\n    {\n      "categoryId": 5,\n      "categoryName": "ÀâÈ­",\n      "categoryNameEn": "General Goods",\n      "menus": []\n    },\n    {\n      "categoryId": 6,\n      "categoryName": "Á¤À°Ã»°ú¼ö»ê",\n      "categoryNameEn": "Meat / Produce / Seafood",\n      "menus": []\n    },\n    {\n      "categoryId": 7,\n      "categoryName": "³ó»ê¹°°¡°ø",\n      "categoryNameEn": "Agricultural Processing",\n      "menus": []\n    },\n    {\n      "categoryId": 8,\n      "categoryName": "ÀÇ·ù",\n      "categoryNameEn": "Clothing & Accessories",\n      "menus": []\n    },\n    {\n      "categoryId": 9,\n      "categoryName": "ÁÂÆÇ",\n      "categoryNameEn": "Street Stall",\n      "menus": []\n    },\n    {\n      "categoryId": 10,\n      "categoryName": "¼­¿ïÃ»°ú",\n      "categoryNameEn": "seoul fruit",\n      "menus": []\n    }\n  ]\n}\n\n\n\n\u2b07 ´ÙÀ½Àº ÃÖ±Ù »ç¿ëÀÚ¿ÍÀÇ ´ëÈ­ 3½ÖÀÌ¾ß. ¹®¸Æ ÆÄ¾ÇÀ» À§ÇØ Âü°íÇØ.\n'}, {'role': 'user', 'content': '¤¾¤·'}, {'role': 'system', 'content': '\nThe response MUST follow this format exactly, and the items field must be an array that can include one or more objects.\n\nJSON Format:\n{\n  "user_message": "<Corrected input sentence>",\n  "chat_message": "<Respond only in English>",\n  "result": {\n    "status": "success",\n    "intent": "<One of: get_category, get_menu, update_cart, place_order, get_order_history>",\n    "items": [\n      {\n        "menu_id": <Integer or null>,\n        "category_id": <Integer or null>,\n        "quantity": <Integer or null>,\n        "state": "<"add" or "remove" or "removeall" or null>"\n      }\n    ]\n  }\n}\n'}]
+INFO:root:Raw GPT response: {
+  "user_message": "¤¾¤·",
+  "chat_message": "Hello! How can I assist you today?",
+  "result": {
+    "status": "success",
+    "intent": null,
+    "items": []
+  }
+}
+INFO:root:GPT parsed response:
+{'user_message': '¤¾¤·', 'chat_message': 'Hello! How can I assist you today?', 'result': {'status': 'success', 'intent': None, 'items': [], 'kiosk_id': 15, 'admin_id': 1}}
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:52:18] "POST /gpt HTTP/1.1" 200 -
+INFO:root:Raw GPT response: {
+  "user_message": "¤¾¤·",
+  "chat_message": "Could you please provide more information or let me know how I can assist you today?",
+  "result": {
+    "status": "success",
+    "intent": null,
+    "items": [
+      {
+        "menu_id": null,
+        "category_id": null,
+        "quantity": null,
+        "state": null
+      }
+    ]
+  }
+}
+INFO:root:GPT parsed response:
+{'user_message': '¤¾¤·', 'chat_message': 'Could you please provide more information or let me know how I can assist you today?', 'result': {'status': 'success', 'intent': None, 'items': [{'menu_id': None, 'category_id': None, 'quantity': None, 'state': None}], 'kiosk_id': 15, 'admin_id': 1}}
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:52:20] "POST /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:52:54] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:root:Sending messages to OpenAI: [{'role': 'system', 'content': '\n´ç½ÅÀº À½½Ä Å°¿À½ºÅ© Ãªº¿ÀÌ¾ß. »ç¿ëÀÚÀÇ ÀÔ·ÂÀ» ´ÙÀ½ ´Ù¼¸ °¡Áö ÀÇµµ Áß ÇÏ³ª·Î ºÐ·ùÇÏ°í, ¹Ýµå½Ã ÀûÀýÇÑ JSON ÀÀ´äÀ» ÀÛ¼ºÇØ. µÇ¹¯Áö ¸»°í ¹Ýµå½Ã ÇÑ ¹ø¿¡ Ã³¸®ÇØ.\n\n°¡´ÉÇÑ ÀÇµµ:\n1. get_category: Æ¯Á¤ Ä«Å×°í¸® ¿äÃ» ¡æ items¿¡ category_id Æ÷ÇÔ\n2. get_menu: Æ¯Á¤ ¸Þ´º ¿äÃ», ¸Þ´º ÃßÃµ, °¡°Ý ¿äÃ»(°¡°ÝÀÌ °°À¸¸é ¶È°°´Ù°íÇØ) ¡æ items¿¡ menu_id, category_id Æ÷ÇÔ\n3. update_cart: Àå¹Ù±¸´Ï Ãß°¡/Á¦°Å/ÀüÃ¼Á¦°Å ¿äÃ» ¡æ items¿¡ menu_id, quantity, state Æ÷ÇÔ\n4. place_order: ÁÖ¹® ÇØ´Þ¶ó°í ÇÏ¸é place_order\n5. get_order_history: ÁÖ¹® ³»¿ª ¿äÃ» (¿¹: "ÁÖ¹®³»¿ª º¸¿©Áà")\n\nÀÀ´ä Çü½ÄÀº JSON °´Ã¼·Î ÇÏ¸ç, ÇÊ¿äÇÑ °æ¿ì ÇÏ³ª ÀÌ»óÀÇ Ç×¸ñÀ» ¹è¿­ ÇüÅÂ·Î Æ÷ÇÔÇÒ ¼ö ÀÖ½À´Ï´Ù.\n¿¹: "items": [{...}, {...}]\n\n\nHere is the menu and category data:\n\ncategories and menu = {\n  "admin_id": 1,\n  "categories": [\n    {\n      "categoryId": 2,\n      "categoryName": "Å×½ºÆ®",\n      "categoryNameEn": "Tesk",\n      "menus": [\n        [\n          6,\n          "¼ö¹Ú",\n          18000\n        ]\n      ]\n    },\n    {\n      "categoryId": 3,\n      "categoryName": "½Ä´ç",\n      "categoryNameEn": "Restaurant",\n      "menus": []\n    },\n    {\n      "categoryId": 4,\n      "categoryName": "½Ä·áÇ°",\n      "categoryNameEn": "grocery store",\n      "menus": []\n    },\n    {\n      "categoryId": 5,\n      "categoryName": "ÀâÈ­",\n      "categoryNameEn": "General Goods",\n      "menus": []\n    },\n    {\n      "categoryId": 6,\n      "categoryName": "Á¤À°Ã»°ú¼ö»ê",\n      "categoryNameEn": "Meat / Produce / Seafood",\n      "menus": []\n    },\n    {\n      "categoryId": 7,\n      "categoryName": "³ó»ê¹°°¡°ø",\n      "categoryNameEn": "Agricultural Processing",\n      "menus": []\n    },\n    {\n      "categoryId": 8,\n      "categoryName": "ÀÇ·ù",\n      "categoryNameEn": "Clothing & Accessories",\n      "menus": []\n    },\n    {\n      "categoryId": 9,\n      "categoryName": "ÁÂÆÇ",\n      "categoryNameEn": "Street Stall",\n      "menus": []\n    },\n    {\n      "categoryId": 10,\n      "categoryName": "¼­¿ïÃ»°ú",\n      "categoryNameEn": "seoul fruit",\n      "menus": []\n    }\n  ]\n}\n\n\n\n\u2b07 ´ÙÀ½Àº ÃÖ±Ù »ç¿ëÀÚ¿ÍÀÇ ´ëÈ­ 3½ÖÀÌ¾ß. ¹®¸Æ ÆÄ¾ÇÀ» À§ÇØ Âü°íÇØ.\n'}, {'role': 'user', 'content': '¤¾¤·'}, {'role': 'assistant', 'content': 'Could you please provide more information or let me know how I can assist you today?'}, {'role': 'user', 'content': '¾È³ç ¼ö¹Ú ¾ó¸¶¾ß'}, {'role': 'system', 'content': '            \n**ÀÀ´äÀº ¹Ýµå½Ã ¾Æ·¡¿Í °°Àº JSON Çü½ÄÀ¸·Î¸¸ ÀÛ¼ºÇÏ°í, items´Â ¹è¿­ ÇüÅÂ·Î ÇÏ³ª ÀÌ»óÀÇ Ç×¸ñÀ» Æ÷ÇÔÇÒ ¼ö ÀÖÀ½**\n\nJson Format:\n{\n  "user_message": "<ÀÔ·Â ¹®Àå>",\n  "chat_message": "<ÇÑ±¹¾î·Î¸¸ ÀÀ´ä>",\n  "result": {\n    "status": "success",\n    "intent": "<One of this: get_category, get_menu, update_cart, place_order, get_order_history>",\n    "items": [\n      {\n        "menu_id": <Integer or null>,\n        "category_id": <Integer or null>,\n        "quantity": <Integer or null>,\n        "state": "<"add" or "remove" or "removeall" or null>"\n      }\n    ]\n  }\n}\n'}]
+INFO:root:Raw GPT response: Json Format:
+{
+  "user_message": "¾È³ç ¼ö¹Ú ¾ó¸¶¾ß",
+  "chat_message": "¼ö¹ÚÀº 18,000¿øÀÔ´Ï´Ù.",
+  "result": {
+    "status": "success",
+    "intent": "get_menu",
+    "items": [
+      {
+        "menu_id": 6,
+        "category_id": 2,
+        "quantity": null,
+        "state": null
+      }
+    ]
+  }
+}
+INFO:root:GPT parsed response:
+{'user_message': '¾È³ç ¼ö¹Ú ¾ó¸¶¾ß', 'chat_message': '¼ö¹ÚÀº 18,000¿øÀÔ´Ï´Ù.', 'result': {'status': 'success', 'intent': 'get_menu', 'items': [{'menu_id': 6, 'category_id': 2, 'quantity': None, 'state': None}], 'kiosk_id': 15, 'admin_id': 1}}
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:52:55] "POST /gpt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:53:05] "OPTIONS /gpt HTTP/1.1" 200 -
+INFO:root:Sending messages to OpenAI: [{'role': 'system', 'content': '\n´ç½ÅÀº À½½Ä Å°¿À½ºÅ© Ãªº¿ÀÌ¾ß. »ç¿ëÀÚÀÇ ÀÔ·ÂÀ» ´ÙÀ½ ´Ù¼¸ °¡Áö ÀÇµµ Áß ÇÏ³ª·Î ºÐ·ùÇÏ°í, ¹Ýµå½Ã ÀûÀýÇÑ JSON ÀÀ´äÀ» ÀÛ¼ºÇØ. µÇ¹¯Áö ¸»°í ¹Ýµå½Ã ÇÑ ¹ø¿¡ Ã³¸®ÇØ.\n\n°¡´ÉÇÑ ÀÇµµ:\n1. get_category: Æ¯Á¤ Ä«Å×°í¸® ¿äÃ» ¡æ items¿¡ category_id Æ÷ÇÔ\n2. get_menu: Æ¯Á¤ ¸Þ´º ¿äÃ», ¸Þ´º ÃßÃµ, °¡°Ý ¿äÃ»(°¡°ÝÀÌ °°À¸¸é ¶È°°´Ù°íÇØ) ¡æ items¿¡ menu_id, category_id Æ÷ÇÔ\n3. update_cart: Àå¹Ù±¸´Ï Ãß°¡/Á¦°Å/ÀüÃ¼Á¦°Å ¿äÃ» ¡æ items¿¡ menu_id, quantity, state Æ÷ÇÔ\n4. place_order: ÁÖ¹® ÇØ´Þ¶ó°í ÇÏ¸é place_order\n5. get_order_history: ÁÖ¹® ³»¿ª ¿äÃ» (¿¹: "ÁÖ¹®³»¿ª º¸¿©Áà")\n\nÀÀ´ä Çü½ÄÀº JSON °´Ã¼·Î ÇÏ¸ç, ÇÊ¿äÇÑ °æ¿ì ÇÏ³ª ÀÌ»óÀÇ Ç×¸ñÀ» ¹è¿­ ÇüÅÂ·Î Æ÷ÇÔÇÒ ¼ö ÀÖ½À´Ï´Ù.\n¿¹: "items": [{...}, {...}]\n\n\nHere is the menu and category data:\n\ncategories and menu = {\n  "admin_id": 1,\n  "categories": [\n    {\n      "categoryId": 2,\n      "categoryName": "Å×½ºÆ®",\n      "categoryNameEn": "Tesk",\n      "menus": [\n        [\n          6,\n          "¼ö¹Ú",\n          18000\n        ]\n      ]\n    },\n    {\n      "categoryId": 3,\n      "categoryName": "½Ä´ç",\n      "categoryNameEn": "Restaurant",\n      "menus": []\n    },\n    {\n      "categoryId": 4,\n      "categoryName": "½Ä·áÇ°",\n      "categoryNameEn": "grocery store",\n      "menus": []\n    },\n    {\n      "categoryId": 5,\n      "categoryName": "ÀâÈ­",\n      "categoryNameEn": "General Goods",\n      "menus": []\n    },\n    {\n      "categoryId": 6,\n      "categoryName": "Á¤À°Ã»°ú¼ö»ê",\n      "categoryNameEn": "Meat / Produce / Seafood",\n      "menus": []\n    },\n    {\n      "categoryId": 7,\n      "categoryName": "³ó»ê¹°°¡°ø",\n      "categoryNameEn": "Agricultural Processing",\n      "menus": []\n    },\n    {\n      "categoryId": 8,\n      "categoryName": "ÀÇ·ù",\n      "categoryNameEn": "Clothing & Accessories",\n      "menus": []\n    },\n    {\n      "categoryId": 9,\n      "categoryName": "ÁÂÆÇ",\n      "categoryNameEn": "Street Stall",\n      "menus": []\n    },\n    {\n      "categoryId": 10,\n      "categoryName": "¼­¿ïÃ»°ú",\n      "categoryNameEn": "seoul fruit",\n      "menus": []\n    }\n  ]\n}\n\n\n\n\u2b07 ´ÙÀ½Àº ÃÖ±Ù »ç¿ëÀÚ¿ÍÀÇ ´ëÈ­ 3½ÖÀÌ¾ß. ¹®¸Æ ÆÄ¾ÇÀ» À§ÇØ Âü°íÇØ.\n'}, {'role': 'user', 'content': '¤¾¤·'}, {'role': 'assistant', 'content': 'Could you please provide more information or let me know how I can assist you today?'}, {'role': 'user', 'content': '¾È³ç ¼ö¹Ú ¾ó¸¶¾ß'}, {'role': 'assistant', 'content': '¼ö¹ÚÀº 18,000¿øÀÔ´Ï´Ù.'}, {'role': 'user', 'content': '¼ö¹Ú ¾îµð¿¡¼­ ÆÈ¾Æ'}, {'role': 'system', 'content': '            \n**ÀÀ´äÀº ¹Ýµå½Ã ¾Æ·¡¿Í °°Àº JSON Çü½ÄÀ¸·Î¸¸ ÀÛ¼ºÇÏ°í, items´Â ¹è¿­ ÇüÅÂ·Î ÇÏ³ª ÀÌ»óÀÇ Ç×¸ñÀ» Æ÷ÇÔÇÒ ¼ö ÀÖÀ½**\n\nJson Format:\n{\n  "user_message": "<ÀÔ·Â ¹®Àå>",\n  "chat_message": "<ÇÑ±¹¾î·Î¸¸ ÀÀ´ä>",\n  "result": {\n    "status": "success",\n    "intent": "<One of this: get_category, get_menu, update_cart, place_order, get_order_history>",\n    "items": [\n      {\n        "menu_id": <Integer or null>,\n        "category_id": <Integer or null>,\n        "quantity": <Integer or null>,\n        "state": "<"add" or "remove" or "removeall" or null>"\n      }\n    ]\n  }\n}\n'}]
+INFO:root:Sending messages to OpenAI: [{'role': 'system', 'content': '\n´ç½ÅÀº À½½Ä Å°¿À½ºÅ© Ãªº¿ÀÌ¾ß. »ç¿ëÀÚÀÇ ÀÔ·ÂÀ» ´ÙÀ½ ´Ù¼¸ °¡Áö ÀÇµµ Áß ÇÏ³ª·Î ºÐ·ùÇÏ°í, ¹Ýµå½Ã ÀûÀýÇÑ JSON ÀÀ´äÀ» ÀÛ¼ºÇØ. µÇ¹¯Áö ¸»°í ¹Ýµå½Ã ÇÑ ¹ø¿¡ Ã³¸®ÇØ.\n\n°¡´ÉÇÑ ÀÇµµ:\n1. get_category: Æ¯Á¤ Ä«Å×°í¸® ¿äÃ» ¡æ items¿¡ category_id Æ÷ÇÔ\n2. get_menu: Æ¯Á¤ ¸Þ´º ¿äÃ», ¸Þ´º ÃßÃµ, °¡°Ý ¿äÃ»(°¡°ÝÀÌ °°À¸¸é ¶È°°´Ù°íÇØ) ¡æ items¿¡ menu_id, category_id Æ÷ÇÔ\n3. update_cart: Àå¹Ù±¸´Ï Ãß°¡/Á¦°Å/ÀüÃ¼Á¦°Å ¿äÃ» ¡æ items¿¡ menu_id, quantity, state Æ÷ÇÔ\n4. place_order: ÁÖ¹® ÇØ´Þ¶ó°í ÇÏ¸é place_order\n5. get_order_history: ÁÖ¹® ³»¿ª ¿äÃ» (¿¹: "ÁÖ¹®³»¿ª º¸¿©Áà")\n\nÀÀ´ä Çü½ÄÀº JSON °´Ã¼·Î ÇÏ¸ç, ÇÊ¿äÇÑ °æ¿ì ÇÏ³ª ÀÌ»óÀÇ Ç×¸ñÀ» ¹è¿­ ÇüÅÂ·Î Æ÷ÇÔÇÒ ¼ö ÀÖ½À´Ï´Ù.\n¿¹: "items": [{...}, {...}]\n\n\nHere is the menu and category data:\n\ncategories and menu = {\n  "admin_id": 1,\n  "categories": [\n    {\n      "categoryId": 2,\n      "categoryName": "Å×½ºÆ®",\n      "categoryNameEn": "Tesk",\n      "menus": [\n        [\n          6,\n          "¼ö¹Ú",\n          18000\n        ]\n      ]\n    },\n    {\n      "categoryId": 3,\n      "categoryName": "½Ä´ç",\n      "categoryNameEn": "Restaurant",\n      "menus": []\n    },\n    {\n      "categoryId": 4,\n      "categoryName": "½Ä·áÇ°",\n      "categoryNameEn": "grocery store",\n      "menus": []\n    },\n    {\n      "categoryId": 5,\n      "categoryName": "ÀâÈ­",\n      "categoryNameEn": "General Goods",\n      "menus": []\n    },\n    {\n      "categoryId": 6,\n      "categoryName": "Á¤À°Ã»°ú¼ö»ê",\n      "categoryNameEn": "Meat / Produce / Seafood",\n      "menus": []\n    },\n    {\n      "categoryId": 7,\n      "categoryName": "³ó»ê¹°°¡°ø",\n      "categoryNameEn": "Agricultural Processing",\n      "menus": []\n    },\n    {\n      "categoryId": 8,\n      "categoryName": "ÀÇ·ù",\n      "categoryNameEn": "Clothing & Accessories",\n      "menus": []\n    },\n    {\n      "categoryId": 9,\n      "categoryName": "ÁÂÆÇ",\n      "categoryNameEn": "Street Stall",\n      "menus": []\n    },\n    {\n      "categoryId": 10,\n      "categoryName": "¼­¿ïÃ»°ú",\n      "categoryNameEn": "seoul fruit",\n      "menus": []\n    }\n  ]\n}\n\n\n\n\u2b07 ´ÙÀ½Àº ÃÖ±Ù »ç¿ëÀÚ¿ÍÀÇ ´ëÈ­ 3½ÖÀÌ¾ß. ¹®¸Æ ÆÄ¾ÇÀ» À§ÇØ Âü°íÇØ.\n'}, {'role': 'user', 'content': '¤¾¤·'}, {'role': 'assistant', 'content': 'Could you please provide more information or let me know how I can assist you today?'}, {'role': 'user', 'content': '¾È³ç ¼ö¹Ú ¾ó¸¶¾ß'}, {'role': 'assistant', 'content': '¼ö¹ÚÀº 18,000¿øÀÔ´Ï´Ù.'}, {'role': 'user', 'content': '¼ö¹Ú ¾îµð¿¡¼­ ÆÈ¾Æ'}, {'role': 'system', 'content': '            \n**ÀÀ´äÀº ¹Ýµå½Ã ¾Æ·¡¿Í °°Àº JSON Çü½ÄÀ¸·Î¸¸ ÀÛ¼ºÇÏ°í, items´Â ¹è¿­ ÇüÅÂ·Î ÇÏ³ª ÀÌ»óÀÇ Ç×¸ñÀ» Æ÷ÇÔÇÒ ¼ö ÀÖÀ½**\n\nJson Format:\n{\n  "user_message": "<ÀÔ·Â ¹®Àå>",\n  "chat_message": "<ÇÑ±¹¾î·Î¸¸ ÀÀ´ä>",\n  "result": {\n    "status": "success",\n    "intent": "<One of this: get_category, get_menu, update_cart, place_order, get_order_history>",\n    "items": [\n      {\n        "menu_id": <Integer or null>,\n        "category_id": <Integer or null>,\n        "quantity": <Integer or null>,\n        "state": "<"add" or "remove" or "removeall" or null>"\n      }\n    ]\n  }\n}\n'}]
+INFO:root:Raw GPT response: {
+  "user_message": "¼ö¹Ú ¾îµð¿¡¼­ ÆÈ¾Æ",
+  "chat_message": "Å×½ºÆ® Ä«Å×°í¸®¿¡¼­ ¼ö¹ÚÀ» ÆÈ°í ÀÖ¾î¿ä.",
+  "result": {
+    "status": "success",
+    "intent": "get_category",
+    "items": [
+      {
+        "category_id": 2
+      }
+    ]
+  }
+}
+INFO:root:GPT parsed response:
+{'user_message': '¼ö¹Ú ¾îµð¿¡¼­ ÆÈ¾Æ', 'chat_message': 'Å×½ºÆ® Ä«Å×°í¸®¿¡¼­ ¼ö¹ÚÀ» ÆÈ°í ÀÖ¾î¿ä.', 'result': {'status': 'success', 'intent': 'get_category', 'items': [{'category_id': 2}], 'kiosk_id': 15, 'admin_id': 1}}
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:53:07] "POST /gpt HTTP/1.1" 200 -
+INFO:root:Raw GPT response: {
+  "user_message": "¼ö¹Ú ¾îµð¿¡¼­ ÆÈ¾Æ",
+  "chat_message": "¼ö¹ÚÀº 'Å×½ºÆ®' Ä«Å×°í¸®¿¡ ÀÖ½À´Ï´Ù.",
+  "result": {
+    "status": "success",
+    "intent": "get_category",
+    "items": [
+      {
+        "menu_id": null,
+        "category_id": 2,
+        "quantity": null,
+        "state": null
+      }
+    ]
+  }
+}
+INFO:root:GPT parsed response:
+{'user_message': '¼ö¹Ú ¾îµð¿¡¼­ ÆÈ¾Æ', 'chat_message': "¼ö¹ÚÀº 'Å×½ºÆ®' Ä«Å×°í¸®¿¡ ÀÖ½À´Ï´Ù.", 'result': {'status': 'success', 'intent': 'get_category', 'items': [{'menu_id': None, 'category_id': 2, 'quantity': None, 'state': None}], 'kiosk_id': 15, 'admin_id': 1}}
+INFO:werkzeug:127.0.0.1 - - [22/Dec/2025 19:53:09] "POST /gpt HTTP/1.1" 200 -

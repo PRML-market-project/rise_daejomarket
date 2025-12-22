@@ -1,0 +1,14 @@
+[
+  {
+    "user_message": "ㅎㅇ",
+    "chat_message": "Could you please provide more information or let me know how I can assist you today?"
+  },
+  {
+    "user_message": "안녕 수박 얼마야",
+    "chat_message": "수박은 18,000원입니다."
+  },
+  {
+    "user_message": "수박 어디에서 팔아",
+    "chat_message": "수박은 '테스트' 카테고리에 있습니다."
+  }
+]
