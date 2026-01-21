@@ -18,6 +18,7 @@ public class MenuResponse {
     private String menuName;
     private String menuNameEn;
     private BigDecimal menuPrice;
+    private String menuCount;
     private String imageUrl;
     private Long adminId;
     private List<CategoryInfo> categories;
@@ -28,6 +29,7 @@ public class MenuResponse {
                 .menuName(menu.getMenuName())
                 .menuNameEn(menu.getMenuNameEn())
                 .menuPrice(menu.getMenuPrice())
+                .menuCount(menu.getMenuCount())
                 .imageUrl(menu.getImageUrl())
                 .adminId(menu.getAdminId())
                 .categories(

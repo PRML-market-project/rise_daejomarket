@@ -31,6 +31,9 @@ public class Menu extends BaseEntity {
     @Column(name = "admin_id", nullable = false)
     private Long adminId;
 
+    @Column(nullable = false)
+    private String menuCount;
+
     @OneToMany(mappedBy = "menu", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<MenuCategory> menuCategories = new ArrayList<>();

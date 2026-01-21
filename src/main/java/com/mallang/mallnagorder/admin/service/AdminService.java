@@ -96,6 +96,7 @@ public class AdminService {
             Category defaultCategory = Category.builder()
                     .categoryName("전체")
                     .categoryNameEn("All")
+                    .categoryType("DEFAULT")
                     .adminId(admin.getId())
                     .menuCategories(new ArrayList<>())
                     .build();

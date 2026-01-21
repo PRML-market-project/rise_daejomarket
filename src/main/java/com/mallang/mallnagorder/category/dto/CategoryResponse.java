@@ -17,6 +17,7 @@ public class CategoryResponse {
     private Long categoryId;
     private String categoryName;
     private String categoryNameEn;
+    private String categoryType;
     private Long adminId;
     private List<MenuInfo> menus;
 
@@ -25,6 +26,7 @@ public class CategoryResponse {
                 .categoryId(category.getId())
                 .categoryName(category.getCategoryName())
                 .categoryNameEn(category.getCategoryNameEn())
+                .categoryType(category.getCategoryType())
                 .adminId(category.getAdminId())
                 .menus(
                         category.getMenuCategories().stream()

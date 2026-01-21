@@ -31,7 +31,7 @@ public class CategoryService {
     private final AdminPayloadService adminPayloadService;
 
     @Transactional
-    public CategoryResponse createCategory(String categoryName, String categoryNameEn, Long adminId) {
+    public CategoryResponse createCategory(String categoryName, String categoryNameEn, String categoryType, Long adminId) {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new AdminException(AdminExceptionType.ADMIN_NOT_EXIST));
 
@@ -45,6 +45,7 @@ public class CategoryService {
         Category category = Category.builder()
                 .categoryName(categoryName)
                 .categoryNameEn(categoryNameEn)
+                .categoryType(categoryType)
                 .adminId(admin.getId())
                 .build();
 
@@ -55,7 +56,7 @@ public class CategoryService {
     }
 
     @Transactional
-    public CategoryResponse updateCategory(Long adminId, Long categoryId, String newName, String newNameEn) {
+    public CategoryResponse updateCategory(Long adminId, Long categoryId, String newName, String newNameEn, String newCategoryType) {
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new CategoryException(CategoryExceptionType.CATEGORY_NOT_FOUND));
 
@@ -68,6 +69,7 @@ public class CategoryService {
 
         category.setCategoryName(newName);
         category.setCategoryNameEn(newNameEn);
+        category.setCategoryType(newCategoryType);
 
         adminPayloadService.generateAndForward(adminId);
         return toResponse(category);
@@ -102,6 +104,7 @@ public class CategoryService {
                 .categoryId(category.getId())
                 .categoryName(category.getCategoryName())
                 .categoryNameEn(category.getCategoryNameEn())
+                .categoryType(category.getCategoryType())
                 .adminId(category.getAdminId())
                 .build();
     }

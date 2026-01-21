@@ -10,4 +10,5 @@ import lombok.Setter;
 public class CategoryRequest {
     private String categoryName;
     private String categoryNameEn;
+    private String categoryType;
 }

@@ -13,6 +13,7 @@ public class MenuRequest {
     private String menuName;
     private String menuNameEn;
     private BigDecimal menuPrice;
+    private String menuCount;
     private List<Long> categoryIds;
     private MultipartFile image; // 이미지 파일 추가
 }

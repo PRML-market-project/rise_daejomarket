@@ -25,6 +25,9 @@ public class Category extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String categoryNameEn;
 
+    @Column(nullable = false, length = 50)
+    private String categoryType;
+
     @Column(name = "admin_id", nullable = false)
     private Long adminId;
 

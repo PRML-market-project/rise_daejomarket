@@ -13,5 +13,4 @@ public class MallnagorderApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(MallnagorderApplication.class, args);
 	}
-
 }

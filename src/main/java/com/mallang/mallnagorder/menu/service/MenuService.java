@@ -77,6 +77,7 @@ public class MenuService {
                 .menuName(request.getMenuName())
                 .menuNameEn(request.getMenuNameEn())
                 .menuPrice(request.getMenuPrice())
+                .menuCount(request.getMenuCount() != null ? request.getMenuCount() : "0")
                 .imageUrl(imageUrl)
                 .adminId(admin.getId())
                 .visible(true)
@@ -120,6 +121,9 @@ public class MenuService {
         menu.setMenuName(request.getMenuName());
         menu.setMenuNameEn(request.getMenuNameEn());
         menu.setMenuPrice(request.getMenuPrice());
+        if (request.getMenuCount() != null) {
+            menu.setMenuCount(request.getMenuCount());
+        }
 
         if (request.getImage() != null && !request.getImage().isEmpty()) {
             String imageUrl = uploadImageOrDefault(request);
@@ -182,6 +186,7 @@ public class MenuService {
                 .orElseGet(() -> categoryRepository.save(Category.builder()
                         .categoryName("전체")
                         .categoryNameEn("All")
+                        .categoryType("DEFAULT")
                         .adminId(adminId)
                         .build()));
     }
@@ -215,6 +220,7 @@ public class MenuService {
                 .menuName(menu.getMenuName())
                 .menuNameEn(menu.getMenuNameEn())
                 .menuPrice(menu.getMenuPrice())
+                .menuCount(menu.getMenuCount())
                 .imageUrl(menu.getImageUrl())
                 .adminId(menu.getAdminId())
                 .categories(

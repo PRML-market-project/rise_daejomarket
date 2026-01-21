@@ -21,7 +21,7 @@ public class CategoryController {
     @PostMapping
     public ResponseEntity<CategoryResponse> createCategory(@AuthenticationPrincipal AdminDetails adminDetails,
                                                            @RequestBody CategoryRequest request) {
-        CategoryResponse response = categoryService.createCategory(request.getCategoryName(), request.getCategoryNameEn(), adminDetails.getAdmin().getId());
+        CategoryResponse response = categoryService.createCategory(request.getCategoryName(), request.getCategoryNameEn(), request.getCategoryType(), adminDetails.getAdmin().getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -30,7 +30,7 @@ public class CategoryController {
     public ResponseEntity<CategoryResponse> updateCategory(@AuthenticationPrincipal AdminDetails adminDetails,
                                                            @PathVariable Long categoryId,
                                                            @RequestBody CategoryRequest request) {
-        CategoryResponse response = categoryService.updateCategory(adminDetails.getAdmin().getId(), categoryId, request.getCategoryName(), request.getCategoryNameEn());
+        CategoryResponse response = categoryService.updateCategory(adminDetails.getAdmin().getId(), categoryId, request.getCategoryName(), request.getCategoryNameEn(), request.getCategoryType());
         return ResponseEntity.ok(response);
     }
 
