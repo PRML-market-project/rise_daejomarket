@@ -1,11 +1,10 @@
 from flask import Flask, request, jsonify, send_file
-# from pyngrok import ngrok
 import torch
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 import torchaudio
 import os
 import json
-import openai
+from openai import OpenAI  # [변경] 최신 라이브러리 호출 방식
 import io
 from flask_cors import CORS
 import logging
@@ -18,7 +17,6 @@ from pathlib import Path
 import uuid
 import asyncio
 import edge_tts
-
 
 # ==========================================
 # 1. 초기 설정 및 환경 변수
@@ -39,11 +37,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 로그 설정
 logging.basicConfig(filename="gpt_api_logs.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# OpenAI API 키 설정
-openai.api_key = os.getenv("OPENAI_API_KEY")
-print("OPENAI_API_KEY loaded:", bool(openai.api_key))
-if not openai.api_key:
+# [변경] OpenAI API 키 설정 및 클라이언트 생성 (v1.0+)
+api_key = os.getenv("OPENAI_API_KEY")
+print("OPENAI_API_KEY loaded:", bool(api_key))
+if not api_key:
     raise RuntimeError("OPENAI_API_KEY가 .env에서 로드되지 않았습니다.")
+
+client = OpenAI(api_key=api_key)  # 최신 클라이언트 인스턴스
 
 # Whisper 모델 로딩
 try:
@@ -176,7 +176,7 @@ def transform_categories(language, cat_list):
             else:
                 transformed_menus.append([menu['menuId'], menu['menuName'], menu['menuNameEn'], price, count])
 
-        # [수정] categoryType 추출 (없을 경우 빈 문자열)
+        # categoryType 추출 (없을 경우 빈 문자열)
         category_type = cat.get('categoryType', '')
 
         result.append({
@@ -195,11 +195,10 @@ def transform_categories(language, cat_list):
 # [변경] chat_history 인자 제거 및 관련 로직 삭제
 def detect_intent(text):
     """
-    GPT를 사용하여 사용자 의도를 1, 2, 3 중 하나로 분류 (데이터 미포함, 가벼운 프롬프트)
-    이전 대화 내역은 반영하지 않음.
+    GPT를 사용하여 사용자 의도를 1, 2, 3, 4 중 하나로 분류
     """
     prompt = """
-다음 문장의 의도를 분석하여 숫자(1~3)만 반환하세요. 다른 말은 절대 하지 마세요.
+다음 문장의 의도를 분석하여 숫자(1~4)만 반환하세요. 다른 말은 절대 하지 마세요.
 
 1. 가게/카테고리 요청: 특정 가게(점포)를 보여달라고 할 때. (ex: 키위 사려는데 어느 가게에서 살 수 있나요?)
 2. 메뉴/주문 관련: 특정 메뉴의 가격을 묻거나, 메뉴 추천을 원할 때. (ex: 키위 사려는데 얼마인가요?)
@@ -208,19 +207,20 @@ def detect_intent(text):
 
 입력:
 """
-    messages = [{"role": "system", "content": prompt}]
-
-    # [삭제됨] 이전 대화 내역(chat_history) 추가 로직 제거
-
-    messages.append({"role": "user", "content": text})
+    messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": text}
+    ]
 
     try:
-        completion = openai.ChatCompletion.create(
+        # [변경] client.chat.completions.create 사용 (v1.0+)
+        completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
             temperature=0.0,
             max_tokens=5
         )
+        # [변경] 객체 접근 방식
         intent_str = completion.choices[0].message.content.strip()
         match = re.search(r'\d', intent_str)
         if match:
@@ -238,10 +238,12 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
     이전 대화 내역은 반영하지 않음.
     """
 
+    system_prompt = "" # 초기화
+
     # ---------------------------
-    # Intent 1, 2: 메뉴 및 카테고리
+    # Intent 1, 2, 3, 4 처리
     # ---------------------------
-    if intent in [1, 2, 4]:
+    if intent in [1, 2, 3, 4]:
         admin_json_path = BASE_DIR / f"{admin_id}.json"
         if not os.path.exists(admin_json_path):
             return {"error": "admin_id.json 파일 없음"}
@@ -353,37 +355,43 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         """
 
 
+            # ================================================================
+            # Intent 4: 가격 계산
+            # ================================================================
             elif intent == 4:
-
                 system_prompt = f"""
-            당신은 시장 가격 계산 도우미입니다. 사용자가 요청한 여러 상품의 총 가격을 계산하고 안내하세요.
-            [지침]
-            1. [메뉴 데이터]에서 사용자가 언급한 각 상품의 단가를 찾으세요.
-            2. 요청 수량에 맞춰 개별 금액과 총 합계 금액을 계산하세요.
-            3. `chat_message`에는 각 총액을 언급하세요.
-            
+            당신은 시장 가격 계산 도우미입니다. 사용자가 요청한 여러 상품의 총 가격을 정확하게 계산하여 안내하세요.
+
+            [계산 지침]
+            1. 먼저 [메뉴 데이터]에서 사용자가 언급한 각 상품의 단가(menuPrice)를 확인하세요.
+            2. 각 상품별로 [단가 × 요청 수량 = 소계]를 한 단계씩 계산하세요.
+            3. 모든 소계를 합산하여 '최종 합계 금액'을 구하세요. 계산 실수가 없도록 신중히 검토하세요.
+            4. 상품이 여러개면 단가 당 최저가를 기준으로 계산하세요.
+
+            [출력 지침]
+            `chat_message`에는 최저가 기준이 있다면 <상품> <수량표현> 사이에 "최저가 기준"이라는 단어를 넣어.
+            오직 JSON만 출력하세요.
+
+
             [메뉴 데이터]
             {json.dumps(menu_context, ensure_ascii=False)}
-            
+
             [메뉴 데이터 구조]
             - 형식: [menuId, menuName, menuPrice, menuCount]
-            - 예: [8, "수박", 16000, "1통"]
-            
+
             JSON 출력 예시:
             {{
               "user_message": "{text}",
-              "chat_message": "각 상품을 모두 구매하면 총가격원 입니다.",
+              "chat_message": "<상품1> <수량표현> <소계>원, <상품2> <수량표현> <소계>원, 총 <합계>원입니다.",
               "result": {{
                 "status": "success",
                 "intent": "get_total_price",
-                "items": [ null
-                ]
               }}
             }}
             """
 
             # ================================================================
-            # Intent 5: 잡담 / 기타
+            # Intent 5 (Else): 잡담 / 기타
             # ================================================================
             else:
                 system_prompt = f"""
@@ -499,7 +507,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         """
 
             # ================================================================
-            # Intent 4: Chitchat
+            # Intent 4: Chitchat / Else
             # ================================================================
             else:
                 system_prompt = f"""
@@ -519,19 +527,31 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         """
 
     # 공통 GPT 호출
-    messages = [{"role": "system", "content": system_prompt}]
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": text}
+    ]
 
-    # [삭제됨] 이전 대화 내역(chat_history) 추가 로직 제거
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5.2-chat-latest",
+            messages=messages,
+            response_format={"type": "json_object"}
+        )
+        return response.choices[0].message.content.strip()
 
-    messages.append({"role": "user", "content": text})
-
-    completion = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=messages,
-        temperature=0.5
-    )
-
-    return completion.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"⚠️ GPT-5-mini 호출 실패 (또는 모델 없음), gpt-4o로 전환합니다: {e}")
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages,
+                temperature=0.5,
+                response_format={"type": "json_object"}
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e2:
+            return json.dumps({"error": str(e2)})
 
 
 # ==========================================
