@@ -49,13 +49,6 @@ public class MenuService {
         Admin admin = adminRepository.findById(adminId)
                 .orElseThrow(() -> new AdminException(AdminExceptionType.ADMIN_NOT_EXIST));
 
-        if (menuRepository.existsByMenuNameAndAdminId(request.getMenuName(), adminId)) {
-            throw new MenuException(MenuExceptionType.ALREADY_EXIST_NAME);
-        }
-        if (menuRepository.existsByMenuNameEnAndAdminId(request.getMenuNameEn(), adminId)) {
-            throw new MenuException(MenuExceptionType.ALREADY_EXIST_NAME_EN);
-        }
-
         String imageUrl = uploadImageOrDefault(request);
 
         // 1. 요청 카테고리 조회 - 반드시 DB에서 존재하는 카테고리만 추가 (id null 방지)
@@ -110,13 +103,6 @@ public class MenuService {
     public MenuResponse updateMenu(Long adminId, Long menuId, MenuRequest request) {
         Menu menu = menuRepository.findByIdAndAdminId(menuId, adminId)
                 .orElseThrow(() -> new MenuException(MenuExceptionType.MENU_NOT_FOUND));
-
-        if (menuRepository.existsByMenuNameAndAdminIdAndIdNot(request.getMenuName(), adminId, menuId)) {
-            throw new MenuException(MenuExceptionType.ALREADY_EXIST_NAME);
-        }
-        if (menuRepository.existsByMenuNameEnAndAdminIdAndIdNot(request.getMenuNameEn(), adminId, menuId)) {
-            throw new MenuException(MenuExceptionType.ALREADY_EXIST_NAME_EN);
-        }
 
         menu.setMenuName(request.getMenuName());
         menu.setMenuNameEn(request.getMenuNameEn());
