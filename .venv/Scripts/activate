@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\admin\Desktop\pj\AI-server\AI-server\.venv"
+VIRTUAL_ENV="C:\Users\user\Desktop\pj\AI-server\.venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

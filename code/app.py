@@ -4,7 +4,7 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor
 import torchaudio
 import os
 import json
-from openai import OpenAI  # [변경] 최신 라이브러리 호출 방식
+from openai import OpenAI
 import io
 from flask_cors import CORS
 import logging
@@ -17,6 +17,33 @@ from pathlib import Path
 import uuid
 import asyncio
 import edge_tts
+import time
+from functools import wraps
+
+
+# ==========================================
+# ✅ 공용 타이밍 유틸 (추가)
+# ==========================================
+def now_ms() -> float:
+    return time.perf_counter() * 1000
+
+class Timer:
+    def __init__(self):
+        self.t0 = now_ms()
+        self.marks = {}
+    def mark(self, name: str):
+        self.marks[name] = now_ms()
+    def result(self):
+        # t0 기준 상대 ms로 변환
+        out = {}
+        prev = self.t0
+        for k, t in self.marks.items():
+            out[f"{k}_since_start_ms"] = round(t - self.t0, 2)
+            out[f"{k}_delta_ms"] = round(t - prev, 2)
+            prev = t
+        out["total_ms"] = round(now_ms() - self.t0, 2)
+        return out
+
 
 # ==========================================
 # 1. 초기 설정 및 환경 변수
@@ -270,7 +297,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         1. 사용자가 찾는 메뉴를 [메뉴 데이터]에서 검색하세요.
         2. 여러 가게에서 팔고 있다면 `chat_message`에 가게명을 모두 나열하세요.
         3. `result.items` 배열에 **해당 메뉴를 판매하는 모든 가게의 정보**를 담으세요.
-        4. **중요: items[0]은 반드시 최저가 가게여야 합니다.**
+        4. **중요: items[0]은 반드시 가격/판매단위(menuCount)가 최저인 가게여야 합니다.**
 
         [메뉴 데이터]
         {json.dumps(menu_context, ensure_ascii=False)}
@@ -278,7 +305,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         JSON 출력 예시:
         {{
           "user_message": "{text}",
-          "chat_message": "키위는 'A농산', 'B청과', 'C유통'에서 판매 중입니다. 가장 저렴한 'B청과' 화면입니다.",
+          "chat_message": "키위는 'A농산', 'B청과', 'C유통'에서 판매 중입니다. 가장 저렴한 곳은 'B청과'입니다.",
           "result": {{
             "status": "success",
             "intent": "get_store",
@@ -303,7 +330,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         1. 사용자가 찾는 메뉴를 [메뉴 데이터]에서 검색하세요.
         2. 여러 가게에서 팔고 있다면 `chat_message`에 **가게명, 판매단위(menuCount), 가격**을 정확히 나열하세요.
         3. **중요: menuCount 값을 임의 변경하지 마세요.**
-        4. `result`에는 **최저가 상품의 menu_id와 category_id**를 담으세요.
+        4. `result`에는 **가격/판매단위(menuCount)가 최저인 상품의 menu_id와 category_id**를 담으세요.
 
         [메뉴 데이터 구조]
         - 형식: [menuId, menuName, menuPrice, menuCount]
@@ -312,10 +339,10 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         [메뉴 데이터]
         {json.dumps(menu_context, ensure_ascii=False)}
 
-        JSON 출력 예시:
+        JSON 출력 예시:[menuName]
         {{
           "user_message": "{text}",
-          "chat_message": "[categoryName]가게는 [menuName] [menuCount] [menuPrice]원, [categoryName]가게는 [menuName] [menuCount] [menuPrice]원입니다. 가장 저렴하게 판매 중인 'A가게' 화면입니다.",
+          "chat_message": "[menuName]는 [categoryName]에서 [menuCount] [menuPrice]원, [categoryName]에서 [menuCount] [menuPrice]원입니다. 개당 가격 기준으로 가장 저렴한 'A가게' 화면입니다.",
           "result": {{
             "status": "success",
             "intent": "get_menu",
@@ -366,10 +393,8 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
             1. 먼저 [메뉴 데이터]에서 사용자가 언급한 각 상품의 단가(menuPrice)를 확인하세요.
             2. 각 상품별로 [단가 × 요청 수량 = 소계]를 한 단계씩 계산하세요.
             3. 모든 소계를 합산하여 '최종 합계 금액'을 구하세요. 계산 실수가 없도록 신중히 검토하세요.
-            4. 상품이 여러개면 단가 당 최저가를 기준으로 계산하세요.
 
             [출력 지침]
-            `chat_message`에는 최저가 기준이 있다면 <상품> <수량표현> 사이에 "최저가 기준"이라는 단어를 넣어.
             오직 JSON만 출력하세요.
 
 
@@ -640,71 +665,66 @@ def stt():
 
 @app.route('/gpt', methods=['POST'])
 def gpt():
+    timer = Timer()
     try:
+        timer.mark("request_received")
+
         data = request.get_json(force=True)
+        timer.mark("parsed_json")
+
         if not data or 'text' not in data or 'kiosk_id' not in data or 'admin_id' not in data:
-            return jsonify({"error": "Missing required parameters."}), 400
+            return jsonify({"error": "Missing required parameters.", "timings": timer.result()}), 400
 
         text = data['text']
         kiosk_id = int(data['kiosk_id'])
         admin_id = int(data['admin_id'])
 
-        # [변경] 대화 내역(chat_history) 로드 로직 제거
-        # chat_history_path = BASE_DIR / f"chat_history_{admin_id}_{kiosk_id}.json"
-        # chat_history = []
-        # if os.path.exists(chat_history_path):
-        #     with open(chat_history_path, 'r', encoding='utf-8') as f:
-        #         chat_history = json.load(f)
-
-        # 2. 언어 감지
         language = detect_language(text)
+        timer.mark("language_detected")
 
-        # 3. [STEP 1] 의도 파악 (대화 내역 인자 제거)
         intent = detect_intent(text)
-        logging.info(f"Detected Intent: {intent} (Text: {text})")
-        print(f"🧐 분석된 의도(Intent): {intent}")
+        timer.mark("intent_detected")
 
-        # 4. [STEP 2] 의도에 따른 데이터 선택 및 응답 생성 (대화 내역 인자 제거)
         gpt_raw_response = get_response_by_intent(intent, text, admin_id, kiosk_id, language)
+        timer.mark("llm_response_received")
 
-        # 에러 처리
         if isinstance(gpt_raw_response, dict) and "error" in gpt_raw_response:
-            return jsonify(gpt_raw_response), 500
+            return jsonify({**gpt_raw_response, "timings": timer.result()}), 500
 
-        logging.info(f"Raw GPT response: {gpt_raw_response}")
-        print(f"raw GPT 응답 {gpt_raw_response}")
-
-        # 5. JSON 파싱 및 후처리
-        # 코드블록 제거
-        cleaned_response = re.sub(r"^```(?:json)?\s*|`\s*```$", "", gpt_raw_response, flags=re.IGNORECASE | re.MULTILINE)
+        cleaned_response = re.sub(
+            r"^```(?:json)?\s*|`\s*```$",
+            "",
+            gpt_raw_response,
+            flags=re.IGNORECASE | re.MULTILINE
+        )
+        timer.mark("codeblock_stripped")
 
         try:
-            # JSON 부분만 추출 시도
             json_match = re.search(r'\{.*\}', cleaned_response, re.DOTALL)
             if json_match:
                 result_json = json.loads(json_match.group())
             else:
                 result_json = json.loads(cleaned_response)
+            timer.mark("json_parsed")
         except json.JSONDecodeError as e:
             logging.error(f"JSON Parsing Error: {e}\nResponse: {cleaned_response}")
-            return jsonify({"error": "Failed to parse GPT response", "raw": cleaned_response}), 500
+            return jsonify({"error": "Failed to parse GPT response", "raw": cleaned_response, "timings": timer.result()}), 500
 
-        # 필수 필드 주입
         if "result" in result_json:
             result_json["result"]["kiosk_id"] = kiosk_id
             result_json["result"]["admin_id"] = admin_id
 
-        print(f"🤖 최종 GPT 응답:\n{json.dumps(result_json, ensure_ascii=False, indent=2)}")
-
-        # [변경] 대화 내역 저장 로직 제거
-        # chat_history.append({ ... })
-        # with open(...) ...
+        timings = timer.result()
+        result_json["timings"] = timings  # ✅ 응답에 포함
+        logging.info(f"[GPT] timings={timings} intent={intent}")
 
         return jsonify(result_json)
 
     except Exception as e:
-        logging.exception("GPT Endpoint Error:")
-        return jsonify({"error": str(e)}), 500
+        timings = timer.result()
+        logging.exception(f"[GPT] Endpoint Error timings={timings}")
+        return jsonify({"error": str(e), "timings": timings}), 500
+
 
 
 @app.route('/upload_jsons', methods=['POST'])
