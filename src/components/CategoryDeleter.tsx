@@ -57,28 +57,28 @@ export default function CategoryDeleter({
   };
 
   const outlineTrigger =
-    'outline-none w-[400px] rounded-2xl flex items-center justify-between bg-card text-foreground border border-border transition focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed';
+    'outline-none w-full sm:w-[300px] md:w-[400px] lg:w-[500px] xl:w-[600px] rounded-2xl flex items-center justify-between bg-card text-foreground border border-border transition focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed p-3 md:p-4 lg:p-5 xl:p-6 text-sm md:text-base lg:text-lg';
 
   const dangerBtn =
-    'flex items-center justify-center gap-2 rounded-2xl p-4 w-[200px] text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed bg-destructive text-white hover:opacity-95';
+    'flex items-center justify-center gap-2 rounded-2xl p-3 md:p-4 lg:p-5 xl:p-6 w-full sm:w-[180px] md:w-[200px] lg:w-[240px] xl:w-[280px] h-[48px] sm:h-[52px] md:h-[56px] lg:h-[64px] xl:h-[72px] font-medium transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed bg-destructive text-white hover:opacity-95 text-sm sm:text-base md:text-lg lg:text-xl';
 
   return (
-    <div className="flex w-full gap-8">
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col lg:flex-row w-full gap-4 sm:gap-6 md:gap-8 lg:gap-10 xl:gap-12">
+      <div className="flex flex-col gap-2 sm:gap-3">
         <DropdownMenu>
-          <span className="inter-semibold text-foreground">삭제할 점포</span>
+          <span className="inter-semibold text-foreground text-sm sm:text-base md:text-lg lg:text-xl">삭제할 점포</span>
 
           <DropdownMenuTrigger
             className={outlineTrigger}
             disabled={loading || filteredCategories.length === 0}
           >
             {filteredCategories.length === 0 ? (
-              <span className="inter-regular p-4 text-muted-foreground">
+              <span className="inter-regular text-muted-foreground">
                 생성된 카테고리가 없습니다
               </span>
             ) : (
               <>
-                <span className="inter-regular w-full p-4 text-left">
+                <span className="inter-regular w-full text-left">
                   {selectedCategory
                     ? `${selectedCategory.category_name} (${selectedCategory.category_name_en})`
                     : '점포 선택'}
@@ -88,23 +88,23 @@ export default function CategoryDeleter({
                   alt="arrow-down"
                   width={16}
                   height={16}
-                  className="mx-4 opacity-70"
+                  className="ml-2 sm:ml-4 opacity-70 w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
                 />
               </>
             )}
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent className="w-[400px] left-0 bg-card text-foreground border border-border">
+          <DropdownMenuContent className="w-full sm:w-[300px] md:w-[400px] lg:w-[500px] xl:w-[600px] left-0 bg-card text-foreground border border-border text-sm md:text-base lg:text-lg">
             <DropdownMenuSeparator />
             {filteredCategories.length === 0 ? (
-              <div className="p-4 text-center text-muted-foreground">
+              <div className="p-3 md:p-4 lg:p-5 text-center text-muted-foreground">
                 생성된 카테고리가 없습니다
               </div>
             ) : (
               filteredCategories.map((category) => (
                 <DropdownMenuItem
                   key={category.category_id}
-                  className="w-[400px] cursor-pointer focus:bg-accent focus:text-foreground"
+                  className="w-full cursor-pointer focus:bg-accent focus:text-foreground p-3 md:p-4 lg:p-5"
                   onSelect={() => setSelectedCategory(category)}
                 >
                   {`${category.category_name} (${category.category_name_en})`}
@@ -115,15 +115,15 @@ export default function CategoryDeleter({
         </DropdownMenu>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <span className="inter-semibold text-foreground">점포 삭제</span>
+      <div className="flex flex-col gap-2 sm:gap-3">
+        <span className="inter-semibold text-foreground text-sm sm:text-base md:text-lg lg:text-xl">점포 삭제</span>
 
         <button
           onClick={handleDelete}
           disabled={!selectedCategory || loading}
           className={dangerBtn}
         >
-          <Image src="/Submit.svg" alt="delete" width={16} height={16} />
+          <Image src="/Submit.svg" alt="delete" width={16} height={16} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
           <span className="inter-regular">
             {loading ? '처리중...' : '삭제하기'}
           </span>

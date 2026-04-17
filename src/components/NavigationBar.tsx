@@ -113,11 +113,11 @@ export default function NavigationBar() {
         ].join(' ')}
       >
         {/* Profile */}
-        <div className="p-6 flex flex-col items-center gap-4">
+        <div className="p-4 sm:p-5 md:p-6 lg:p-8 xl:p-10 flex flex-col items-center gap-3 sm:gap-4 md:gap-5 lg:gap-6">
           {storeInfo && (
             <>
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center relative overflow-hidden border"
+                className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-full flex items-center justify-center relative overflow-hidden border"
                 style={{
                   background: 'var(--ml-auth-logo-bg)',
                   borderColor: 'var(--border)',
@@ -125,7 +125,7 @@ export default function NavigationBar() {
                 }}
               >
                 <span
-                  className="text-xl font-semibold"
+                  className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-semibold"
                   style={{
                     background: 'var(--ml-auth-logo-text-gradient)',
                     WebkitBackgroundClip: 'text',
@@ -138,17 +138,17 @@ export default function NavigationBar() {
               </div>
 
               <div className="text-center">
-                <p className="font-semibold text-sidebar-foreground">
+                <p className="font-semibold text-sidebar-foreground text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl">
                   {storeInfo.adminName}
                 </p>
-                <p className="text-sm text-muted-foreground">{storeInfo.email}</p>
+                <p className="text-xs sm:text-sm md:text-base lg:text-lg text-muted-foreground">{storeInfo.email}</p>
               </div>
             </>
           )}
         </div>
 
         {/* Navigation */}
-        <ul className="flex flex-col gap-2 w-[84%] mx-auto mt-4">
+        <ul className="flex flex-col gap-2 sm:gap-3 md:gap-4 w-[84%] mx-auto mt-2 sm:mt-3 md:mt-4">
           {navItems.map(({ href, label, icon }) => {
             const isSelected = pathname === href;
             const imageSrc = `/${icon}${isSelected ? 'S' : ''}.svg`;
@@ -157,15 +157,16 @@ export default function NavigationBar() {
               <li
                 key={href}
                 className={[
-                  'w-full p-4 rounded-2xl transition',
+                  'w-full rounded-2xl transition',
+                  'p-3 sm:p-3 md:p-4 lg:p-5 xl:p-6',
                   isSelected
                     ? 'bg-card text-foreground shadow-sm'
                     : 'hover:bg-accent text-sidebar-foreground',
                 ].join(' ')}
               >
-                <Link href={href} className="flex items-center gap-2">
-                  <Image src={imageSrc} alt={label} width={18} height={18} />
-                  <p>{label}</p>
+                <Link href={href} className="flex items-center gap-2 sm:gap-3">
+                  <Image src={imageSrc} alt={label} width={18} height={18} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 lg:w-7 lg:h-7" />
+                  <p className="text-sm sm:text-base md:text-lg lg:text-xl">{label}</p>
                 </Link>
               </li>
             );
@@ -173,28 +174,30 @@ export default function NavigationBar() {
         </ul>
 
         {/* Bottom actions */}
-        <div className="mt-auto mb-8 w-[84%] mx-auto flex items-center gap-2 text-sm">
+        <div className="mt-auto mb-4 sm:mb-6 md:mb-8 lg:mb-10 w-[84%] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 md:gap-4">
           <button
             onClick={() => setIsDeleteModalOpen(true)}
             className={[
-              'flex flex-1 items-center justify-center gap-2 px-4 py-3 rounded-2xl transition',
-              // ✅ 탈퇴 버튼: 배경은 밝게 두되 글자/테두리 대비 올림
+              'flex flex-1 items-center justify-center gap-2 rounded-2xl transition',
+              'px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4 lg:px-6 lg:py-5',
               'bg-card text-foreground border border-border hover:bg-accent',
+              'text-xs sm:text-sm md:text-base lg:text-lg',
             ].join(' ')}
           >
-            <Image src="/Delete-admin.svg" alt="탈퇴" width={18} height={18} />
+            <Image src="/Delete-admin.svg" alt="탈퇴" width={18} height={18} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
             <span className="text-foreground">탈퇴</span>
           </button>
 
           <button
             onClick={handleLogout}
             className={[
-              'flex flex-1 items-center justify-center gap-2 px-4 py-3 rounded-2xl transition',
+              'flex flex-1 items-center justify-center gap-2 rounded-2xl transition',
+              'px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4 lg:px-6 lg:py-5',
               'bg-primary hover:opacity-95',
+              'text-xs sm:text-sm md:text-base lg:text-lg',
             ].join(' ')}
           >
-            <Image src="/Logout.svg" alt="로그아웃" width={18} height={18} />
-            {/* ✅ 로그아웃 글자 흰색 */}
+            <Image src="/Logout.svg" alt="로그아웃" width={18} height={18} className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
             <span className="text-white">로그아웃</span>
           </button>
         </div>
@@ -202,10 +205,10 @@ export default function NavigationBar() {
 
       {/* Delete Account Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card text-foreground rounded-2xl p-6 w-[400px] border border-border shadow-lg">
-            <h2 className="text-xl font-semibold mb-3">계정 삭제</h2>
-            <p className="text-sm text-muted-foreground mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card text-foreground rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 lg:p-8 w-full sm:w-[400px] md:w-[500px] lg:w-[600px] border border-border shadow-lg">
+            <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold mb-3 sm:mb-4 md:mb-5">계정 삭제</h2>
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-4 sm:mb-5 md:mb-6">
               계정을 삭제하시려면 비밀번호를 입력해주세요.
             </p>
 
@@ -215,19 +218,21 @@ export default function NavigationBar() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="비밀번호를 입력하세요"
               className={[
-                'w-full px-3 py-2 rounded-xl text-sm',
+                'w-full rounded-xl',
+                'px-3 py-2 sm:px-4 sm:py-3 md:px-5 md:py-4',
+                'text-sm sm:text-base md:text-lg',
                 'bg-card text-foreground border border-border outline-none transition',
                 'focus:ring-2 focus:ring-ring focus:border-transparent',
               ].join(' ')}
             />
 
-            <div className="flex gap-2 justify-end mt-4">
+            <div className="flex gap-2 sm:gap-3 md:gap-4 justify-end mt-4 sm:mt-5 md:mt-6">
               <button
                 onClick={() => {
                   setIsDeleteModalOpen(false);
                   setPassword('');
                 }}
-                className="px-4 py-2 rounded-xl text-sm bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition"
+                className="px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3 lg:px-6 lg:py-4 rounded-xl text-sm sm:text-base md:text-lg bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition"
               >
                 취소
               </button>
@@ -236,7 +241,7 @@ export default function NavigationBar() {
                 onClick={handleDeleteAccount}
                 disabled={isDeleting}
                 className={[
-                  'px-4 py-2 rounded-xl text-sm text-white transition',
+                  'px-3 py-2 sm:px-4 sm:py-2 md:px-5 md:py-3 lg:px-6 lg:py-4 rounded-xl text-sm sm:text-base md:text-lg text-white transition',
                   'bg-destructive hover:opacity-95 disabled:opacity-50',
                 ].join(' ')}
               >
