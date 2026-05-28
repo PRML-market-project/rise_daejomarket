@@ -22,6 +22,7 @@ application-secret.yml
 # Logs / data
 *.log
 *.pkl
+.cloudflared-logs/
 
 # OS
 .DS_Store

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import uuid
 import asyncio
-import edge_tts
+#import edge_tts
 import time
 from functools import wraps
 

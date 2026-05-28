@@ -2,6 +2,8 @@
   "private": true,
   "scripts": {
     "dev": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1",
+    "dev:local": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1",
+    "dev:server": "powershell -ExecutionPolicy Bypass -File ./run-server.ps1",
     "start": "npm run dev"
   }
 }

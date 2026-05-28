@@ -5,6 +5,9 @@ import path from 'path'; // Import the 'path' module
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    allowedHosts: ['.trycloudflare.com'],
+  },
   base: '/', // Vercel root에 배포
   build: {
     assetsInlineLimit: 0,

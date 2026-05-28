@@ -2,6 +2,27 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+function Start-NamedWindow {
+    param(
+        [string] $Name,
+        [string] $WorkingDirectory,
+        [string] $Command
+    )
+
+    $title = "rise-daejomarket - $Name"
+    $windowCommand = @"
+`$Host.UI.RawUI.WindowTitle = "$title"
+Write-Host "Starting $Name"
+Write-Host "Working directory: $WorkingDirectory"
+Write-Host ""
+$Command
+"@
+
+    Start-Process powershell.exe `
+        -WorkingDirectory $WorkingDirectory `
+        -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $windowCommand)
+}
+
 $services = @(
     @{
         Name = "backend"
@@ -36,24 +57,15 @@ foreach ($service in $services) {
         throw "Missing service directory: $workdir"
     }
 
-    $title = "rise-daejomarket - $($service.Name)"
-    $command = @"
-`$Host.UI.RawUI.WindowTitle = "$title"
-Write-Host "Starting $($service.Name)"
-Write-Host "Working directory: $workdir"
-Write-Host "URL: $($service.Url)"
-Write-Host ""
-$($service.Command)
-"@
-
-    Start-Process powershell.exe `
+    Start-NamedWindow `
+        -Name $service.Name `
         -WorkingDirectory $workdir `
-        -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $command)
+        -Command $service.Command
 
     Start-Sleep -Milliseconds 500
 }
 
-Write-Host "Started $($services.Count) services."
+Write-Host "Started local services only."
 Write-Host "backend:        http://localhost:8080"
 Write-Host "ai-server:      http://localhost:8000"
 Write-Host "frontend:       http://localhost:5173"
