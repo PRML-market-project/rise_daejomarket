@@ -1,0 +1,99 @@
+{
+  "admin_id" : 1,
+  "categories" : [ {
+    "categoryId" : 1,
+    "categoryName" : "전체",
+    "categoryNameEn" : "All",
+    "menus" : [ {
+      "menuId" : 4,
+      "menuName" : "수박",
+      "menuNameEn" : "watermelon",
+      "menuPrice" : 17000.00
+    }, {
+      "menuId" : 5,
+      "menuName" : "참외",
+      "menuNameEn" : "korean melon",
+      "menuPrice" : 8000.00
+    }, {
+      "menuId" : 6,
+      "menuName" : "딸기",
+      "menuNameEn" : "Strawberry",
+      "menuPrice" : 10000.00
+    }, {
+      "menuId" : 7,
+      "menuName" : "사과",
+      "menuNameEn" : "apple",
+      "menuPrice" : 5000.00
+    }, {
+      "menuId" : 8,
+      "menuName" : "멜론",
+      "menuNameEn" : "melon",
+      "menuPrice" : 6000.00
+    }, {
+      "menuId" : 9,
+      "menuName" : "찹쌀떡",
+      "menuNameEn" : "rice cake",
+      "menuPrice" : 3000.00
+    }, {
+      "menuId" : 10,
+      "menuName" : "인절미",
+      "menuNameEn" : "Injeolmi",
+      "menuPrice" : 3000
+    } ]
+  }, {
+    "categoryId" : 3,
+    "categoryName" : "소문난 반찬",
+    "categoryNameEn" : "well-known side dish",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 4,
+    "categoryName" : "왕십리 곱창",
+    "categoryNameEn" : "Gopchang in Wangsimni",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 5,
+    "categoryName" : "종로복 떡집",
+    "categoryNameEn" : "Jongrobok Rice Cake",
+    "menus" : [ {
+      "menuId" : 9,
+      "menuName" : "찹쌀떡",
+      "menuNameEn" : "rice cake",
+      "menuPrice" : 3000.00
+    }, {
+      "menuId" : 10,
+      "menuName" : "인절미",
+      "menuNameEn" : "Injeolmi",
+      "menuPrice" : 3000
+    } ]
+  }, {
+    "categoryId" : 6,
+    "categoryName" : "은평구 청과물",
+    "categoryNameEn" : "Eunpyeong-gu Fruit and Vegetables",
+    "menus" : [ {
+      "menuId" : 4,
+      "menuName" : "수박",
+      "menuNameEn" : "watermelon",
+      "menuPrice" : 17000.00
+    }, {
+      "menuId" : 5,
+      "menuName" : "참외",
+      "menuNameEn" : "korean melon",
+      "menuPrice" : 8000.00
+    }, {
+      "menuId" : 6,
+      "menuName" : "딸기",
+      "menuNameEn" : "Strawberry",
+      "menuPrice" : 10000.00
+    }, {
+      "menuId" : 7,
+      "menuName" : "사과",
+      "menuNameEn" : "apple",
+      "menuPrice" : 5000.00
+    }, {
+      "menuId" : 8,
+      "menuName" : "멜론",
+      "menuNameEn" : "melon",
+      "menuPrice" : 6000.00
+    } ]
+  } ]
+}
