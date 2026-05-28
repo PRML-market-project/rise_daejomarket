@@ -49,16 +49,12 @@ export default function SignUp() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/emailSend`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
         }
       );
 
-      if (!response.ok) {
-        throw new Error('이메일 인증번호 발송에 실패했습니다.');
-      }
+      if (!response.ok) throw new Error('이메일 인증번호 발송에 실패했습니다.');
 
       setShowVerificationInput(true);
       toast('인증번호가 전송되었습니다');
@@ -74,16 +70,13 @@ export default function SignUp() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/emailCheck`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email,
-            authNum: verificationCode,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, authNum: verificationCode }),
         }
       );
+
       const data = await response.json();
+
       if (!response.ok) {
         throw new Error(data.message || '인증번호가 일치하지 않습니다.');
       }
@@ -103,13 +96,8 @@ export default function SignUp() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/checkStoreName`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            storeName: storeName,
-            storeNameEn: storeNameEn,
-          }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ storeName, storeNameEn }),
         }
       );
 
@@ -127,9 +115,7 @@ export default function SignUp() {
     }
   };
 
-  const handleClearName = () => {
-    setValue('name', '');
-  };
+  const handleClearName = () => setValue('name', '');
 
   const onSubmit = async (data: SignUpFormData) => {
     if (!isEmailVerified) {
@@ -146,9 +132,7 @@ export default function SignUp() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/join`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: data.email,
             password: data.password,
@@ -159,9 +143,7 @@ export default function SignUp() {
         }
       );
 
-      if (!response.ok) {
-        throw new Error('회원가입에 실패했습니다.');
-      }
+      if (!response.ok) throw new Error('회원가입에 실패했습니다.');
 
       toast('회원가입이 완료되었습니다.');
       router.push('/login');
@@ -171,94 +153,115 @@ export default function SignUp() {
     }
   };
 
-  return (
-    <div className='min-h-screen flex justify-center bg-white px-4 sm:px-6 lg:px-8 text-sm'>
-      <div className=''>
-        <div>
-          <div className='flex flex-col gap-2'>
-            <h2 className='text-[40px] inter-bold font-bold  text-indigo-900'>
-              Sign up
-            </h2>
-            <p className='inter-regular text-[15px] text-indigo-700'>
-              가입하고 효율적인 가게 관리를 시작해볼까요?
-            </p>
-          </div>
+  const inputBase =
+    'appearance-none rounded-[10px] relative block px-3 py-2 text-sm h-[46px] bg-card text-foreground border outline-none transition placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring focus:border-transparent';
+
+  const outlineBtn =
+    'border rounded-[10px] h-[46px] px-4 min-w-[88px] py-2.5 font-normal bg-card text-foreground/85 hover:text-foreground hover:bg-accent transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed';  return (
+    
+    <div className="w-full px-4 sm:px-6 lg:px-8 text-sm pt-14">
+      <div className="w-[360px]">
+        {/* Header */}
+        <div className="flex flex-col gap-2">
+          <h2 className="text-[40px] inter-bold font-bold text-foreground">
+            Sign up
+          </h2>
+          <p className="inter-regular text-[15px] text-muted-foreground">
+            가입하고 효율적인 가게 관리를 시작해볼까요?
+          </p>
         </div>
-        <form
-          className='mt-2 gap-4 w-[360px]'
-          onSubmit={handleSubmit(onSubmit)}
-        >
-          <div className='rounded-md'>
-            <div className='relative h-20 flex flex-col gap-2'>
-              <label htmlFor='name' className='text-indigo-900'>
+
+        <form className="mt-2 w-[360px]" onSubmit={handleSubmit(onSubmit)}>
+          <div className="rounded-md space-y-4">
+            {/* Name */}
+            <div className="relative h-20 flex flex-col gap-2">
+              <label htmlFor="name" className="text-sm text-foreground">
                 Your Name
               </label>
-              <div className='relative'>
+
+              <div className="relative">
                 <input
-                  id='name'
-                  type='text'
+                  id="name"
+                  type="text"
                   {...register('name')}
-                  className={`appearance-none rounded-[8px] relative h-[46px] block w-full px-3 py-2 border ${
-                    errors.name ? 'border-red-300' : 'border-indigo-300'
-                  } placeholder-indigo-300 text-indigo-900 focus:outline-none focus:border-indigo-300 focus:z-10 sm:text-sm`}
-                  placeholder='홍길동'
+                  className={[
+                    inputBase,
+                    'w-full',
+                    errors.name ? 'border-destructive' : 'border-border',
+                  ].join(' ')}
+                  placeholder="홍길동"
                 />
+
                 {name && (
                   <button
-                    type='button'
+                    type="button"
                     onClick={handleClearName}
-                    className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10'
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground z-10"
+                    aria-label="Clear name"
                   >
                     ✕
                   </button>
                 )}
               </div>
+
               {errors.name && (
-                <p className='absolute bottom-[-12px] text-sm text-red-600'>
+                <p className="absolute bottom-[-12px] text-sm text-destructive">
                   {errors.name.message}
                 </p>
               )}
             </div>
-            <div className='flex gap-3 items-center'>
-              <div className='flex flex-col mt-2'>
-                <div className='relative h-20'>
-                  <label htmlFor='storeName' className='text-indigo-900'>
+
+            {/* Store name + check */}
+            <div className="flex gap-3 items-start">
+              <div className="flex flex-col mt-2 gap-4">
+                <div className="relative h-20">
+                  <label htmlFor="storeName" className="text-sm text-foreground">
                     Store Name (Korean)
                   </label>
 
                   <input
-                    id='storeName'
-                    type='text'
+                    id="storeName"
+                    type="text"
                     {...register('storeName')}
-                    className={`appearance-none rounded-[8px] relative block w-[265px] h-[46px] px-3 py-2 border ${
-                      errors.storeName ? 'border-red-300' : 'border-indigo-300'
-                    } placeholder-indigo-300 text-indigo-900 focus:outline-none focus:border-indigo-300 focus:z-10 sm:text-sm`}
-                    placeholder='Store Name (Korean)'
+                    className={[
+                      inputBase,
+                      'w-[240px]',
+                      errors.storeName ? 'border-destructive' : 'border-border',
+                    ].join(' ')}
+                    placeholder="Store Name (Korean)"
                   />
 
                   {errors.storeName && (
-                    <p className='absolute bottom-0 text-sm text-red-600'>
+                    <p className="absolute bottom-0 text-sm text-destructive">
                       {errors.storeName.message}
                     </p>
                   )}
                 </div>
-                <div className='relative h-20'>
-                  <label htmlFor='storeNameEn' className='text-indigo-900'>
+
+                <div className="relative h-20">
+                  <label
+                    htmlFor="storeNameEn"
+                    className="text-sm text-foreground"
+                  >
                     Store Name (English)
                   </label>
+
                   <input
-                    id='storeNameEn'
-                    type='text'
+                    id="storeNameEn"
+                    type="text"
                     {...register('storeNameEn')}
-                    className={`appearance-none rounded-[8px] relative block w-[265px] h-[46px] px-3 py-2 border ${
+                    className={[
+                      inputBase,
+                      'w-[240px]',
                       errors.storeNameEn
-                        ? 'border-red-300'
-                        : 'border-indigo-300'
-                    } placeholder-indigo-300 text-indigo-900 focus:outline-none focus:border-indigo-300 focus:z-10 sm:text-sm`}
-                    placeholder='Store Name (English)'
+                        ? 'border-destructive'
+                        : 'border-border',
+                    ].join(' ')}
+                    placeholder="Store Name (English)"
                   />
+
                   {errors.storeNameEn && (
-                    <p className='absolute bottom-0 text-sm text-red-600'>
+                    <p className="absolute bottom-0 text-sm text-destructive">
                       {errors.storeNameEn.message}
                     </p>
                   )}
@@ -266,105 +269,136 @@ export default function SignUp() {
               </div>
 
               <button
-                type='button'
+                type="button"
                 onClick={handleStoreNameCheck}
                 disabled={!storeName || !storeNameEn || isStoreNameChecked}
-                className='border flex-1 hover:cursor-pointer border-indigo-600 rounded-[8px] h-[46px] px-2 py-2.5 font-normal text-indigo-600 bg-white focus:outline-none focus:ring-2 focus:ring-offset-2  disabled:opacity-50 disabled:cursor-not-allowed'
+                className={[outlineBtn, 'flex-1 mt-[90px]'].join(' ')}
               >
                 {isStoreNameChecked ? '확인완료' : '중복확인'}
               </button>
             </div>
-            <div className='relative h-20'>
-              <label htmlFor='email' className='text-indigo-900'>
+
+            {/* Email + send */}
+            <div className="relative h-20">
+              <label htmlFor="email" className="text-sm text-foreground">
                 Email
               </label>
-              <div className='flex gap-3'>
+
+              <div className="flex gap-3 mt-2">
                 <input
-                  id='email'
-                  type='email'
-                  autoComplete='email'
+                  id="email"
+                  type="email"
+                  autoComplete="email"
                   {...register('email')}
-                  className={`appearance-none rounded-[8px] relative block w-[265px] px-3 py-2 border ${
-                    errors.email ? 'border-red-300' : 'border-indigo-300'
-                  } placeholder-indigo-300 text-indigo-900 focus:outline-none focus:border-indigo-300 focus:z-10 sm:text-sm`}
-                  placeholder='youremail@example.com'
+                  className={[
+                    inputBase,
+                    'w-[240px]',
+                    errors.email ? 'border-destructive' : 'border-border',
+                  ].join(' ')}
+                  placeholder="youremail@example.com"
                 />
+
                 <button
-                  type='button'
+                  type="button"
                   onClick={handleEmailVerification}
                   disabled={!email || isEmailVerified}
-                  className='hover:cursor-pointer border border-indigo-600 rounded-[8px] px-2 py-2.5 font-normal text-indigo-600 bg-white focus:outline-none focus:ring-2 focus:ring-offset-2  disabled:opacity-50 disabled:cursor-not-allowed flex-1'
+                  className={[outlineBtn, 'flex-1'].join(' ')}
                 >
                   {isEmailVerified ? '인증완료' : '인증하기'}
                 </button>
               </div>
+
               {errors.email && (
-                <p className='absolute bottom-0 text-sm text-red-600'>
+                <p className="absolute bottom-0 text-sm text-destructive">
                   {errors.email.message}
                 </p>
               )}
             </div>
-            <div className='relative h-20'>
-              <label htmlFor='verificationCode' className='text-indigo-900'>
+
+            {/* Verification code */}
+            <div className="relative h-20">
+              <label
+                htmlFor="verificationCode"
+                className="text-sm text-foreground"
+              >
                 Verification Code
               </label>
-              <div className='flex gap-3'>
+
+              <div className="flex gap-3 mt-2">
                 <input
-                  id='verificationCode'
+                  id="verificationCode"
                   disabled={!showVerificationInput}
-                  type='text'
+                  type="text"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value)}
-                  className='appearance-none rounded-[8px] relative block w-[265px] px-3 py-2 border border-indigo-300 placeholder-indigo-300 text-indigo-900 focus:outline-none focus:border-indigo-300 focus:z-10 sm:text-sm disabled:placeholder-ml-gray disabled:cursor-not-allowed'
-                  placeholder='인증번호 6자리를 입력해주세요'
+                  className={[
+                    inputBase,
+                    'w-[265px]',
+                    'disabled:opacity-60 disabled:cursor-not-allowed',
+                  ].join(' ')}
+                  placeholder="인증번호 6자리를 입력해주세요"
                 />
+
                 <button
-                  type='button'
+                  type="button"
                   onClick={handleVerifyCode}
                   disabled={!showVerificationInput}
-                  className='hover:cursor-pointer border border-indigo-600 rounded-[8px] px-2 py-2.5 font-normal flex-1 text-indigo-600 bg-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+                  className={[outlineBtn, 'flex-1'].join(' ')}
                 >
                   확인
                 </button>
               </div>
             </div>
-            <div className='relative h-20'>
-              <label htmlFor='password' className='text-indigo-900'>
+
+            {/* Password */}
+            <div className="relative h-20">
+              <label htmlFor="password" className="text-sm text-foreground">
                 Password
               </label>
+
               <input
-                id='password'
-                type='password'
-                autoComplete='new-password'
+                id="password"
+                type="password"
+                autoComplete="new-password"
                 {...register('password')}
-                className={`appearance-none h-[46px] rounded-[8px] relative block w-full px-3 py-2 border ${
-                  errors.password ? 'border-red-300' : 'border-indigo-300'
-                } placeholder-indigo-300 text-indigo-900 focus:outline-none focus:border-indigo-300 focus:z-10 sm:text-sm`}
-                placeholder='영문, 숫자, 하나 이상의 특수문자를 포함하는 8 ~ 16자'
+                className={[
+                  inputBase,
+                  'w-full mt-2',
+                  errors.password ? 'border-destructive' : 'border-border',
+                ].join(' ')}
+                placeholder="영문, 숫자, 하나 이상의 특수문자를 포함"
               />
+
               {errors.password && (
-                <p className='absolute bottom-0 text-sm text-red-600'>
+                <p className="absolute bottom-0 text-sm text-destructive">
                   {errors.password.message}
                 </p>
               )}
             </div>
           </div>
 
-          <div>
-            <button
-              type='submit'
-              disabled={isSubmitting}
-              className='hover:cursor-pointer mt-[18px] group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
-            >
-              {isSubmitting ? 'Signing up...' : 'Sign up'}
-            </button>
-          </div>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={[
+              'mt-[18px] w-full flex justify-center py-2.5 px-4 rounded-[10px]',
+              'text-sm font-medium bg-primary text-primary-foreground',
+              'hover:opacity-95 transition',
+              'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+            ].join(' ')}
+          >
+            {isSubmitting ? 'Signing up...' : 'Sign up'}
+          </button>
         </form>
+
         <Link
-          href='/login'
-          className='font-medium text-indigo-600 w-[360px] flex justify-center mt-[18px]'
+          href="/login"
+          className="font-medium w-[360px] flex justify-center mt-[18px] text-foreground/80 hover:text-foreground transition"
         >
-          이미 회원이신가요? Login
+          <span>이미 회원이신가요?</span>
+          <span className="underline underline-offset-4">Login</span>
         </Link>
       </div>
     </div>

@@ -18,6 +18,7 @@ interface Menu {
   menuName: string;
   menuNameEn: string;
   menuPrice: number;
+  menuCount?: string;
   imageUrl?: string;
   adminId: number;
   categories: {
@@ -119,7 +120,9 @@ async function generateMenuImageFileIfEmpty(
   }
 
   const blob = await imgRes.blob();
-  const file = new File([blob], 'menu-image.png', { type: blob.type || 'image/png' });
+  const file = new File([blob], 'menu-image.png', {
+    type: blob.type || 'image/png',
+  });
 
   return file;
 }
@@ -137,6 +140,7 @@ export default function Menus() {
   const [menuName, setMenuName] = useState('');
   const [menuNameEn, setMenuNameEn] = useState('');
   const [menuPrice, setMenuPrice] = useState('');
+  const [menuCount, setMenuCount] = useState('');
   const [menuCategory, setMenuCategory] = useState('');
   const [menuImage, setMenuImage] = useState<File | null>(null);
   const [updateImage, setUpdateImage] = useState<File | null>(null);
@@ -154,8 +158,7 @@ export default function Menus() {
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/menus`
       );
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.message || 'Failed to fetch menus');
+      if (!response.ok) throw new Error(data.message || 'Failed to fetch menus');
       setMenus(data);
     } catch (error: any) {
       toast.error(error.message || '메뉴 목록을 불러오는데 실패했습니다');
@@ -176,6 +179,7 @@ export default function Menus() {
       const filteredCategories = data.filter(
         (cat: Category) => cat.categoryName !== '전체'
       );
+
       setCategories(filteredCategories);
       if (filteredCategories.length > 0)
         setMenuCategory(filteredCategories[0].categoryId.toString());
@@ -187,7 +191,6 @@ export default function Menus() {
   const handleAddMenu = async (e: FormEvent) => {
     e.preventDefault();
 
-    // 필수값: 한글 이름, 가격, 카테고리
     if (!menuName || !menuPrice || !menuCategory) {
       toast.error('메뉴 이름(한글), 가격, 카테고리를 입력해주세요');
       return;
@@ -196,28 +199,18 @@ export default function Menus() {
     setSubmitting(true);
 
     try {
-      // 1) 영문 이름 비어있으면 번역 API로 채우기
-      const finalMenuNameEn = await translateMenuNameIfEmpty(
-        menuName,
-        menuNameEn
-      );
+      const finalMenuNameEn = await translateMenuNameIfEmpty(menuName, menuNameEn);
       setMenuNameEn(finalMenuNameEn);
 
-      // 2) 이미지 비어있으면 GPT 이미지 생성
-      const finalMenuImage = await generateMenuImageFileIfEmpty(
-        menuName,
-        menuImage
-      );
-      if (!finalMenuImage) {
-        throw new Error('메뉴 이미지를 생성하지 못했습니다');
-      }
+      const finalMenuImage = await generateMenuImageFileIfEmpty(menuName, menuImage);
+      if (!finalMenuImage) throw new Error('메뉴 이미지를 생성하지 못했습니다');
       setMenuImage(finalMenuImage);
 
-      // 3) FormData 구성
       const formData = new FormData();
       formData.append('menuName', menuName);
       formData.append('menuNameEn', finalMenuNameEn);
       formData.append('menuPrice', menuPrice);
+      if (menuCount) formData.append('menuCount', menuCount);
       formData.append('categoryIds', menuCategory);
       formData.append('image', finalMenuImage);
 
@@ -231,14 +224,15 @@ export default function Menus() {
 
       toast.success('메뉴가 추가되었습니다');
 
-      // 폼 초기화
       addFormRef.current?.reset();
       setMenuName('');
       setMenuNameEn('');
       setMenuPrice('');
+      setMenuCount('');
       setMenuImage(null);
       if (categories.length > 0)
         setMenuCategory(categories[0].categoryId.toString());
+
       fetchMenus();
     } catch (error: any) {
       toast.error(error.message || '메뉴 추가에 실패했습니다');
@@ -252,10 +246,14 @@ export default function Menus() {
     if (!selectedMenu) return;
 
     setSubmitting(true);
+
     const formData = new FormData();
     formData.append('menuName', selectedMenu.menuName);
     formData.append('menuNameEn', selectedMenu.menuNameEn);
     formData.append('menuPrice', selectedMenu.menuPrice.toString());
+    if (selectedMenu.menuCount !== undefined && selectedMenu.menuCount !== null) {
+      formData.append('menuCount', selectedMenu.menuCount);
+    }
 
     const primaryCategory = selectedMenu.categories.find(
       (cat) => cat.categoryName !== '전체'
@@ -264,9 +262,7 @@ export default function Menus() {
       formData.append('categoryIds', primaryCategory.categoryId.toString());
     }
 
-    if (updateImage) {
-      formData.append('image', updateImage);
-    }
+    if (updateImage) formData.append('image', updateImage);
 
     try {
       const response = await fetchWithToken(
@@ -275,8 +271,7 @@ export default function Menus() {
       );
 
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data.message || 'Failed to update menu');
+      if (!response.ok) throw new Error(data.message || 'Failed to update menu');
 
       toast.success('메뉴가 수정되었습니다');
       setSelectedMenu(null);
@@ -317,122 +312,159 @@ export default function Menus() {
           menu.categories.some((cat) => cat.categoryId === selectedCategory)
         );
 
+  // ✅ 스타일 토큰 기반 공통 클래스
+  const pageTitleSub = 'text-[16px] inter-medium text-muted-foreground';
+  const card = 'bg-card text-foreground border border-border rounded-3xl p-6';
+  const inputBase =
+    'w-full h-[52px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none transition ' +
+    'placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring focus:border-transparent';
+  const selectBase =
+    'w-full h-[52px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none transition ' +
+    'focus:ring-2 focus:ring-ring focus:border-transparent';
+  const primaryBtn =
+    'inline-flex items-center justify-center gap-2 rounded-2xl bg-primary text-primary-foreground ' +
+    'px-4 h-[52px] hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed';
+  const outlineBtn =
+    'inline-flex items-center justify-center gap-2 rounded-2xl bg-card text-foreground border border-border ' +
+    'px-4 h-[52px] hover:bg-accent transition disabled:opacity-50 disabled:cursor-not-allowed';
+  const destructiveBtn =
+    'inline-flex items-center justify-center gap-2 rounded-2xl bg-destructive text-destructive-foreground ' +
+    'px-4 h-[52px] hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed';
+
   return (
-    <div className='h-full flex-1 p-8 flex flex-col gap-[30px] overflow-y-scroll'>
+    <div className="h-full flex-1 p-8 flex flex-col gap-[30px] overflow-y-scroll bg-background">
       <ConfirmModal />
+
       <div>
-        <h1 className='text-[32px] inter-semibold'>메뉴 관리</h1>
-        <h2 className='text-[16px] inter-medium text-ml-gray-dark'>
-          Menu Management
-        </h2>
+        <h1 className="text-[32px] inter-semibold text-foreground">메뉴 관리</h1>
+        <h2 className={pageTitleSub}>Menu Management</h2>
       </div>
 
-      <main className='flex flex-col gap-8 w-full'>
-        <form
-          ref={addFormRef}
-          onSubmit={handleAddMenu}
-          className='bg-white rounded-3xl p-6 flex flex-col gap-8'
-        >
-          <h3 className='text-[18px] inter-semibold'>메뉴 추가</h3>
-          <div className='flex flex-col gap-4'>
-            <div className='flex gap-8'>
-              <div className='flex flex-col gap-2 flex-1'>
-                <label htmlFor='menu-name' className='inter-semibold'>
+      <main className="flex flex-col gap-8 w-full">
+        {/* ===== 메뉴 추가 ===== */}
+        <form ref={addFormRef} onSubmit={handleAddMenu} className={[card, 'flex flex-col gap-8'].join(' ')}>
+          <h3 className="text-[18px] inter-semibold">메뉴 추가</h3>
+
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-8">
+              <div className="flex flex-col gap-2 flex-1">
+                <label htmlFor="menu-name" className="inter-semibold">
                   메뉴 이름 (한글)
                 </label>
                 <input
-                  id='menu-name'
-                  type='text'
+                  id="menu-name"
+                  type="text"
                   value={menuName}
                   onChange={(e) => setMenuName(e.target.value)}
-                  placeholder='메뉴 이름 (한글)'
-                  className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                  placeholder="메뉴 이름 (한글)"
+                  className={inputBase}
                 />
               </div>
-              <div className='flex flex-col gap-2 flex-1'>
-                <label htmlFor='menu-name-en' className='inter-semibold'>
+
+              <div className="flex flex-col gap-2 flex-1">
+                <label htmlFor="menu-name-en" className="inter-semibold">
                   메뉴 이름 (영문)
                 </label>
                 <input
-                  id='menu-name-en'
-                  type='text'
+                  id="menu-name-en"
+                  type="text"
                   value={menuNameEn}
                   onChange={(e) => setMenuNameEn(e.target.value)}
-                  placeholder='메뉴 이름 (영문, 비워두면 자동 번역)'
-                  className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                  placeholder="메뉴 이름 (영문, 비워두면 자동 번역)"
+                  className={inputBase}
                 />
               </div>
             </div>
-            <div className='flex gap-8'>
-              <div className='flex flex-col gap-2 flex-1'>
-                <label htmlFor='menu-price' className='inter-semibold'>
+
+            <div className="flex gap-8">
+              <div className="flex flex-col gap-2 flex-1">
+                <label htmlFor="menu-price" className="inter-semibold">
                   가격
                 </label>
                 <input
-                  id='menu-price'
-                  type='number'
+                  id="menu-price"
+                  type="number"
                   value={menuPrice}
                   onChange={(e) => setMenuPrice(e.target.value)}
-                  placeholder='가격'
-                  className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                  placeholder="가격"
+                  className={inputBase}
                 />
               </div>
-              <div className='flex flex-col gap-2 flex-1'>
-                <label htmlFor='menu-category' className='inter-semibold'>
+
+              <div className="flex flex-col gap-2 flex-1">
+                <label htmlFor="menu-count" className="inter-semibold">
+                  메뉴 수량
+                </label>
+                <input
+                  id="menu-count"
+                  type="text"
+                  value={menuCount}
+                  onChange={(e) => setMenuCount(e.target.value)}
+                  placeholder="메뉴 수량"
+                  className={inputBase}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-8">
+              <div className="flex flex-col gap-2 flex-1">
+                <label htmlFor="menu-category" className="inter-semibold">
                   카테고리
                 </label>
                 <select
-                  id='menu-category'
+                  id="menu-category"
                   value={menuCategory}
                   onChange={(e) => setMenuCategory(e.target.value)}
-                  className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                  className={selectBase}
                 >
                   {categories.map((category) => (
-                    <option
-                      key={category.categoryId}
-                      value={category.categoryId}
-                    >
+                    <option key={category.categoryId} value={category.categoryId}>
                       {category.categoryName}
                     </option>
                   ))}
                 </select>
               </div>
+
+              <div className="flex-1" />
             </div>
-            <div className='flex flex-col gap-2'>
-              <label htmlFor='menu-image' className='inter-semibold'>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="menu-image" className="inter-semibold">
                 메뉴 이미지
               </label>
               <input
-                id='menu-image'
-                type='file'
-                accept='image/*'
+                id="menu-image"
+                type="file"
+                accept="image/*"
                 onChange={(e) => setMenuImage(e.target.files?.[0] || null)}
-                className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                className={[
+                  'w-full rounded-2xl p-4 bg-card text-foreground border border-border outline-none transition',
+                  'file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-2 file:bg-accent file:text-foreground',
+                  'focus:ring-2 focus:ring-ring focus:border-transparent',
+                ].join(' ')}
               />
-              <p className='text-xs text-gray-500'>
+              <p className="text-xs text-muted-foreground">
                 파일을 선택하지 않으면 GPT가 1:1 비율 이미지를 자동 생성합니다.
               </p>
             </div>
-            <button
-              type='submit'
-              disabled={submitting}
-              className='flex items-center justify-center gap-2 rounded-2xl hover:cursor-pointer bg-indigo-500 text-white p-4 w-[200px] mt-4 disabled:opacity-50'
-            >
-              <Image src='/Submit.svg' alt='add' width={16} height={16} />
-              <span className='inter-regular'>
-                {submitting ? '처리중...' : '메뉴 추가'}
-              </span>
+
+            <button type="submit" disabled={submitting} className={[primaryBtn, 'w-[200px] mt-4'].join(' ')}>
+              <Image src="/Submit.svg" alt="add" width={16} height={16} />
+              <span className="inter-regular text-white">{submitting ? '처리중...' : '메뉴 추가'}</span>
             </button>
           </div>
         </form>
 
-        <div className='bg-white rounded-3xl p-6 flex flex-col gap-8'>
-          <div className='flex justify-between items-center'>
-            <h3 className='text-[18px] inter-semibold'>메뉴 목록</h3>
+        {/* ===== 메뉴 목록 ===== */}
+        <div className={[card, 'flex flex-col gap-8'].join(' ')}>
+          <div className="flex justify-between items-center">
+            <h3 className="text-[18px] inter-semibold">메뉴 목록</h3>
+
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(Number(e.target.value))}
-              className='border border-indigo-300 rounded-xl p-2 focus:outline-0 focus:border-indigo-600'
+              className="h-[44px] px-3 rounded-xl bg-card text-foreground border border-border outline-none transition
+                         focus:ring-2 focus:ring-ring focus:border-transparent"
             >
               <option value={0}>전체 카테고리</option>
               {categories.map((category) => (
@@ -442,50 +474,50 @@ export default function Menus() {
               ))}
             </select>
           </div>
+
           {loading ? (
-            <div className='text-center py-8'>로딩중...</div>
+            <div className="text-center py-8 text-muted-foreground">로딩중...</div>
           ) : (
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredMenus.map((menu) => (
                 <div
                   key={menu.menuId}
-                  className='border border-indigo-300 bg-indigo-100 text-indigo-900 rounded-2xl p-4 flex flex-col h-full'
+                  className="border border-border bg-card text-foreground rounded-2xl p-4 flex flex-col h-full"
                 >
-                  <div className='flex-1'>
+                  <div className="flex-1">
                     {menu.imageUrl && (
-                      <div className='relative w-full h-48 rounded-xl overflow-hidden'>
+                      <div className="relative w-full h-48 rounded-xl overflow-hidden border border-border">
                         <Image
                           src={`${process.env.NEXT_PUBLIC_API_URL}${menu.imageUrl}`}
                           alt={menu.menuName}
                           fill
-                          className='object-cover'
+                          className="object-cover"
                         />
                       </div>
                     )}
-                    <h4 className='text-lg font-semibold mt-2'>
-                      {menu.menuName}
-                    </h4>
-                    <p className='text-sm text-gray-600'>{menu.menuNameEn}</p>
-                    <p className='font-semibold'>
-                      {menu.menuPrice.toLocaleString()}원
-                    </p>
-                    <p className='text-indigo-500'>
+
+                    <h4 className="text-lg font-semibold mt-2">{menu.menuName}</h4>
+                    <p className="text-sm text-muted-foreground">{menu.menuNameEn}</p>
+                    <p className="font-semibold">{menu.menuPrice.toLocaleString()}원</p>
+
+                    <p className="text-sm text-muted-foreground mt-1">
                       {menu.categories
                         .filter((cat) => cat.categoryName !== '전체')
                         .map((cat) => cat.categoryName)
                         .join(', ')}
                     </p>
                   </div>
-                  <div className='flex gap-2 mt-4'>
+
+                  <div className="flex gap-2 mt-4">
                     <button
                       onClick={() => setSelectedMenu(menu)}
-                      className='flex-1 py-2 px-4 bg-indigo-500 hover:cursor-pointer text-white rounded-xl hover:opacity-80'
+                      className={[outlineBtn, 'flex-1 h-[44px] rounded-xl'].join(' ')}
                     >
                       수정
                     </button>
                     <button
                       onClick={() => handleDeleteMenu(menu.menuId)}
-                      className='flex-1 py-2 px-4 bg-slate-500 hover:cursor-pointer text-white rounded-xl hover:opacity-80'
+                      className={[destructiveBtn, 'flex-1 h-[44px] rounded-xl'].join(' ')}
                     >
                       삭제
                     </button>
@@ -496,33 +528,34 @@ export default function Menus() {
           )}
         </div>
 
+        {/* ===== 메뉴 수정 모달 ===== */}
         {selectedMenu && (
-          <div className='fixed inset-0 bg-black/50 flex items-center justify-center'>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
             <form
               onSubmit={handleUpdateMenu}
-              className='bg-white rounded-3xl p-6 w-[600px]'
+              className="bg-card text-foreground border border-border rounded-3xl p-6 w-[600px] shadow-lg"
             >
-              <h3 className='text-[18px] inter-semibold mb-6'>메뉴 수정</h3>
-              <div className='flex flex-col gap-4'>
-                <div className='flex gap-8'>
-                  <div className='flex flex-col gap-2 flex-1'>
-                    <label className='inter-semibold'>메뉴 이름 (한글)</label>
+              <h3 className="text-[18px] inter-semibold mb-6">메뉴 수정</h3>
+
+              <div className="flex flex-col gap-4">
+                <div className="flex gap-8">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="inter-semibold">메뉴 이름 (한글)</label>
                     <input
-                      type='text'
+                      type="text"
                       value={selectedMenu.menuName}
                       onChange={(e) =>
-                        setSelectedMenu({
-                          ...selectedMenu,
-                          menuName: e.target.value,
-                        })
+                        setSelectedMenu({ ...selectedMenu, menuName: e.target.value })
                       }
-                      className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                      className="w-full h-[46px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none transition
+                                 placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring focus:border-transparent"
                     />
                   </div>
-                  <div className='flex flex-col gap-2 flex-1'>
-                    <label className='inter-semibold'>메뉴 이름 (영문)</label>
+
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="inter-semibold">메뉴 이름 (영문)</label>
                     <input
-                      type='text'
+                      type="text"
                       value={selectedMenu.menuNameEn}
                       onChange={(e) =>
                         setSelectedMenu({
@@ -530,15 +563,17 @@ export default function Menus() {
                           menuNameEn: e.target.value,
                         })
                       }
-                      className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                      className="w-full h-[46px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none transition
+                                 placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring focus:border-transparent"
                     />
                   </div>
                 </div>
-                <div className='flex gap-8'>
-                  <div className='flex flex-col gap-2 flex-1'>
-                    <label className='inter-semibold'>가격</label>
+
+                <div className="flex gap-8">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="inter-semibold">가격</label>
                     <input
-                      type='number'
+                      type="number"
                       value={selectedMenu.menuPrice}
                       onChange={(e) =>
                         setSelectedMenu({
@@ -546,29 +581,57 @@ export default function Menus() {
                           menuPrice: parseInt(e.target.value) || 0,
                         })
                       }
-                      className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                      className="w-full h-[46px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none transition
+                                 focus:ring-2 focus:ring-ring focus:border-transparent"
                     />
                   </div>
-                  <div className='flex flex-col gap-2 flex-1'>
-                    <label className='inter-semibold'>카테고리</label>
+
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="inter-semibold">메뉴 수량</label>
+                    <input
+                      type="text"
+                      value={selectedMenu.menuCount || ''}
+                      onChange={(e) =>
+                        setSelectedMenu({
+                          ...selectedMenu,
+                          menuCount: e.target.value,
+                        })
+                      }
+                      placeholder="메뉴 수량"
+                      className="w-full h-[46px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none transition
+                                 placeholder:text-muted-foreground/70 focus:ring-2 focus:ring-ring focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-8">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <label className="inter-semibold">카테고리</label>
+
                     <DropdownMenu>
-                      <DropdownMenuTrigger className='w-full border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600 text-left flex justify-between items-center'>
-                        <span>
-                          {selectedMenu.categories.find(
-                            (cat) => cat.categoryName !== '전체'
-                          )?.categoryName || '카테고리 선택'}
+                      <DropdownMenuTrigger
+                        className="w-full h-[46px] px-4 rounded-2xl bg-card text-foreground border border-border outline-none
+                                   flex justify-between items-center transition
+                                   focus:ring-2 focus:ring-ring focus:border-transparent"
+                      >
+                        <span className="truncate">
+                          {selectedMenu.categories.find((cat) => cat.categoryName !== '전체')
+                            ?.categoryName || '카테고리 선택'}
                         </span>
                         <Image
-                          src='/DownArrow.svg'
-                          alt='arrow-down'
+                          src="/DownArrow.svg"
+                          alt="arrow-down"
                           width={16}
                           height={16}
+                          className="opacity-70"
                         />
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className='w-[275px]'>
+
+                      <DropdownMenuContent className="w-[275px] bg-card text-foreground border border-border">
                         {categories.map((category) => (
                           <DropdownMenuItem
                             key={category.categoryId}
+                            className="cursor-pointer focus:bg-accent focus:text-foreground"
                             onSelect={() =>
                               setSelectedMenu({
                                 ...selectedMenu,
@@ -583,47 +646,59 @@ export default function Menus() {
                     </DropdownMenu>
                   </div>
                 </div>
-                <div className='flex flex-col gap-2'>
-                  <label className='inter-semibold'>메뉴 이미지</label>
+
+                <div className="flex flex-col gap-2">
+                  <label className="inter-semibold">메뉴 이미지</label>
+
                   {selectedMenu.imageUrl && !updateImage && (
-                    <div className='relative w-full h-48 rounded-xl overflow-hidden mb-2'>
+                    <div className="relative w-full h-48 rounded-xl overflow-hidden mb-2 border border-border">
                       <Image
                         src={`${process.env.NEXT_PUBLIC_API_URL}${selectedMenu.imageUrl}`}
                         alt={selectedMenu.menuName}
                         fill
-                        className='object-cover'
+                        className="object-cover"
                       />
                     </div>
                   )}
+
                   <input
-                    type='file'
-                    accept='image/*'
-                    onChange={(e) =>
-                      setUpdateImage(e.target.files?.[0] || null)
-                    }
-                    className='border border-indigo-300 rounded-2xl p-4 focus:outline-0 focus:border-indigo-600'
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setUpdateImage(e.target.files?.[0] || null)}
+                    className={[
+                      'w-full rounded-2xl p-4 bg-card text-foreground border border-border outline-none transition',
+                      'file:mr-3 file:rounded-lg file:border-0 file:px-3 file:py-2 file:bg-accent file:text-foreground',
+                      'focus:ring-2 focus:ring-ring focus:border-transparent',
+                    ].join(' ')}
                   />
+
                   {updateImage && (
-                    <div className='text-sm text-blue-500'>
-                      새로운 이미지가 선택되었습니다: {updateImage.name}
+                    <div className="text-sm text-muted-foreground">
+                      새로운 이미지가 선택되었습니다:{' '}
+                      <span className="text-foreground">{updateImage.name}</span>
                     </div>
                   )}
                 </div>
-                <div className='flex gap-2 mt-4'>
+
+                <div className="flex gap-2 mt-4">
                   <button
-                    type='button'
+                    type="button"
                     onClick={() => {
                       setSelectedMenu(null);
                       setUpdateImage(null);
                     }}
-                    className='flex-1 py-2 px-4 bg-gray-200 rounded-xl hover:cursor-pointer hover:opacity-80'
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-accent text-foreground hover:opacity-90 transition
+                               focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                   >
                     취소
                   </button>
+
                   <button
-                    type='submit'
+                    type="submit"
                     disabled={submitting}
-                    className='flex-1 py-2 px-4 bg-indigo-500 text-white rounded-xl hover:cursor-pointer hover:opacity-80 disabled:opacity-50'
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-primary text-primary-foreground hover:opacity-95 transition
+                               focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background
+                               disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submitting ? '처리중...' : '저장'}
                   </button>
