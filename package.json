@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File ./run-all.ps1",
+    "start": "npm run dev"
+  }
+}

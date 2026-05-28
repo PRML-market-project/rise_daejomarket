@@ -36,6 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 src/main/resources/application.properties
+src/main/resources/application.yml
 
 # SSL KeyStore 파일
 *.p12

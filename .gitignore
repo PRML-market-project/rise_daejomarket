@@ -1,0 +1,28 @@
+# Node
+node_modules/
+frontend/node_modules/
+admin-frontend/node_modules/
+dist/
+build/
+
+# Python
+.venv/
+venv/
+ai-server/.venv/
+__pycache__/
+*.pyc
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+application-local.yml
+application-secret.yml
+
+# Logs / data
+*.log
+*.pkl
+
+# OS
+.DS_Store
+Thumbs.db

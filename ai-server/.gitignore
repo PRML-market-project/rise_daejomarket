@@ -1,1 +1,34 @@
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache/test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs and runtime output
+*.log
+logs/
+
+# Local/generated data
+*.pkl
+*.pickle
+.venv/data/
+
+# IDE/local files
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
