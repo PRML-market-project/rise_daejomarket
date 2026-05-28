@@ -1,0 +1,240 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* White & Ivory Custom Palette */
+  --color-ml-yellow: #F5E6CA;
+  --color-ml-yellow-light: #FFF8E1;
+  --color-ml-gray: #F5F5F0;
+  --color-ml-cart-light-yellow: #FEFCF5;
+
+  /* Map colors - Light/Ivory Map Style */
+  --color-map-bg: #F9F8F6;
+  --color-map-border-light: #E5E0D8;
+  --color-map-border: #D6D3CD;
+  --color-map-white: #FFFFFF;
+  --color-map-shop-selected: #D4C4A8;
+  --color-map-shop-selected-stroke: #A89B85;
+  --color-map-shop-stroke: #E5E5E5;
+  --color-map-text-gray: #78716C;
+  --color-map-destination: #E11D48;
+  --color-map-current-location: #3F3F46;
+
+  /* Sand/Beige gradient colors */
+  --color-indigo-shadow: rgba(212, 196, 168, 0.4);
+  --color-indigo-gradient-start: #E6DBC4;
+  --color-indigo-gradient-end: #Cfb898;
+  --color-shadow-black: rgba(60, 50, 40, 0.08);
+
+  /* Chat colors */
+  --color-chat-shadow: rgba(210, 200, 180, 0.2);
+  --color-chat-border: rgba(210, 200, 180, 0.4);
+
+  /* Color Palette Overrides */
+  --color-indigo-50: oklch(0.99 0.01 90);
+  --color-indigo-100: oklch(0.97 0.02 90);
+  --color-indigo-500: oklch(0.80 0.08 90);
+  --color-indigo-600: oklch(0.70 0.10 90);
+  --color-indigo-900: oklch(0.30 0.05 90);
+}
+
+@keyframes custom-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation-name: fadeIn;
+  animation-fill-mode: forwards;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-blink {
+  animation: blink 1s infinite;
+}
+
+.blink {
+  animation: custom-blink 1.5s infinite;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* System colors mapped below */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* LIGHT MODE */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.99 0.005 95);
+  --foreground: oklch(0.25 0.02 90);
+  --defaultimage-matte: #ede8df;
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.02 90);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.02 90);
+
+  --primary: oklch(0.78 0.08 90);
+  --primary-foreground: oklch(0.25 0.02 90);
+
+  --secondary: oklch(0.96 0.01 90);
+  --secondary-foreground: oklch(0.35 0.03 90);
+
+  --muted: oklch(0.96 0.01 90);
+  --muted-foreground: oklch(0.60 0.02 90);
+
+  --accent: oklch(0.94 0.02 90);
+  --accent-foreground: oklch(0.25 0.02 90);
+
+  --destructive: oklch(0.65 0.18 25);
+
+  --border: oklch(0.92 0.01 90);
+  --input: oklch(0.92 0.01 90);
+  --ring: oklch(0.80 0.06 90);
+
+  --chart-1: oklch(0.78 0.08 90);
+  --chart-2: oklch(0.65 0.10 60);
+  --chart-3: oklch(0.80 0.12 100);
+  --chart-4: oklch(0.70 0.08 140);
+  --chart-5: oklch(0.60 0.04 90);
+
+  --sidebar: oklch(0.99 0.005 95);
+  --sidebar-foreground: oklch(0.25 0.02 90);
+  --sidebar-primary: oklch(0.78 0.08 90);
+  --sidebar-primary-foreground: oklch(0.25 0.02 90);
+  --sidebar-accent: oklch(0.96 0.01 90);
+  --sidebar-accent-foreground: oklch(0.25 0.02 90);
+  --sidebar-border: oklch(0.92 0.01 90);
+  --sidebar-ring: oklch(0.80 0.06 90);
+
+  --map-bg: #0b1220;
+  --map-surface: #0f1b2d;
+  --map-hall: #f4f6fb;
+  --map-hall-stroke: #d7ddea;
+
+  --map-shop: #ffffff;
+  --map-shop-stroke: #c8d0e0;
+  --map-shop-text: #1f2937;
+
+  --map-shop-selected: #2563eb;
+  --map-shop-selected-stroke: #1d4ed8;
+  --map-shop-selected-text: #ffffff;
+
+  --map-route: #22c55e;
+  --map-route-glow: rgba(34,197,94,0.35);
+
+  --map-you: #f59e0b;
+  --map-you-glow: rgba(245,158,11,0.35);
+}
+
+/* DARK MODE */
+.dark {
+  --background: oklch(0.18 0.01 90);
+  --foreground: oklch(0.96 0.01 90);
+
+  --card: oklch(0.22 0.01 90);
+  --card-foreground: oklch(0.96 0.01 90);
+
+  --popover: oklch(0.22 0.01 90);
+  --popover-foreground: oklch(0.96 0.01 90);
+
+  --primary: oklch(0.78 0.08 90);
+  --primary-foreground: oklch(0.18 0.01 90);
+
+  --secondary: oklch(0.28 0.02 90);
+  --secondary-foreground: oklch(0.96 0.01 90);
+
+  --muted: oklch(0.28 0.02 90);
+  --muted-foreground: oklch(0.70 0.02 90);
+
+  --accent: oklch(0.28 0.02 90);
+  --accent-foreground: oklch(0.96 0.01 90);
+
+  --destructive: oklch(0.6 0.2 25);
+
+  --border: oklch(0.30 0.01 90);
+  --input: oklch(0.30 0.01 90);
+  --ring: oklch(0.70 0.08 90);
+
+  --chart-1: oklch(0.78 0.08 90);
+  --chart-2: oklch(0.65 0.10 60);
+  --chart-3: oklch(0.80 0.12 100);
+  --chart-4: oklch(0.70 0.08 140);
+  --chart-5: oklch(0.60 0.04 90);
+
+  --sidebar: oklch(0.18 0.01 90);
+  --sidebar-foreground: oklch(0.96 0.01 90);
+  --sidebar-primary: oklch(0.78 0.08 90);
+  --sidebar-primary-foreground: oklch(0.18 0.01 90);
+  --sidebar-accent: oklch(0.28 0.02 90);
+  --sidebar-accent-foreground: oklch(0.96 0.01 90);
+  --sidebar-border: oklch(0.30 0.01 90);
+  --sidebar-ring: oklch(0.70 0.08 90);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* vmin 기반(짧은 변 기준) 전역 스케일 */
+  html {
+    /*
+      - 최소 16px (너무 작아지는 것 방지)
+      - 가운데 값: vmin(짧은 변 %) 기반으로 자연스럽게 스케일
+      - 최대 48x (너무 커지는 것 방지)
+      필요하면 28px을 30~34px로 올리면 50"에서 더 커짐
+    */
+    font-size: clamp(16px, 1.2vmin + 10px, 48px);
+  }
+}
