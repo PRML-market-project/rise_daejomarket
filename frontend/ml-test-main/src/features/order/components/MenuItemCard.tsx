@@ -1,6 +1,7 @@
 import { Menu } from '@/types/menu';
 import { useCartStore } from '@/store/cartStore';
 import { useLanguageStore } from '@/store/languageStore';
+import { localizedValue } from '@/i18n/language';
 
 interface MenuItemCardProps {
   menu: Menu;
@@ -11,8 +12,16 @@ const MenuItemCard = ({ menu, isSearched }: MenuItemCardProps) => {
   const addItem = useCartStore((state) => state.addItem);
   const { language } = useLanguageStore();
 
-  const translatedName =
-    language === 'en' && menu.menuNameEn ? menu.menuNameEn : menu.menuName;
+  const translatedName = localizedValue(
+    language,
+    menu.menuName,
+    menu.menuNameEn,
+    menu.menuNameVi
+  );
+  const translatedCount =
+    language === 'vi' && menu.menuCountVi
+      ? menu.menuCountVi
+      : menu.menuCount;
 
   const handleAddToCart = () => {
     console.log(`Adding ${translatedName} to cart`);
@@ -54,9 +63,9 @@ const MenuItemCard = ({ menu, isSearched }: MenuItemCardProps) => {
             {translatedName}
           </h3>
           
-          {menu.menuCount && (
+          {translatedCount && (
             <p className='w-full text-xs text-[var(--color-indigo-600)] text-center mb-1'>
-              {menu.menuCount}
+              {translatedCount}
             </p>
           )}
           

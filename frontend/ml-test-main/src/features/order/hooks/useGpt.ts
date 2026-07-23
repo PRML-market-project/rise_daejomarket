@@ -10,6 +10,7 @@ import { useParams } from 'react-router-dom';
 import { useOrderHistoryStore } from '@/store/orderHistoryStore';
 import { useMapStore } from '@/store/mapStore'; // ✅ MapStore 추가
 import { marketShops } from '@/data/market-shops';
+import { t } from '@/i18n/language';
 
 interface UseTextApiProps {
   apiUrl: string;
@@ -82,7 +83,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
     if (!intent) {
       if (safeMessage) {
         updateLastMessage(safeMessage);
-        getSpeech(safeMessage, language === 'en' ? 'en' : 'ko');
+        getSpeech(safeMessage, language);
       }
       return;
     }
@@ -94,7 +95,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       case 'get_store':
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language === 'en' ? 'en' : 'ko');
+          getSpeech(safeMessage, language);
         }
 
         if (items.length > 0) {
@@ -126,7 +127,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       case 'get_menu':
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language === 'en' ? 'en' : 'ko');
+          getSpeech(safeMessage, language);
         }
 
         if (items.length > 0) {
@@ -155,7 +156,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
         // 1. 메시지 및 음성 안내
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language === 'en' ? 'en' : 'ko');
+          getSpeech(safeMessage, language);
         }
 
         // 2. 언급된 상품이 있는 가게들을 깜빡이게 처리 (시각적 보조)
@@ -202,24 +203,18 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
             selectAndNavigate(targetId);
           } else {
             // 가게 ID는 왔는데 데이터에 없는 경우
-            finalMessage =
-              language === 'en'
-                ? 'Shop location not found.'
-                : '가게 위치 정보를 찾을 수 없습니다.';
+            finalMessage = t(language, 'locationNotFound');
           }
         } else {
           // items가 비어있을 때 메시지가 null이면 기본 메시지 출력
           if (!finalMessage) {
-            finalMessage =
-              language === 'en'
-                ? 'I could not find that location.'
-                : '위치 정보를 찾을 수 없습니다.';
+            finalMessage = t(language, 'locationNotFound');
           }
         }
 
         // 최종 메시지 출력 및 음성 안내
         updateLastMessage(finalMessage);
-        getSpeech(finalMessage, language === 'en' ? 'en' : 'ko');
+        getSpeech(finalMessage, language);
         break;
 
       // ---------------------------------------------------------
@@ -228,7 +223,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       default:
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language === 'en' ? 'en' : 'ko');
+          getSpeech(safeMessage, language);
         }
         break;
     }
@@ -253,7 +248,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       const response = await fetch(`${apiUrl}/gpt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_id, kiosk_id, text }),
+        body: JSON.stringify({ admin_id, kiosk_id, text, language }),
       });
 
       if (!response.ok) throw new Error('GPT 서버 응답 오류');
@@ -272,7 +267,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       if (!isJson) {
         console.log('Non-JSON Response:', responseText);
         updateLastMessage(responseText);
-        getSpeech(responseText, language === 'en' ? 'en' : 'ko');
+        getSpeech(responseText, language);
         return {
           user_message: text,
           chat_message: responseText,
@@ -315,12 +310,9 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       const errorMessage =
         err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
       setError(errorMessage);
-      const failMessage =
-        language === 'en'
-          ? 'Error has occurred'
-          : '알 수 없는 오류가 발생했습니다.';
+      const failMessage = t(language, 'error');
       updateLastMessage(failMessage);
-      getSpeech(failMessage, language === 'en' ? 'en' : 'ko');
+      getSpeech(failMessage, language);
       throw err;
     } finally {
       setIsProcessing(false);

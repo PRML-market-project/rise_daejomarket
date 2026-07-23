@@ -7,6 +7,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { useParams } from 'react-router-dom';
 import { useKioskStore } from '@/store/kioskStore';
 import { toast } from 'sonner';
+import { t as translateUi } from '@/i18n/language';
 
 const Cart = () => {
   const cartItems = useCartStore((state) => state.cartItems);
@@ -16,15 +17,16 @@ const Cart = () => {
   const { kioskId: storeKioskId } = useKioskStore();
 
   const t = {
-    cartTitle: language === 'ko' ? '장바구니' : 'Cart',
-    emptyMessage:
-      language === 'ko' ? '장바구니가 비어 있어요' : 'Your cart is empty',
+    cartTitle: translateUi(language, 'cart'),
+    emptyMessage: translateUi(language, 'emptyCart'),
     guideMessage:
-      language === 'ko'
-        ? '원하는 메뉴를 먼저 골라주세요'
-        : 'Please select a menu first',
-    totalLabel: language === 'ko' ? '총 주문 금액:' : 'Total:',
-    orderButton: language === 'ko' ? '주문하기' : 'Place Order',
+      language === 'vi'
+        ? 'Vui lòng chọn món trước'
+        : language === 'en'
+          ? 'Please select a menu first'
+          : '원하는 메뉴를 먼저 골라주세요',
+    totalLabel: translateUi(language, 'total'),
+    orderButton: translateUi(language, 'placeOrder'),
   };
 
   const totalPrice = cartItems.reduce(

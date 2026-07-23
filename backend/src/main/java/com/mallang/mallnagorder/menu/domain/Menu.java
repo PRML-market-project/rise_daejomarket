@@ -22,6 +22,9 @@ public class Menu extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String menuNameEn;
 
+    @Column(length = 150)
+    private String menuNameVi;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal menuPrice;
 
@@ -33,6 +36,9 @@ public class Menu extends BaseEntity {
 
     @Column(nullable = false)
     private String menuCount;
+
+    @Column(length = 150)
+    private String menuCountVi;
 
     @OneToMany(mappedBy = "menu", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

@@ -2,11 +2,38 @@ import React, { useEffect } from 'react';
 import { useOrderHistoryStore } from '@/store/orderHistoryStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { useParams } from 'react-router-dom';
+import { localizedValue, speechRecognitionLocales } from '@/i18n/language';
 
 const OrderHistoryPage: React.FC = () => {
   const { orders, fetchOrders, isLoading, error } = useOrderHistoryStore();
   const { language } = useLanguageStore();
   const { kioskId } = useParams();
+  const labels = {
+    ko: {
+      title: '주문 내역',
+      loading: '주문 내역을 불러오는 중...',
+      empty: '주문 내역이 없습니다.',
+      orderNumber: '주문번호',
+      total: '총 금액',
+      final: '최종 금액',
+    },
+    en: {
+      title: 'Order History',
+      loading: 'Loading orders...',
+      empty: 'No orders found.',
+      orderNumber: 'Order Number',
+      total: 'Total Amount',
+      final: 'Final Amount',
+    },
+    vi: {
+      title: 'Lịch sử đơn hàng',
+      loading: 'Đang tải đơn hàng...',
+      empty: 'Không có đơn hàng.',
+      orderNumber: 'Mã đơn hàng',
+      total: 'Tổng tiền',
+      final: 'Tổng cộng',
+    },
+  }[language];
 
   useEffect(() => {
     if (kioskId) {
@@ -18,7 +45,7 @@ const OrderHistoryPage: React.FC = () => {
     const date = new Date(dateString);
     // UTC 시간에 9시간을 더해 한국 시간으로 변환
     date.setHours(date.getHours() + 9);
-    return date.toLocaleString(language === 'en' ? 'en-US' : 'ko-KR');
+    return date.toLocaleString(speechRecognitionLocales[language]);
   };
 
   // 전체 주문의 총합 금액 계산
@@ -34,14 +61,12 @@ const OrderHistoryPage: React.FC = () => {
     <div className='h-full flex flex-col bg-[var(--color-gray-50)]'>
       <div className='p-4'>
         <h1 className='text-2xl font-bold mb-6'>
-          {language === 'en' ? 'Order History' : '주문 내역'}
+          {labels.title}
         </h1>
 
         {isLoading && (
           <p>
-            {language === 'en'
-              ? 'Loading orders...'
-              : '주문 내역을 불러오는 중...'}
+            {labels.loading}
           </p>
         )}
         {error && <p className='text-[var(--color-red-600)]'>{error}</p>}
@@ -50,7 +75,7 @@ const OrderHistoryPage: React.FC = () => {
       <div className='flex flex-col gap-4 flex-1 overflow-y-auto px-4 pb-4'>
         {orders.length === 0 && !isLoading && (
           <p>
-            {language === 'en' ? 'No orders found.' : '주문 내역이 없습니다.'}
+            {labels.empty}
           </p>
         )}
 
@@ -60,7 +85,7 @@ const OrderHistoryPage: React.FC = () => {
               <div className='flex justify-between items-start mb-3'>
                 <div>
                   <h2 className='text-lg font-semibold'>
-                    {language === 'en' ? 'Order Number' : '주문번호'}:{' '}
+                    {labels.orderNumber}:{' '}
                     {order.orderId}
                   </h2>
                   <p className='text-sm text-[var(--color-gray-500)]'>
@@ -72,9 +97,12 @@ const OrderHistoryPage: React.FC = () => {
                 {order.items.map((item, idx) => (
                   <div key={idx} className='flex justify-between text-sm'>
                     <span>
-                      {language === 'en' && item.menuNameEn
-                        ? item.menuNameEn
-                        : item.menuName}{' '}
+                      {localizedValue(
+                        language,
+                        item.menuName,
+                        item.menuNameEn,
+                        item.menuNameVi
+                      )}{' '}
                       x {item.quantity}
                     </span>
                     <span>
@@ -85,7 +113,7 @@ const OrderHistoryPage: React.FC = () => {
               </div>
               <div className='border-t pt-3'>
                 <div className='flex justify-between font-semibold'>
-                  <span>{language === 'en' ? 'Total Amount' : '총 금액'}</span>
+                  <span>{labels.total}</span>
                   <span>
                     {order.items
                       .reduce(
@@ -107,7 +135,7 @@ const OrderHistoryPage: React.FC = () => {
         <div className='bg-white border-t border-[var(--color-gray-200)] p-4'>
           <div className='flex justify-between items-center'>
             <span className='text-lg font-semibold'>
-              {language === 'en' ? 'Final Amount' : '최종 금액'}
+              {labels.final}
             </span>
             <span className='text-2xl font-bold text-[var(--color-indigo-600)]'>
               {totalAmount.toLocaleString()} ₩

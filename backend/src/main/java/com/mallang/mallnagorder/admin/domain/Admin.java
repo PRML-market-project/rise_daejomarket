@@ -32,6 +32,9 @@ public class Admin extends BaseEntity {
     @Column(nullable = true, length = 100)
     private String storeNameEn;
 
+    @Column(length = 150)
+    private String storeNameVi;
+
     @OneToMany(mappedBy = "admin", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Kiosk> kiosks;
 

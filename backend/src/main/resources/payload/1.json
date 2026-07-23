@@ -4,96 +4,524 @@
     "categoryId" : 1,
     "categoryName" : "전체",
     "categoryNameEn" : "All",
+    "categoryNameVi" : "Tất cả",
+    "categoryType" : "",
     "menus" : [ {
-      "menuId" : 4,
+      "menuId" : 8,
       "menuName" : "수박",
       "menuNameEn" : "watermelon",
-      "menuPrice" : 17000.00
-    }, {
-      "menuId" : 5,
-      "menuName" : "참외",
-      "menuNameEn" : "korean melon",
-      "menuPrice" : 8000.00
-    }, {
-      "menuId" : 6,
-      "menuName" : "딸기",
-      "menuNameEn" : "Strawberry",
-      "menuPrice" : 10000.00
-    }, {
-      "menuId" : 7,
-      "menuName" : "사과",
-      "menuNameEn" : "apple",
-      "menuPrice" : 5000.00
-    }, {
-      "menuId" : 8,
-      "menuName" : "멜론",
-      "menuNameEn" : "melon",
-      "menuPrice" : 6000.00
+      "menuNameVi" : "quả dưa hấu",
+      "menuPrice" : 16000.00,
+      "menuCount" : "1통",
+      "menuCountVi" : "1 quả"
     }, {
       "menuId" : 9,
-      "menuName" : "찹쌀떡",
-      "menuNameEn" : "rice cake",
-      "menuPrice" : 3000.00
+      "menuName" : "멜론",
+      "menuNameEn" : "melon",
+      "menuNameVi" : "dưa",
+      "menuPrice" : 7000.00,
+      "menuCount" : "1통",
+      "menuCountVi" : "1 quả"
     }, {
       "menuId" : 10,
-      "menuName" : "인절미",
-      "menuNameEn" : "Injeolmi",
-      "menuPrice" : 3000
+      "menuName" : "귤",
+      "menuNameEn" : "tangerine",
+      "menuNameVi" : "quýt",
+      "menuPrice" : 10000.00,
+      "menuCount" : "1바구니 (10개)",
+      "menuCountVi" : "1 giỏ (10 quả)"
+    }, {
+      "menuId" : 11,
+      "menuName" : "샤인머스켓",
+      "menuNameEn" : "Shine muscat",
+      "menuNameVi" : "Shine muscat",
+      "menuPrice" : 20000.00,
+      "menuCount" : "1박스 (3송이)",
+      "menuCountVi" : "1 hộp (3 chùm)"
+    }, {
+      "menuId" : 12,
+      "menuName" : "사과",
+      "menuNameEn" : "apple",
+      "menuNameVi" : "táo",
+      "menuPrice" : 12000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    }, {
+      "menuId" : 13,
+      "menuName" : "참외",
+      "menuNameEn" : "oriental melon",
+      "menuNameVi" : "dưa phương Đông",
+      "menuPrice" : 8000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    }, {
+      "menuId" : 14,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Green kiwi",
+      "menuNameVi" : "Kiwi xanh",
+      "menuPrice" : 5000.00,
+      "menuCount" : "6개",
+      "menuCountVi" : "6 quả"
+    }, {
+      "menuId" : 15,
+      "menuName" : "바나나",
+      "menuNameEn" : "banana",
+      "menuNameVi" : "chuối",
+      "menuPrice" : 3500.00,
+      "menuCount" : "1송이",
+      "menuCountVi" : "1 nải"
+    }, {
+      "menuId" : 16,
+      "menuName" : "딸기",
+      "menuNameEn" : "strawberry",
+      "menuNameVi" : "dâu tây",
+      "menuPrice" : 9000.00,
+      "menuCount" : "1kg",
+      "menuCountVi" : "1 kg"
+    }, {
+      "menuId" : 17,
+      "menuName" : "칼국수",
+      "menuNameEn" : "Kalguksu",
+      "menuNameVi" : "Kalguksu",
+      "menuPrice" : 8000.00,
+      "menuCount" : "1그릇",
+      "menuCountVi" : "1 bát"
+    }, {
+      "menuId" : 18,
+      "menuName" : "비빔칼국수",
+      "menuNameEn" : "bibim Kalguksu",
+      "menuNameVi" : "bibim Kalguksu",
+      "menuPrice" : 9000.00,
+      "menuCount" : "1그릇",
+      "menuCountVi" : "1 bát"
+    }, {
+      "menuId" : 19,
+      "menuName" : "공기밥",
+      "menuNameEn" : "rice",
+      "menuNameVi" : "gạo",
+      "menuPrice" : 1000.00,
+      "menuCount" : "1공기",
+      "menuCountVi" : "1 bát"
+    }, {
+      "menuId" : 20,
+      "menuName" : "복숭아",
+      "menuNameEn" : "Peach",
+      "menuNameVi" : "Đào",
+      "menuPrice" : 10000.00,
+      "menuCount" : "8개",
+      "menuCountVi" : "8 quả"
+    }, {
+      "menuId" : 21,
+      "menuName" : "애플망고",
+      "menuNameEn" : "Apple mango",
+      "menuNameVi" : "Xoài táo",
+      "menuPrice" : 15000.00,
+      "menuCount" : "5개",
+      "menuCountVi" : "5 quả"
+    }, {
+      "menuId" : 22,
+      "menuName" : "배",
+      "menuNameEn" : "Pear",
+      "menuNameVi" : "quả lê",
+      "menuPrice" : 5000.00,
+      "menuCount" : "3개",
+      "menuCountVi" : "3 quả"
+    }, {
+      "menuId" : 23,
+      "menuName" : "단감",
+      "menuNameEn" : "Sweet persimmons",
+      "menuNameVi" : "Hồng ngọt",
+      "menuPrice" : 10000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    }, {
+      "menuId" : 24,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 10000.00,
+      "menuCount" : "8개",
+      "menuCountVi" : "8 quả"
+    }, {
+      "menuId" : 25,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 10000.00,
+      "menuCount" : "8개",
+      "menuCountVi" : "8 quả"
+    }, {
+      "menuId" : 26,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 12000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    }, {
+      "menuId" : 27,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 12000.00,
+      "menuCount" : "12개",
+      "menuCountVi" : "12 quả"
     } ]
   }, {
-    "categoryId" : 3,
-    "categoryName" : "소문난 반찬",
-    "categoryNameEn" : "well-known side dish",
+    "categoryId" : 10,
+    "categoryName" : "서울청과",
+    "categoryNameEn" : "seoul fruit",
+    "categoryNameVi" : "trái cây Seoul",
+    "categoryType" : "청과",
+    "menus" : [ {
+      "menuId" : 8,
+      "menuName" : "수박",
+      "menuNameEn" : "watermelon",
+      "menuNameVi" : "quả dưa hấu",
+      "menuPrice" : 16000.00,
+      "menuCount" : "1통",
+      "menuCountVi" : "1 quả"
+    }, {
+      "menuId" : 9,
+      "menuName" : "멜론",
+      "menuNameEn" : "melon",
+      "menuNameVi" : "dưa",
+      "menuPrice" : 7000.00,
+      "menuCount" : "1통",
+      "menuCountVi" : "1 quả"
+    }, {
+      "menuId" : 10,
+      "menuName" : "귤",
+      "menuNameEn" : "tangerine",
+      "menuNameVi" : "quýt",
+      "menuPrice" : 10000.00,
+      "menuCount" : "1바구니 (10개)",
+      "menuCountVi" : "1 giỏ (10 quả)"
+    }, {
+      "menuId" : 11,
+      "menuName" : "샤인머스켓",
+      "menuNameEn" : "Shine muscat",
+      "menuNameVi" : "Shine muscat",
+      "menuPrice" : 20000.00,
+      "menuCount" : "1박스 (3송이)",
+      "menuCountVi" : "1 hộp (3 chùm)"
+    }, {
+      "menuId" : 12,
+      "menuName" : "사과",
+      "menuNameEn" : "apple",
+      "menuNameVi" : "táo",
+      "menuPrice" : 12000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    }, {
+      "menuId" : 13,
+      "menuName" : "참외",
+      "menuNameEn" : "oriental melon",
+      "menuNameVi" : "dưa phương Đông",
+      "menuPrice" : 8000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    }, {
+      "menuId" : 14,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Green kiwi",
+      "menuNameVi" : "Kiwi xanh",
+      "menuPrice" : 5000.00,
+      "menuCount" : "6개",
+      "menuCountVi" : "6 quả"
+    }, {
+      "menuId" : 15,
+      "menuName" : "바나나",
+      "menuNameEn" : "banana",
+      "menuNameVi" : "chuối",
+      "menuPrice" : 3500.00,
+      "menuCount" : "1송이",
+      "menuCountVi" : "1 nải"
+    }, {
+      "menuId" : 16,
+      "menuName" : "딸기",
+      "menuNameEn" : "strawberry",
+      "menuNameVi" : "dâu tây",
+      "menuPrice" : 9000.00,
+      "menuCount" : "1kg",
+      "menuCountVi" : "1 kg"
+    }, {
+      "menuId" : 20,
+      "menuName" : "복숭아",
+      "menuNameEn" : "Peach",
+      "menuNameVi" : "Đào",
+      "menuPrice" : 10000.00,
+      "menuCount" : "8개",
+      "menuCountVi" : "8 quả"
+    }, {
+      "menuId" : 21,
+      "menuName" : "애플망고",
+      "menuNameEn" : "Apple mango",
+      "menuNameVi" : "Xoài táo",
+      "menuPrice" : 15000.00,
+      "menuCount" : "5개",
+      "menuCountVi" : "5 quả"
+    }, {
+      "menuId" : 22,
+      "menuName" : "배",
+      "menuNameEn" : "Pear",
+      "menuNameVi" : "quả lê",
+      "menuPrice" : 5000.00,
+      "menuCount" : "3개",
+      "menuCountVi" : "3 quả"
+    }, {
+      "menuId" : 23,
+      "menuName" : "단감",
+      "menuNameEn" : "Sweet persimmons",
+      "menuNameVi" : "Hồng ngọt",
+      "menuPrice" : 10000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
+    } ]
+  }, {
+    "categoryId" : 12,
+    "categoryName" : "우리농산",
+    "categoryNameEn" : "Our agricultural products",
+    "categoryNameVi" : "Sản phẩm nông nghiệp của chúng tôi",
+    "categoryType" : "청과",
     "menus" : [ ]
   }, {
-    "categoryId" : 4,
-    "categoryName" : "왕십리 곱창",
-    "categoryNameEn" : "Gopchang in Wangsimni",
+    "categoryId" : 14,
+    "categoryName" : "골드 축산",
+    "categoryNameEn" : "Gold Livestock",
+    "categoryNameVi" : "gia súc vàng",
+    "categoryType" : "정육",
     "menus" : [ ]
   }, {
-    "categoryId" : 5,
+    "categoryId" : 15,
+    "categoryName" : "도깨비 칼국수",
+    "categoryNameEn" : "Goblin kalguksu",
+    "categoryNameVi" : "Yêu tinh kalguksu",
+    "categoryType" : "식당",
+    "menus" : [ {
+      "menuId" : 17,
+      "menuName" : "칼국수",
+      "menuNameEn" : "Kalguksu",
+      "menuNameVi" : "Kalguksu",
+      "menuPrice" : 8000.00,
+      "menuCount" : "1그릇",
+      "menuCountVi" : "1 bát"
+    }, {
+      "menuId" : 18,
+      "menuName" : "비빔칼국수",
+      "menuNameEn" : "bibim Kalguksu",
+      "menuNameVi" : "bibim Kalguksu",
+      "menuPrice" : 9000.00,
+      "menuCount" : "1그릇",
+      "menuCountVi" : "1 bát"
+    }, {
+      "menuId" : 19,
+      "menuName" : "공기밥",
+      "menuNameEn" : "rice",
+      "menuNameVi" : "gạo",
+      "menuPrice" : 1000.00,
+      "menuCount" : "1공기",
+      "menuCountVi" : "1 bát"
+    } ]
+  }, {
+    "categoryId" : 16,
+    "categoryName" : "야채랑과일이랑",
+    "categoryNameEn" : "Vegetables and fruits",
+    "categoryNameVi" : "Rau củ và trái cây",
+    "categoryType" : "청과",
+    "menus" : [ {
+      "menuId" : 24,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 10000.00,
+      "menuCount" : "8개",
+      "menuCountVi" : "8 quả"
+    } ]
+  }, {
+    "categoryId" : 20,
+    "categoryName" : "생선수산물직판장",
+    "categoryNameEn" : "Direct Fish and Marine Products Market",
+    "categoryNameVi" : "Thị trường Cá và Sản phẩm Biển Trực Tiếp",
+    "categoryType" : "수산",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 21,
+    "categoryName" : "다희",
+    "categoryNameEn" : "DaHee",
+    "categoryNameVi" : "DaHee",
+    "categoryType" : "잡화",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 22,
+    "categoryName" : "시골시장참기름",
+    "categoryNameEn" : "rural market sesame oil",
+    "categoryNameVi" : "dầu mè thị trường nông thôn",
+    "categoryType" : "농산물 가공",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 23,
+    "categoryName" : "영미용실",
+    "categoryNameEn" : "Young's beauty salon",
+    "categoryNameVi" : "Tiệm làm đẹp Young's",
+    "categoryType" : "서비스업",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 24,
     "categoryName" : "종로복 떡집",
-    "categoryNameEn" : "Jongrobok Rice Cake",
+    "categoryNameEn" : "Jongrobok Rice Cake Restaurant",
+    "categoryNameVi" : "Nhà hàng bánh gạo Jongrobok",
+    "categoryType" : "식품",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 25,
+    "categoryName" : "늘푸른야채",
+    "categoryNameEn" : "evergreen vegetables",
+    "categoryNameVi" : "rau xanh quanh năm",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 26,
+    "categoryName" : "자연이준선물",
+    "categoryNameEn" : "Gift from nature",
+    "categoryNameVi" : "Món quà từ thiên nhiên",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 27,
+    "categoryName" : "은평청과물",
+    "categoryNameEn" : "Eunpyeong Green Fruit",
+    "categoryNameVi" : "Trái cây xanh Eunpyeong",
+    "categoryType" : "청과",
     "menus" : [ {
-      "menuId" : 9,
-      "menuName" : "찹쌀떡",
-      "menuNameEn" : "rice cake",
-      "menuPrice" : 3000.00
-    }, {
-      "menuId" : 10,
-      "menuName" : "인절미",
-      "menuNameEn" : "Injeolmi",
-      "menuPrice" : 3000
+      "menuId" : 26,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 12000.00,
+      "menuCount" : "10개",
+      "menuCountVi" : "10 quả"
     } ]
   }, {
-    "categoryId" : 6,
-    "categoryName" : "은평구 청과물",
-    "categoryNameEn" : "Eunpyeong-gu Fruit and Vegetables",
+    "categoryId" : 28,
+    "categoryName" : "봉화농산",
+    "categoryNameEn" : "Bonghwa Agricultural",
+    "categoryNameVi" : "Nông nghiệp Bonghwa",
+    "categoryType" : "청과",
     "menus" : [ {
-      "menuId" : 4,
-      "menuName" : "수박",
-      "menuNameEn" : "watermelon",
-      "menuPrice" : 17000.00
-    }, {
-      "menuId" : 5,
-      "menuName" : "참외",
-      "menuNameEn" : "korean melon",
-      "menuPrice" : 8000.00
-    }, {
-      "menuId" : 6,
-      "menuName" : "딸기",
-      "menuNameEn" : "Strawberry",
-      "menuPrice" : 10000.00
-    }, {
-      "menuId" : 7,
-      "menuName" : "사과",
-      "menuNameEn" : "apple",
-      "menuPrice" : 5000.00
-    }, {
-      "menuId" : 8,
-      "menuName" : "멜론",
-      "menuNameEn" : "melon",
-      "menuPrice" : 6000.00
+      "menuId" : 25,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 10000.00,
+      "menuCount" : "8개",
+      "menuCountVi" : "8 quả"
     } ]
+  }, {
+    "categoryId" : 29,
+    "categoryName" : "야채상회",
+    "categoryNameEn" : "Vegetables Market",
+    "categoryNameVi" : "chợ rau củ",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 30,
+    "categoryName" : "일산야채",
+    "categoryNameEn" : "Ilsan vegetables",
+    "categoryNameVi" : "Rau củ Ilsan",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 31,
+    "categoryName" : "상추상회",
+    "categoryNameEn" : "Lettuce Market",
+    "categoryNameVi" : "chợ xà lách",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 32,
+    "categoryName" : "소씨네야채",
+    "categoryNameEn" : "So's vegetables",
+    "categoryNameVi" : "Rau củ cũng vậy",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 33,
+    "categoryName" : "대조야채",
+    "categoryNameEn" : "Daejo vegetables",
+    "categoryNameVi" : "Rau củ Daejo",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 34,
+    "categoryName" : "고흥야채",
+    "categoryNameEn" : "GoHeung vegetables",
+    "categoryNameVi" : "Rau củ GoHeung",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 35,
+    "categoryName" : "우리농산물",
+    "categoryNameEn" : "Our agriculturals",
+    "categoryNameVi" : "Nông nghiệp của chúng tôi",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 36,
+    "categoryName" : "다문화야채",
+    "categoryNameEn" : "multicultural vegetables",
+    "categoryNameVi" : "rau củ đa canh",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 37,
+    "categoryName" : "고사리/도라지",
+    "categoryNameEn" : "bracken / bellflower",
+    "categoryNameVi" : "Dương xỉ / hoa chuông",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 38,
+    "categoryName" : "콩나물/두부",
+    "categoryNameEn" : "bean sprouts/tofu",
+    "categoryNameVi" : "giá đỗ/đậu phụ",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 39,
+    "categoryName" : "마늘/고추",
+    "categoryNameEn" : "garlic/pepper",
+    "categoryNameVi" : "tỏi/tiêu",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 40,
+    "categoryName" : "일번지청과",
+    "categoryNameEn" : "First Bungee Chunggwa",
+    "categoryNameVi" : "Bungee Chunggwa đầu tiên",
+    "categoryType" : "청과",
+    "menus" : [ {
+      "menuId" : 27,
+      "menuName" : "그린키위",
+      "menuNameEn" : "Kiwi",
+      "menuNameVi" : "Kiwi",
+      "menuPrice" : 12000.00,
+      "menuCount" : "12개",
+      "menuCountVi" : "12 quả"
+    } ]
+  }, {
+    "categoryId" : 41,
+    "categoryName" : "대영고추",
+    "categoryNameEn" : "Great Red Pepper",
+    "categoryNameVi" : "ớt đỏ lớn",
+    "categoryType" : "청과",
+    "menus" : [ ]
+  }, {
+    "categoryId" : 42,
+    "categoryName" : "신흥고추",
+    "categoryNameEn" : "Shinheung pepper",
+    "categoryNameVi" : "Tiêu Shinheung",
+    "categoryType" : "청과",
+    "menus" : [ ]
   } ]
 }

@@ -200,8 +200,22 @@ def transform_categories(language, cat_list):
                 transformed_menus.append([menu['menuId'], menu['menuName'], price, count])
             elif language == 'en':
                 transformed_menus.append([menu['menuId'], menu['menuNameEn'], price, count])
+            elif language == 'vi':
+                transformed_menus.append([
+                    menu['menuId'],
+                    menu.get('menuNameVi') or menu.get('menuNameEn') or menu['menuName'],
+                    price,
+                    count
+                ])
             else:
-                transformed_menus.append([menu['menuId'], menu['menuName'], menu['menuNameEn'], price, count])
+                transformed_menus.append([
+                    menu['menuId'],
+                    menu['menuName'],
+                    menu.get('menuNameEn'),
+                    menu.get('menuNameVi'),
+                    price,
+                    count
+                ])
 
         # categoryType 추출 (없을 경우 빈 문자열)
         category_type = cat.get('categoryType', '')
@@ -210,6 +224,7 @@ def transform_categories(language, cat_list):
             "categoryId": cat['categoryId'],
             "categoryName": cat['categoryName'],
             "categoryNameEn": cat['categoryNameEn'],
+            "categoryNameVi": cat.get('categoryNameVi') or cat.get('categoryNameEn') or cat['categoryName'],
             "categoryType": category_type,  # ★ 추가됨
             "menus": transformed_menus
         })
@@ -437,16 +452,17 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
 
 
         # =====================================================================
-        # English
+        # English / Vietnamese
         # =====================================================================
         else:
+            response_language = "Vietnamese" if language == "vi" else "English"
 
             # ================================================================
             # Intent 1: Category request
             # ================================================================
             if intent == 1:
                 system_prompt = f"""
-        You are a kiosk assistant.
+        You are a kiosk assistant. Respond in {response_language}.
         Current Intent: Request to view a specific category/store.
 
         [Menu Data]
@@ -455,10 +471,10 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         Response MUST be JSON:
         {{
           "user_message": "{text}",
-          "chat_message": "<English response confirming navigation>",
+          "chat_message": "<{response_language} response confirming navigation>",
           "result": {{
             "status": "success",
-            "intent": "get_category",
+            "intent": "get_store",
             "items": [
               {{
                 "category_id": <int or null>,
@@ -476,7 +492,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
             # ================================================================
             elif intent == 2:
                 system_prompt = f"""
-        You are a kiosk assistant.
+        You are a kiosk assistant. Respond in {response_language}.
         Current Intent: Request for a specific menu item or order.
 
         [Menu Data]
@@ -485,7 +501,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         Response MUST be JSON:
         {{
           "user_message": "{text}",
-          "chat_message": "<English response regarding the menu>",
+          "chat_message": "<{response_language} response regarding the menu>",
           "result": {{
             "status": "success",
             "intent": "get_menu",
@@ -508,7 +524,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
                 map_context_str = load_map_simple_list()
 
                 system_prompt = f"""
-        You are a market guide.
+        You are a market guide. Respond in {response_language}.
         Find the store ID that best matches the user's query.
 
         [Store List (ID:Name)]
@@ -517,7 +533,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         Response MUST be JSON:
         {{
           "user_message": "{text}",
-          "chat_message": "<English response>",
+          "chat_message": "<{response_language} response>",
           "result": {{
             "status": "success",
             "intent": "get_location",
@@ -532,11 +548,35 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         """
 
             # ================================================================
-            # Intent 4: Chitchat / Else
+            # Intent 4: Total price
+            # ================================================================
+            elif intent == 4:
+                system_prompt = f"""
+        You are a kiosk price assistant. Respond in {response_language}.
+        Find the requested menu items in the menu data, calculate each subtotal
+        and the final total. Do not invent menu names or prices.
+
+        [Menu Data]
+        {json.dumps(menu_context, ensure_ascii=False)}
+
+        Response MUST be JSON:
+        {{
+          "user_message": "{text}",
+          "chat_message": "<{response_language} response with the calculated total>",
+          "result": {{
+            "status": "success",
+            "intent": "get_total_price",
+            "items": []
+          }}
+        }}
+        """
+
+            # ================================================================
+            # Chitchat / Else
             # ================================================================
             else:
                 system_prompt = f"""
-        You are a friendly kiosk chatbot.
+        You are a friendly kiosk chatbot. Respond in {response_language}.
         Respond briefly and politely to casual conversation.
 
         Response MUST be JSON:
@@ -599,6 +639,8 @@ def generate_tts():
         voice = "ko-KR-SunHiNeural"
         if language == 'en':
             voice = "en-US-AriaNeural"
+        elif language == 'vi':
+            voice = "vi-VN-HoaiMyNeural"
 
         filename = f"tts_{uuid.uuid4()}.mp3"
 
@@ -679,7 +721,8 @@ def gpt():
         kiosk_id = int(data['kiosk_id'])
         admin_id = int(data['admin_id'])
 
-        language = detect_language(text)
+        requested_language = data.get('language')
+        language = requested_language if requested_language in ('ko', 'en', 'vi') else detect_language(text)
         timer.mark("language_detected")
 
         intent = detect_intent(text)

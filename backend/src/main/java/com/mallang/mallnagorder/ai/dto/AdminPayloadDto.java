@@ -36,6 +36,7 @@ public class AdminPayloadDto {
         private Long categoryId;
         private String categoryName;
         private String categoryNameEn;
+        private String categoryNameVi;
         private String categoryType;
         private List<MenuView> menus;
 
@@ -44,6 +45,7 @@ public class AdminPayloadDto {
                     .categoryId(category.getId())
                     .categoryName(category.getCategoryName())
                     .categoryNameEn(category.getCategoryNameEn())
+                    .categoryNameVi(category.getCategoryNameVi())
                     .categoryType(category.getCategoryType())
                     .categoryType(category.getCategoryType() != null ? category.getCategoryType() : "")//추가
                     .menus(
@@ -64,16 +66,20 @@ public class AdminPayloadDto {
         private Long menuId;
         private String menuName;
         private String menuNameEn;
+        private String menuNameVi;
         private BigDecimal menuPrice;
         private String menuCount;
+        private String menuCountVi;
 
         public static MenuView from(Menu menu) {
             return MenuView.builder()
                     .menuId(menu.getId())
                     .menuName(menu.getMenuName())
                     .menuNameEn(menu.getMenuNameEn())
+                    .menuNameVi(menu.getMenuNameVi())
                     .menuPrice(menu.getMenuPrice())
                     .menuCount(menu.getMenuCount())
+                    .menuCountVi(menu.getMenuCountVi())
                     .build();
         }
     }

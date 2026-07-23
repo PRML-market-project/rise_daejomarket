@@ -17,8 +17,10 @@ public class MenuResponse {
     private Long menuId;
     private String menuName;
     private String menuNameEn;
+    private String menuNameVi;
     private BigDecimal menuPrice;
     private String menuCount;
+    private String menuCountVi;
     private String imageUrl;
     private Long adminId;
     private List<CategoryInfo> categories;
@@ -28,8 +30,10 @@ public class MenuResponse {
                 .menuId(menu.getId())
                 .menuName(menu.getMenuName())
                 .menuNameEn(menu.getMenuNameEn())
+                .menuNameVi(menu.getMenuNameVi())
                 .menuPrice(menu.getMenuPrice())
                 .menuCount(menu.getMenuCount())
+                .menuCountVi(menu.getMenuCountVi())
                 .imageUrl(menu.getImageUrl())
                 .adminId(menu.getAdminId())
                 .categories(
@@ -38,7 +42,8 @@ public class MenuResponse {
                                 .map(category -> new CategoryInfo(
                                         category.getId(),
                                         category.getCategoryName(),
-                                        category.getCategoryNameEn()
+                                        category.getCategoryNameEn(),
+                                        category.getCategoryNameVi()
                                 ))
                                 .collect(Collectors.toList())
                 )
@@ -55,5 +60,6 @@ public class MenuResponse {
         private Long categoryId;
         private String categoryName;
         private String categoryNameEn;
+        private String categoryNameVi;
     }
 }

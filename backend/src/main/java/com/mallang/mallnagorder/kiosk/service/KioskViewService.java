@@ -48,6 +48,7 @@ public class KioskViewService {
                                 .map(item -> OrderResponse.OrderItemSummary.builder()
                                         .menuName(item.getMenu().getMenuName())
                                         .menuNameEn(item.getMenu().getMenuNameEn())
+                                        .menuNameVi(item.getMenu().getMenuNameVi())
                                         .menuPrice(item.getMenu().getMenuPrice())
                                         .quantity(item.getQuantity())
                                         .build())

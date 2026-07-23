@@ -20,6 +20,7 @@ public class CategoryWithMenuResponse {
     private Long categoryId;
     private String categoryName;
     private String categoryNameEn;
+    private String categoryNameVi;
     private String categoryType;
     private List<MenuView> menus;
 
@@ -38,6 +39,7 @@ public class CategoryWithMenuResponse {
                 .categoryId(category.getId())
                 .categoryName(category.getCategoryName())
                 .categoryNameEn(category.getCategoryNameEn())
+                .categoryNameVi(category.getCategoryNameVi())
                 .categoryType(category.getCategoryType())
                 .menus(menus)
                 .build();
@@ -51,8 +53,10 @@ public class CategoryWithMenuResponse {
         private Long menuId;
         private String menuName;
         private String menuNameEn;
+        private String menuNameVi;
         private BigDecimal menuPrice;
         private String menuCount;
+        private String menuCountVi;
         private String imageUrl;
 
         public static MenuView from(Menu menu) {
@@ -60,8 +64,10 @@ public class CategoryWithMenuResponse {
                     .menuId(menu.getId())
                     .menuName(menu.getMenuName())
                     .menuNameEn(menu.getMenuNameEn())
+                    .menuNameVi(menu.getMenuNameVi())
                     .menuPrice(menu.getMenuPrice())
                     .menuCount(menu.getMenuCount())
+                    .menuCountVi(menu.getMenuCountVi())
                     .imageUrl(menu.getImageUrl())
                     .build();
         }

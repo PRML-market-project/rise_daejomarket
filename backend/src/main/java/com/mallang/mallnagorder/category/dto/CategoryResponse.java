@@ -17,6 +17,7 @@ public class CategoryResponse {
     private Long categoryId;
     private String categoryName;
     private String categoryNameEn;
+    private String categoryNameVi;
     private String categoryType;
     private Long adminId;
     private List<MenuInfo> menus;
@@ -26,12 +27,18 @@ public class CategoryResponse {
                 .categoryId(category.getId())
                 .categoryName(category.getCategoryName())
                 .categoryNameEn(category.getCategoryNameEn())
+                .categoryNameVi(category.getCategoryNameVi())
                 .categoryType(category.getCategoryType())
                 .adminId(category.getAdminId())
                 .menus(
                         category.getMenuCategories().stream()
                                 .map(MenuCategory::getMenu)
-                                .map(menu -> new MenuInfo(menu.getId(), menu.getMenuName(), menu.getMenuNameEn()))
+                                .map(menu -> new MenuInfo(
+                                        menu.getId(),
+                                        menu.getMenuName(),
+                                        menu.getMenuNameEn(),
+                                        menu.getMenuNameVi()
+                                ))
                                 .collect(Collectors.toList())
                 )
                 .build();
@@ -47,5 +54,6 @@ public class CategoryResponse {
         private Long menuId;
         private String menuName;
         private String menuNameEn;
+        private String menuNameVi;
     }
 }

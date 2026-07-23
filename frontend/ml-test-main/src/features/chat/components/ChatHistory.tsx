@@ -42,11 +42,13 @@ const ChatHistory = () => {
 
     try {
       const testMessage =
-        language === 'en'
-          ? 'Hi! How may I help you?'
-          : '안녕하세요! 어떤 도움이 필요하신가요?';
+        language === 'vi'
+          ? 'Xin chào! Tôi có thể giúp gì cho bạn?'
+          : language === 'en'
+            ? 'Hi! How may I help you?'
+            : '안녕하세요! 어떤 도움이 필요하신가요?';
 
-      getSpeech(testMessage, language === 'en' ? 'en' : 'ko');
+      getSpeech(testMessage, language);
     } catch (error) {
       console.error('TTS test failed:', error);
     }
@@ -78,9 +80,11 @@ const ChatHistory = () => {
         {messages.length === 0 ? (
           <ChatBubble
             message={
-              language === 'en'
-                ? 'Hi! How may I help you?'
-                : '안녕하세요! 어떤 도움이 필요하신가요?'
+              language === 'vi'
+                ? 'Xin chào! Tôi có thể giúp gì cho bạn?'
+                : language === 'en'
+                  ? 'Hi! How may I help you?'
+                  : '안녕하세요! 어떤 도움이 필요하신가요?'
             }
             isUser={false}
             // ✅ 초기 안내도 타이핑이면 따라가게

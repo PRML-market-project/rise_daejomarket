@@ -10,5 +10,6 @@ public class StoreInfoResponse {
     private String adminName;
     private String storeName;
     private String storeNameEn;
+    private String storeNameVi;
     private int kioskCount;
 }

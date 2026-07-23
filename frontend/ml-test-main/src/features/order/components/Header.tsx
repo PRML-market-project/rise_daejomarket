@@ -2,9 +2,15 @@ import { useLanguageStore } from '@/store/languageStore';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import SpeechRecognition from 'react-speech-recognition';
+import {
+  Language,
+  languageLabels,
+  speechRecognitionLocales,
+  t,
+} from '@/i18n/language';
 
 const Header = () => {
-  const { language, toggleLanguage } = useLanguageStore();
+  const { language, setLanguage } = useLanguageStore();
   const { kioskId, kioskNumber } = useParams();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -45,6 +51,15 @@ const Header = () => {
     }
   };
 
+  const handleLanguageChange = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+    SpeechRecognition.stopListening();
+    SpeechRecognition.startListening({
+      continuous: true,
+      language: speechRecognitionLocales[nextLanguage],
+    });
+  };
+
   return (
     // [변경] bg-[url...] 유지하되, 배경색과 테두리는 테마 변수 사용
     <header className="w-full h-14 bg-background/95 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 sticky top-0 z-50">
@@ -72,7 +87,7 @@ const Header = () => {
         
         {/* [변경] 타이틀 텍스트: Indigo -> Foreground (자동 적응) */}
         <h1 className='text-lg font-extrabold text-foreground tracking-tight whitespace-nowrap'>
-          {language === 'en' ? 'Daejo Market Kiosk' : '대조시장 키오스크'}
+          {t(language, 'kioskTitle')}
         </h1>
 
         {/* Settings Button */}
@@ -96,7 +111,11 @@ const Header = () => {
                 // [변경] 메뉴 아이템 호버: Indigo -> Accent
                 className='w-full px-4 py-2 text-left text-popover-foreground hover:bg-accent hover:text-accent-foreground transition-colors'
               >
-                {language === 'en' ? 'Deactivate Kiosk' : '키오스크 비활성화'}
+                {language === 'vi'
+                  ? 'Tắt ki-ốt'
+                  : language === 'en'
+                    ? 'Deactivate Kiosk'
+                    : '키오스크 비활성화'}
               </button>
             </div>
           )}
@@ -106,7 +125,13 @@ const Header = () => {
       <div className='flex items-center gap-2'>
         {/* [변경] 텍스트 색상: Indigo -> Foreground/Muted */}
         <div className='text-sm font-semibold text-foreground flex items-center gap-2'>
-          <span className='hidden xs:inline'>{language === 'en' ? 'Kiosk:' : '키오스크:'}</span>
+          <span className='hidden xs:inline'>
+            {language === 'vi'
+              ? 'Ki-ốt:'
+              : language === 'en'
+                ? 'Kiosk:'
+                : '키오스크:'}
+          </span>
           
           {/* [변경] 번호 뱃지: Indigo -> Primary (Gold) */}
           <span className='bg-primary/20 border border-primary/50 w-8 h-8 rounded-full flex items-center justify-center text-base text-primary font-bold shadow-sm select-none'>
@@ -114,23 +139,27 @@ const Header = () => {
           </span>
         </div>
 
-        {/* 언어 토글 버튼 */}
-        <button
-          onClick={() => {
-            console.log('한영 전환');
-            toggleLanguage();
-            SpeechRecognition.stopListening();
-            return SpeechRecognition.startListening({
-              continuous: true,
-              language: language === 'ko' ? 'en-US' : 'ko-KR',
-            });
-          }}
-          // [변경] 버튼 색상: Indigo -> Secondary (Black/Gray or Light Beige)
-          className='bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border font-semibold py-1 px-3 rounded transition-colors'
-          aria-label='Toggle language'
+        <div
+          className='flex rounded border border-border overflow-hidden'
+          role='group'
+          aria-label='Language'
         >
-          {language === 'en' ? 'KO' : 'ENG'}
-        </button>
+          {(Object.keys(languageLabels) as Language[]).map((code) => (
+            <button
+              key={code}
+              type='button'
+              onClick={() => handleLanguageChange(code)}
+              className={`font-semibold py-1 px-2 transition-colors ${
+                language === code
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary hover:bg-secondary/80 text-secondary-foreground'
+              }`}
+              aria-pressed={language === code}
+            >
+              {languageLabels[code]}
+            </button>
+          ))}
+        </div>
       </div>
     </header>
   );

@@ -3,6 +3,7 @@ import { create } from 'zustand';
 interface OrderItem {
   menuName: string;
   menuNameEn: string | null;
+  menuNameVi?: string | null;
   menuPrice: number;
   quantity: number;
 }

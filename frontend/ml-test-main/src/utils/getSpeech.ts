@@ -1,3 +1,5 @@
+import { Language, speechRecognitionLocales } from '@/i18n/language';
+
 // 현재 재생 중인 오디오를 추적하기 위한 변수
 let currentAudio: HTMLAudioElement | null = null;
 
@@ -14,7 +16,7 @@ function removeParenthesesContent(text: string) {
  * @param text - 음성으로 변환할 텍스트
  * @param language - 언어 코드 ('ko' 또는 'en')
  */
-export const getSpeech = async (text: any, language: 'ko' | 'en' = 'ko') => {
+export const getSpeech = async (text: any, language: Language = 'ko') => {
   if (!text) {
     console.warn('No text provided for speech synthesis');
     return;
@@ -48,7 +50,7 @@ export const getSpeech = async (text: any, language: 'ko' | 'en' = 'ko') => {
       },
       body: JSON.stringify({
         text: processedText, // ✅ 여기서 processedText 사용
-        language: language === 'ko' ? 'ko' : 'en',
+        language,
       }),
     });
 
@@ -100,7 +102,7 @@ export const getSpeech = async (text: any, language: 'ko' | 'en' = 'ko') => {
 /**
  * 폴백용 브라우저 TTS 함수 (필요시 사용)
  */
-function fallbackToBrowserTTS(text: string, language: 'ko' | 'en') {
+function fallbackToBrowserTTS(text: string, language: Language) {
   if (!('speechSynthesis' in window)) {
     console.error('Speech synthesis not supported');
     return;
@@ -111,7 +113,7 @@ function fallbackToBrowserTTS(text: string, language: 'ko' | 'en') {
     window.speechSynthesis.cancel();
   }
 
-  const lang = language === 'ko' ? 'ko-KR' : 'en-US';
+  const lang = speechRecognitionLocales[language];
 
   // ✅ 폴백에서도 괄호 안 내용 제거 유지
   const processedText = removeParenthesesContent(text);

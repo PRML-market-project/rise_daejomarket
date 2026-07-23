@@ -2,6 +2,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useLanguageStore } from '@/store/languageStore';
 import { PlusIcon, MinusIcon } from '@heroicons/react/24/solid';
 import { CartItemType } from '../types';
+import { localizedValue } from '@/i18n/language';
 
 interface CartItemProps {
   item: CartItemType;
@@ -28,10 +29,12 @@ const CartItem = ({ item }: CartItemProps) => {
     removeItem(item.menu.menuId);
   };
 
-  const translatedName =
-    language === 'en' && item.menu.menuNameEn
-      ? item.menu.menuNameEn
-      : item.menu.menuName;
+  const translatedName = localizedValue(
+    language,
+    item.menu.menuName,
+    item.menu.menuNameEn,
+    item.menu.menuNameVi
+  );
 
   const translatedCurrency = language === 'en' ? '₩' : '₩';
 

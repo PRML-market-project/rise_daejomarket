@@ -34,9 +34,11 @@ const MenuContent = () => {
     return (
       <div className='flex items-center justify-center h-full p-8'>
         <p className='text-[var(--color-gray-500)] text-lg'>
-          {language === 'en'
-            ? 'No menus available in this category'
-            : '해당 점포에 품목이 없습니다'}
+          {language === 'vi'
+            ? 'Không có thực đơn trong danh mục này'
+            : language === 'en'
+              ? 'No menus available in this category'
+              : '해당 점포에 품목이 없습니다'}
         </p>
       </div>
     );

@@ -3,6 +3,11 @@ import { useMenuStore } from '@/store/menuStore';
 import { useLanguageStore } from '@/store/languageStore';
 import clsx from 'clsx';
 import { useMemo } from 'react';
+import {
+  localizedCategoryType,
+  localizedValue,
+  t,
+} from '@/i18n/language';
 
 const CategoryList = () => {
   const {
@@ -91,7 +96,7 @@ const CategoryList = () => {
                       : 'border-b-transparent text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {type}
+                  {localizedCategoryType(language, type)}
                 </button>
               );
             })}
@@ -109,7 +114,7 @@ const CategoryList = () => {
             )}
           >
             <span>🗺️</span>
-            <span>{language === 'en' ? 'Map' : '지도'}</span>
+            <span>{t(language, 'map')}</span>
           </button>
         </div>
       </div>
@@ -128,10 +133,12 @@ const CategoryList = () => {
                 category.categoryId
               );
 
-              const categoryName =
-                language === 'en'
-                  ? category.categoryNameEn
-                  : category.categoryName;
+              const categoryName = localizedValue(
+                language,
+                category.categoryName,
+                category.categoryNameEn,
+                category.categoryNameVi
+              );
 
               return (
                 <button

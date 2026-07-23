@@ -17,6 +17,7 @@ import com.mallang.mallnagorder.menu.domain.Menu;
 import com.mallang.mallnagorder.menu.dto.MenuResponse;
 import com.mallang.mallnagorder.menu.repository.MenuRepository;
 import com.mallang.mallnagorder.order.dto.response.OrderResponse;
+import com.mallang.mallnagorder.translation.service.AzureTranslatorService;
 import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,14 +35,18 @@ public class AdminService {
     private final CategoryRepository categoryRepository;
     private final KioskRepository kioskRepository;
     private final MenuRepository menuRepository;
+    private final AzureTranslatorService azureTranslatorService;
 
 
-    public AdminService(AdminRepository adminRepository, BCryptPasswordEncoder bCryptPasswordEncoder, CategoryRepository categoryRepository, KioskRepository kioskRepository, MenuRepository menuRepository) {
+    public AdminService(AdminRepository adminRepository, BCryptPasswordEncoder bCryptPasswordEncoder,
+                        CategoryRepository categoryRepository, KioskRepository kioskRepository,
+                        MenuRepository menuRepository, AzureTranslatorService azureTranslatorService) {
         this.adminRepository = adminRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.categoryRepository = categoryRepository;
         this.kioskRepository = kioskRepository;
         this.menuRepository = menuRepository;
+        this.azureTranslatorService = azureTranslatorService;
     }
 
     /*
@@ -78,6 +83,7 @@ public class AdminService {
         admin.setAdminName(adminName);
         admin.setStoreName(storeName);
         admin.setStoreNameEn(storeNameEn);
+        admin.setStoreNameVi(azureTranslatorService.translateToVietnamese(storeName, storeNameEn).orElse(null));
 
         // 회원 정보를 DB에 저장하고, 저장된 객체 반환
         Admin savedAdmin = adminRepository.save(admin);
@@ -96,6 +102,7 @@ public class AdminService {
             Category defaultCategory = Category.builder()
                     .categoryName("전체")
                     .categoryNameEn("All")
+                    .categoryNameVi("Tất cả")
                     .categoryType("DEFAULT")
                     .adminId(admin.getId())
                     .menuCategories(new ArrayList<>())
@@ -141,6 +148,8 @@ public class AdminService {
         // 새로운 이름으로 변경
         admin.setStoreName(newName);
         admin.setStoreNameEn(newNameEn);
+        admin.setStoreNameVi(azureTranslatorService.translateToVietnamese(newName, newNameEn)
+                .orElse(admin.getStoreNameVi()));
 
         // 변경된 이름을 DB에 저장
         adminRepository.save(admin);
@@ -242,6 +251,7 @@ public class AdminService {
                 admin.getAdminName(),
                 admin.getStoreName(),
                 admin.getStoreNameEn(),
+                admin.getStoreNameVi(),
                 admin.getKiosks() != null ? admin.getKiosks().size() : 0
         );
     }
@@ -278,6 +288,7 @@ public class AdminService {
                                             .map(item -> OrderResponse.OrderItemSummary.builder()
                                                     .menuName(item.getMenu().getMenuName())
                                                     .menuNameEn(item.getMenu().getMenuNameEn())
+                                                    .menuNameVi(item.getMenu().getMenuNameVi())
                                                     .menuPrice(item.getMenu().getMenuPrice())
                                                     .quantity(item.getQuantity())
                                                     .build())

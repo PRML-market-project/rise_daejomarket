@@ -6,6 +6,7 @@ import { useGpt } from '../hooks/useGpt';
 import { useLanguageStore } from '@/store/languageStore';
 import { useParams } from 'react-router-dom';
 import { useNavigationStore } from '@/store/navigationStore';
+import { speechRecognitionLocales } from '@/i18n/language';
 
 const apiUrl = import.meta.env.VITE_GPT_API_URL;
 
@@ -24,7 +25,7 @@ const Voice = () => {
 
   const { adminId, kioskId } = useParams();
   const { language } = useLanguageStore();
-  const langCode = language === 'en' ? 'en-US' : 'ko-KR';
+  const langCode = speechRecognitionLocales[language];
   const [devInput, setDevInput] = useState('');
 
   const addMessage = useChatStore((state) => state.addMessage);

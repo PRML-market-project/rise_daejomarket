@@ -14,6 +14,7 @@ import com.mallang.mallnagorder.category.repository.MenuCategoryRepository;
 import com.mallang.mallnagorder.menu.domain.Menu;
 import com.mallang.mallnagorder.menu.domain.MenuCategory;
 import com.mallang.mallnagorder.menu.repository.MenuRepository;
+import com.mallang.mallnagorder.translation.service.AzureTranslatorService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class CategoryService {
     private final AdminRepository adminRepository;
     private final MenuCategoryRepository menuCategoryRepository; // 추가 필요
     private final AdminPayloadService adminPayloadService;
+    private final AzureTranslatorService azureTranslatorService;
 
     @Transactional
     public CategoryResponse createCategory(String categoryName, String categoryNameEn, String categoryType, Long adminId) {
@@ -45,6 +47,10 @@ public class CategoryService {
         Category category = Category.builder()
                 .categoryName(categoryName)
                 .categoryNameEn(categoryNameEn)
+                .categoryNameVi(azureTranslatorService.translateToVietnamese(
+                        categoryName,
+                        categoryNameEn
+                ).orElse(null))
                 .categoryType(categoryType)
                 .adminId(admin.getId())
                 .build();
@@ -69,6 +75,8 @@ public class CategoryService {
 
         category.setCategoryName(newName);
         category.setCategoryNameEn(newNameEn);
+        category.setCategoryNameVi(azureTranslatorService.translateToVietnamese(newName, newNameEn)
+                .orElse(category.getCategoryNameVi()));
         category.setCategoryType(newCategoryType);
 
         adminPayloadService.generateAndForward(adminId);
@@ -104,6 +112,7 @@ public class CategoryService {
                 .categoryId(category.getId())
                 .categoryName(category.getCategoryName())
                 .categoryNameEn(category.getCategoryNameEn())
+                .categoryNameVi(category.getCategoryNameVi())
                 .categoryType(category.getCategoryType())
                 .adminId(category.getAdminId())
                 .build();

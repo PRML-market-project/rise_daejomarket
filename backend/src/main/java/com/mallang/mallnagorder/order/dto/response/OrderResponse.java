@@ -29,6 +29,7 @@ public class OrderResponse {
     public static class OrderItemSummary {
         private String menuName;
         private String menuNameEn;
+        private String menuNameVi;
         private BigDecimal menuPrice;
         private int quantity;
     }
