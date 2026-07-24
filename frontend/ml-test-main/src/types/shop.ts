@@ -3,6 +3,8 @@ export type Shop = {
   id: string;
   number: string;
   name: string;
+  nameEn?: string | null;
+  nameVi?: string | null;
   category: string;
   section: string;
 

@@ -1,5 +1,12 @@
 import React from "react";
 import { Shop } from "@/types/shop";
+import { useLanguageStore } from "@/store/languageStore";
+import { localizedCategoryType, t } from "@/i18n/language";
+import {
+  localizedShopName,
+  localizedShopNumber,
+  localizedShopSection,
+} from "@/i18n/map";
 
 interface ShopDetailsPanelProps {
   shop: Shop | null;
@@ -14,6 +21,7 @@ export function ShopDetailsPanel({
   onStartNavigation,
   onClose,
 }: ShopDetailsPanelProps) {
+  const language = useLanguageStore((state) => state.language);
   if (!shop) return null;
 
   return (
@@ -45,14 +53,16 @@ export function ShopDetailsPanel({
         )}
 
         <span className="inline-block px-[30px] py-[10px] bg-amber-100 text-amber-800 text-[45px] font-bold rounded-full mb-[30px] border-[3px] border-amber-200">
-          {shop.number}
+          {localizedShopNumber(language, shop)}
         </span>
 
         <h2 className="text-[120px] font-black text-gray-900 leading-tight tracking-tight">
-          {shop.name}
+          {localizedShopName(language, shop)}
         </h2>
 
-        <p className="text-[50px] text-gray-500 mt-[20px] font-medium">{shop.category}</p>
+        <p className="text-[50px] text-gray-500 mt-[20px] font-medium">
+          {localizedCategoryType(language, shop.category)}
+        </p>
       </div>
 
       {/* --- 하단 컨텐츠 영역 --- */}
@@ -71,14 +81,14 @@ export function ShopDetailsPanel({
               <svg className="w-[60px] h-[60px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-              안내 종료
+              {t(language, 'stopNavigation')}
             </>
           ) : (
             <>
               <svg className="w-[60px] h-[60px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               </svg>
-              길안내 시작
+              {t(language, 'startNavigation')}
             </>
           )}
         </button>
@@ -86,14 +96,16 @@ export function ShopDetailsPanel({
         <div className="grid grid-cols-2 gap-[30px]">
           <div className="bg-gray-50 rounded-[40px] p-[40px] border-[3px] border-gray-100">
             <h4 className="text-[40px] font-bold text-gray-400 uppercase mb-[10px] tracking-widest">
-              상세 위치
+              {t(language, 'locationDetails')}
             </h4>
-            <p className="text-gray-800 font-bold text-[55px]">{shop.section}</p>
+            <p className="text-gray-800 font-bold text-[55px]">
+              {localizedShopSection(language, shop.section)}
+            </p>
           </div>
 
           <div className="bg-gray-50 rounded-[40px] p-[40px] border-[3px] border-gray-100">
             <h4 className="text-[40px] font-bold text-gray-400 uppercase mb-[10px] tracking-widest">
-              운영 정보
+              {t(language, 'businessHours')}
             </h4>
             <p className="text-gray-800 font-bold text-[55px]">
               {shop.hours || "08:00 - 19:00"}

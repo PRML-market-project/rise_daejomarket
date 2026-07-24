@@ -51,6 +51,41 @@ const ui = {
     vi: 'Ki-ốt chợ Daejo',
   },
   map: { ko: '지도', en: 'Map', vi: 'Bản đồ' },
+  mapTitle: {
+    ko: '대조시장 배치도',
+    en: 'Daejo Market Map',
+    vi: 'Sơ đồ chợ Daejo',
+  },
+  shopCategories: {
+    ko: '점포 업종',
+    en: 'Shop Categories',
+    vi: 'Ngành hàng',
+  },
+  currentLocation: {
+    ko: '현위치',
+    en: 'You are here',
+    vi: 'Vị trí hiện tại',
+  },
+  startNavigation: {
+    ko: '길안내 시작',
+    en: 'Start directions',
+    vi: 'Bắt đầu chỉ đường',
+  },
+  stopNavigation: {
+    ko: '안내 종료',
+    en: 'Stop directions',
+    vi: 'Dừng chỉ đường',
+  },
+  locationDetails: {
+    ko: '상세 위치',
+    en: 'Location',
+    vi: 'Vị trí',
+  },
+  businessHours: {
+    ko: '운영 정보',
+    en: 'Business hours',
+    vi: 'Giờ hoạt động',
+  },
   cart: { ko: '장바구니', en: 'Cart', vi: 'Giỏ hàng' },
   emptyCart: {
     ko: '장바구니가 비어 있어요',

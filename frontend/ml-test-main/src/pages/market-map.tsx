@@ -1,23 +1,43 @@
 // ===========================
 // MarketMapPage.tsx
 // ===========================
-import React from "react";
+import React, { useMemo } from "react";
 import { MapView } from "@/components/market/MapView";
 import { ShopDetailsPanel } from "@/components/market/ShopDetailsPanel";
 import { marketShops } from "@/data/market-shops";
 import { useMapStore } from "@/store/mapStore";
+import { useMenuStore } from "@/store/menuStore";
 
 export default function MarketMapPage() {
   const { selectedShopId, isNavigationActive, selectShop, setNavigation } =
     useMapStore();
+  const categories = useMenuStore((state) => state.categories);
 
-  const currentShop = marketShops.find((s) => s.id === selectedShopId) || null;
+  const shops = useMemo(() => {
+    const translations = new Map(
+      categories.map((category) => [
+        category.categoryName.replace(/\s+/g, ""),
+        category,
+      ])
+    );
+
+    return marketShops.map((shop) => {
+      const category = translations.get(shop.name.replace(/\s+/g, ""));
+      return {
+        ...shop,
+        nameEn: category?.categoryNameEn,
+        nameVi: category?.categoryNameVi,
+      };
+    });
+  }, [categories]);
+
+  const currentShop = shops.find((s) => s.id === selectedShopId) || null;
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-[var(--color-map-bg)] touch-none overscroll-none">
       <div className="absolute inset-0 w-full h-full">
         <MapView
-          shops={marketShops}
+          shops={shops}
           selectedShopId={selectedShopId}
           onShopSelect={selectShop}
           showNavigation={isNavigationActive}

@@ -4,7 +4,9 @@
 // ===========================
 import React, { useRef } from "react";
 import { Shop } from "@/types/shop";
-import { useMapStore } from "@/store/mapStore";
+import { useLanguageStore } from "@/store/languageStore";
+import { localizedCategoryType, t } from "@/i18n/language";
+import { localizedShopName } from "@/i18n/map";
 
 interface MapViewProps {
   shops: Shop[];
@@ -109,6 +111,7 @@ export function MapView({
   overlay,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const language = useLanguageStore((state) => state.language);
   const selectedShop = shops.find((s) => s.id === selectedShopId);
 
 const getPathData = () => {
@@ -170,6 +173,7 @@ const getPathData = () => {
         {/* 상점 */}
         <g>
           {shops.map((shop) => {
+            const displayName = localizedShopName(language, shop);
             const isSelected = selectedShopId === shop.id;
             const centerX = shop.x + shop.width / 2;
             const centerY = shop.y + shop.height / 2;
@@ -212,7 +216,7 @@ const getPathData = () => {
                   style={{ letterSpacing: "-0.05em" }}
                 >
                   {(() => {
-                    const words = shop.name.split(" ");
+                    const words = displayName.split(" ");
                     const initialDy =
                       words.length === 1
                         ? "0.14em"
@@ -284,9 +288,9 @@ const getPathData = () => {
             />
           </circle>
           <rect
-            width="220"
+            width={language === 'ko' ? 220 : 460}
             height="110"
-            x="-110"
+            x={language === 'ko' ? -110 : -230}
             y="-55"
             rx="55"
             fill="#3b82f6"
@@ -298,9 +302,9 @@ const getPathData = () => {
             textAnchor="middle"
             dominantBaseline="middle"
             fill="white"
-            className="text-[40px] font-black"
+            className={`${language === 'ko' ? 'text-[40px]' : 'text-[34px]'} font-black`}
           >
-            현위치
+            {t(language, 'currentLocation')}
           </text>
         </g>
 
@@ -325,7 +329,7 @@ const getPathData = () => {
             fontWeight={900}
             fill="#111827"
           >
-            대조시장 배치도
+            {t(language, 'mapTitle')}
           </text>
 
           {/* 부제목 */}
@@ -338,7 +342,7 @@ const getPathData = () => {
             fill="#9ca3af"
             letterSpacing="0.28em"
           >
-            SHOP CATEGORIES
+            {t(language, 'shopCategories').toUpperCase()}
           </text>
 
           {/* 아이템 리스트 */}
@@ -376,11 +380,17 @@ const getPathData = () => {
                   x={LEGEND_LABEL_X + LEGEND_CONTENT_OFFSET_X}
                   y={LEGEND_CIRCLE_R + 16}
                   textAnchor="start"
-                  fontSize={LEGEND_LABEL_SIZE}
+                  fontSize={
+                    language === 'ko'
+                      ? LEGEND_LABEL_SIZE
+                      : language === 'vi'
+                        ? 40
+                        : 46
+                  }
                   fontWeight={800}
                   fill="#111827"
                 >
-                  {category}
+                  {localizedCategoryType(language, category)}
                 </text>
               </g>
             );
