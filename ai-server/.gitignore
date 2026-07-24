@@ -23,6 +23,8 @@ logs/
 # Local/generated data
 *.pkl
 *.pickle
+*.gguf
+.llama-cpp/
 .venv/data/
 
 # IDE/local files

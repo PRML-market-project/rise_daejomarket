@@ -1,4 +1,11 @@
-import { useEffect, useState, useRef, useCallback, useLayoutEffect } from 'react';
+import {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+  type FormEvent,
+} from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import { useChatStore } from '@/features/chat/store/chatStore';
 import { useVoiceStore } from '../store/voiceStore';
@@ -45,14 +52,23 @@ const Voice = () => {
   }, [isCovered, resetNavigation]);
 
   const stopSoft = useCallback(() => {
-    try { SpeechRecognition.stopListening(); } catch {}
+    try {
+      SpeechRecognition.stopListening();
+    } catch (error) {
+      console.warn('Failed to stop speech recognition:', error);
+    }
     setIsMicOn(false);
     setIsCapturing(false);
     setIsProcessing(false);
   }, [setIsCapturing]);
 
   const stopHard = useCallback(() => {
-    try { SpeechRecognition.abortListening(); SpeechRecognition.stopListening(); } catch {}
+    try {
+      SpeechRecognition.abortListening();
+      SpeechRecognition.stopListening();
+    } catch (error) {
+      console.warn('Failed to abort speech recognition:', error);
+    }
     setIsMicOn(false);
     setIsCapturing(false);
     setIsProcessing(false);
@@ -125,6 +141,16 @@ const Voice = () => {
     }
   }, [addMessage, updateLastMessage, sendTextToApi, adminId, kioskId, resetTranscript, setIsCapturing]);
 
+  const handleTextSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const text = devInput.trim();
+    if (!text || isProcessing || isMicOn || listening || isCapturing) return;
+
+    setDevInput('');
+    await runDevAsIfWebSpeech(text);
+  }, [devInput, isProcessing, isMicOn, listening, isCapturing, runDevAsIfWebSpeech]);
+
   useEffect(() => {
     if (!isCapturing) return;
     const currentText = (transcript || '').trim();
@@ -183,17 +209,48 @@ const Voice = () => {
           <button
             type="button"
             onClick={handleToggleMic}
+            disabled={isSendingRef.current}
             className={`
               w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition active:scale-95 flex-shrink-0
               ${isMicOn ? 'bg-[var(--color-red-600)] text-white animate-pulse' : 'bg-[var(--color-indigo-600)] text-white hover:bg-[var(--color-indigo-700)]'}
+              disabled:cursor-not-allowed disabled:opacity-50
             `}
             title={isMicOn ? '마이크 끄기' : '마이크 켜기'}
           >
             {isMicOn ? '■' : '🎤'}
           </button>
 
-
-
+          <form
+            onSubmit={handleTextSubmit}
+            className="flex items-center gap-2"
+          >
+            <input
+              type="text"
+              value={devInput}
+              onChange={(event) => setDevInput(event.target.value)}
+              placeholder="텍스트로 입력"
+              aria-label="텍스트 명령 입력"
+              disabled={isProcessing || isMicOn || listening || isCapturing}
+              className="
+                w-52 rounded-lg border border-[var(--color-gray-300)] bg-white
+                px-3 py-2 text-sm text-[var(--color-gray-900)] outline-none
+                placeholder:text-[var(--color-gray-400)]
+                focus:border-[var(--color-indigo-600)] focus:ring-2 focus:ring-[var(--color-indigo-100)]
+                disabled:cursor-not-allowed disabled:bg-[var(--color-gray-100)] disabled:opacity-70
+              "
+            />
+            <button
+              type="submit"
+              disabled={!devInput.trim() || isProcessing || isMicOn || listening || isCapturing}
+              className="
+                rounded-lg bg-[var(--color-indigo-600)] px-4 py-2 text-sm font-semibold text-white
+                transition hover:bg-[var(--color-indigo-700)] active:scale-95
+                disabled:cursor-not-allowed disabled:opacity-50
+              "
+            >
+              전송
+            </button>
+          </form>
         </>
       )}
     </div>

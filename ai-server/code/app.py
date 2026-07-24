@@ -6,6 +6,7 @@ import os
 import json
 from openai import OpenAI
 import io
+import traceback
 from flask_cors import CORS
 import logging
 from jamo import hangul_to_jamo
@@ -50,6 +51,14 @@ class Timer:
 # ==========================================
 DATA_DIR = Path(__file__).resolve().parent.parent / ".venv" / "data"
 MAP_FILE = DATA_DIR / "map_simple_list.json"
+FRONTEND_MAP_FILE = (
+    Path(__file__).resolve().parents[2]
+    / "frontend"
+    / "ml-test-main"
+    / "src"
+    / "data"
+    / "market-shops.ts"
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent / ".venv" / "data"
 BASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -64,13 +73,24 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # 로그 설정
 logging.basicConfig(filename="gpt_api_logs.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# [변경] OpenAI API 키 설정 및 클라이언트 생성 (v1.0+)
-api_key = os.getenv("OPENAI_API_KEY")
-print("OPENAI_API_KEY loaded:", bool(api_key))
-if not api_key:
-    raise RuntimeError("OPENAI_API_KEY가 .env에서 로드되지 않았습니다.")
+# 로컬 llama.cpp 서버 설정 (로컬 우선, OpenAI는 폴백)
+LOCAL_LLM_BASE_URL = os.getenv(
+    "LOCAL_LLM_BASE_URL",
+    "http://127.0.0.1:8010/v1",
+)
+LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", "local-gemma")
+LOCAL_LLM_TIMEOUT = float(os.getenv("LOCAL_LLM_TIMEOUT", "300"))
+local_client = OpenAI(
+    base_url=LOCAL_LLM_BASE_URL,
+    api_key="local",
+    timeout=LOCAL_LLM_TIMEOUT,
+    max_retries=0,
+)
 
-client = OpenAI(api_key=api_key)  # 최신 클라이언트 인스턴스
+# OpenAI 클라이언트는 로컬 모델 실패 시에만 사용
+api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=api_key) if api_key else None
+print("OPENAI fallback enabled:", bool(client))
 
 # Whisper 모델 로딩
 try:
@@ -94,6 +114,68 @@ CORS(app, resources={
 # ==========================================
 # 2. 유틸리티 함수
 # ==========================================
+
+def local_chat_completion(messages, temperature=0.0, max_tokens=1024, json_mode=False):
+    """
+    기존 OpenAI messages 구조를 그대로 받아 로컬 llama.cpp 서버로 처리한다.
+    Gemma 계열의 system role 제약을 피하기 위해 system 지침은 첫 user 메시지에 합친다.
+    """
+    system_parts = [
+        message["content"] for message in messages if message.get("role") == "system"
+    ]
+    conversation = [
+        dict(message) for message in messages if message.get("role") != "system"
+    ]
+
+    if system_parts:
+        system_text = "\n\n".join(system_parts)
+        if conversation and conversation[0].get("role") == "user":
+            conversation[0]["content"] = (
+                f"{system_text}\n\n[사용자 입력]\n{conversation[0]['content']}"
+            )
+        else:
+            conversation.insert(0, {"role": "user", "content": system_text})
+
+    kwargs = {
+        "model": LOCAL_LLM_MODEL,
+        "messages": conversation,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "extra_body": {
+            "chat_template_kwargs": {
+                "enable_thinking": False,
+            },
+        },
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+
+    response = local_client.chat.completions.create(**kwargs)
+
+    content = response.choices[0].message.content
+    if not isinstance(content, str) or not content.strip():
+        raise RuntimeError("로컬 LLM이 빈 응답을 반환했습니다.")
+    return content.strip()
+
+
+def openai_chat_completion(messages, model, temperature=None, max_tokens=None, json_mode=False):
+    if client is None:
+        raise RuntimeError("OPENAI_API_KEY가 없어 OpenAI 폴백을 사용할 수 없습니다.")
+
+    kwargs = {
+        "model": model,
+        "messages": messages,
+    }
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+
+    response = client.chat.completions.create(**kwargs)
+    return response.choices[0].message.content.strip()
+
 
 def detect_language(text):
     try:
@@ -120,8 +202,25 @@ def load_menu_db(admin_id):
 
 
 def load_map_simple_list():
-    with open(MAP_FILE, "r", encoding="utf-8") as f:
-        map_data = json.load(f)
+    if MAP_FILE.is_file():
+        with open(MAP_FILE, "r", encoding="utf-8") as f:
+            map_data = json.load(f)
+    elif FRONTEND_MAP_FILE.is_file():
+        source = FRONTEND_MAP_FILE.read_text(encoding="utf-8")
+        matches = re.findall(
+            r'\{\s*id:\s*"([^"]+)".*?name:\s*"([^"]+)"',
+            source,
+        )
+        map_data = [{"id": shop_id, "name": name} for shop_id, name in matches]
+        if not map_data:
+            raise ValueError(
+                f"프런트 지도 데이터에서 점포를 찾지 못했습니다: {FRONTEND_MAP_FILE}"
+            )
+    else:
+        raise FileNotFoundError(
+            "길찾기 지도 데이터가 없습니다. "
+            f"확인 경로: {MAP_FILE}, {FRONTEND_MAP_FILE}"
+        )
 
     return ", ".join(f"{item['id']}:{item['name']}" for item in map_data)
 
@@ -237,7 +336,7 @@ def transform_categories(language, cat_list):
 # [변경] chat_history 인자 제거 및 관련 로직 삭제
 def detect_intent(text):
     """
-    GPT를 사용하여 사용자 의도를 1, 2, 3, 4 중 하나로 분류
+    로컬 LLM을 우선 사용하여 사용자 의도를 1, 2, 3, 4 중 하나로 분류
     """
     prompt = """
 다음 문장의 의도를 분석하여 숫자(1~4)만 반환하세요. 다른 말은 절대 하지 마세요.
@@ -255,22 +354,35 @@ def detect_intent(text):
     ]
 
     try:
-        # [변경] client.chat.completions.create 사용 (v1.0+)
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
+        intent_str = local_chat_completion(
+            messages,
             temperature=0.0,
-            max_tokens=5
+            max_tokens=8,
         )
-        # [변경] 객체 접근 방식
-        intent_str = completion.choices[0].message.content.strip()
         match = re.search(r'\d', intent_str)
         if match:
             return int(match.group())
-        return 4
-    except Exception as e:
-        logging.error(f"Intent detection failed: {e}")
-        return 4
+        raise ValueError(f"로컬 LLM 의도 분류 결과에 숫자가 없습니다: {intent_str}")
+    except Exception as local_error:
+        logging.warning(
+            "Local intent detection failed; falling back to OpenAI: %s",
+            local_error
+        )
+
+    try:
+        intent_str = openai_chat_completion(
+            messages,
+            model="gpt-4o-mini",
+            temperature=0.0,
+            max_tokens=5,
+        )
+        match = re.search(r'\d', intent_str)
+        if match:
+            return int(match.group())
+    except Exception as openai_error:
+        logging.error(f"OpenAI intent fallback failed: {openai_error}")
+
+    return 4
 
 
 # [변경] chat_history 인자 제거 및 관련 로직 삭제
@@ -404,10 +516,29 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
                 system_prompt = f"""
             당신은 시장 가격 계산 도우미입니다. 사용자가 요청한 여러 상품의 총 가격을 정확하게 계산하여 안내하세요.
 
+            [메뉴 데이터의 가격 의미 - 반드시 준수]
+            - menuPrice는 낱개 가격이 아니라 menuCount에 적힌 **판매 묶음 1개의 가격**입니다.
+            - 예: [14, "그린키위", 5000, "6개"]는 키위 1개가 5000원이 아니라
+              **키위 6개 묶음이 5000원**이라는 뜻입니다.
+            - 예: [11, "샤인머스켓", 20000, "1박스 (3송이)"]는
+              **1박스가 20000원**이라는 뜻입니다.
+
             [계산 지침]
-            1. 먼저 [메뉴 데이터]에서 사용자가 언급한 각 상품의 단가(menuPrice)를 확인하세요.
-            2. 각 상품별로 [단가 × 요청 수량 = 소계]를 한 단계씩 계산하세요.
-            3. 모든 소계를 합산하여 '최종 합계 금액'을 구하세요. 계산 실수가 없도록 신중히 검토하세요.
+            1. 사용자가 가게명을 지정하면 반드시 그 가게의 메뉴 데이터만 사용하세요.
+            2. 사용자가 낱개 수량을 요청하면:
+               필요한 판매 묶음 수 = ceil(요청 낱개 수 / menuCount의 낱개 수)
+               소계 = 필요한 판매 묶음 수 × menuPrice
+            3. 사용자가 박스/바구니/통/송이처럼 menuCount의 판매 단위로 요청하면:
+               소계 = 요청한 판매 단위 수 × menuPrice
+            4. menuPrice에 요청 낱개 수를 직접 곱하지 마세요.
+            5. 각 상품의 요청량, 판매 묶음 수, 묶음 가격, 소계를 검산한 뒤 모두 합산하세요.
+
+            [계산 예시]
+            - 그린키위가 6개 5000원일 때 12개 요청:
+              ceil(12 / 6) = 2묶음, 2 × 5000 = 10000원
+            - 샤인머스켓이 1박스 20000원일 때 1박스 요청:
+              1 × 20000 = 20000원
+            - 위 두 상품의 합계: 10000 + 20000 = 30000원
 
             [출력 지침]
             오직 JSON만 출력하세요.
@@ -422,10 +553,20 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
             JSON 출력 예시:
             {{
               "user_message": "{text}",
-              "chat_message": "<상품1> <수량표현> <소계>원, <상품2> <수량표현> <소계>원, 총 <합계>원입니다.",
+              "chat_message": "<상품1> <요청량> (<판매 묶음 수>묶음 × <묶음 가격>원) <소계>원, <상품2> ..., 총 <합계>원입니다.",
               "result": {{
                 "status": "success",
                 "intent": "get_total_price",
+                "items": [
+                  {{
+                    "menu_name": "<상품명>",
+                    "requested_quantity": "<요청량>",
+                    "package_count": <판매 묶음 수>,
+                    "package_unit": "<menuCount>",
+                    "package_price": <menuPrice>,
+                    "subtotal": <소계>
+                  }}
+                ]
               }}
             }}
             """
@@ -553,8 +694,18 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
             elif intent == 4:
                 system_prompt = f"""
         You are a kiosk price assistant. Respond in {response_language}.
-        Find the requested menu items in the menu data, calculate each subtotal
-        and the final total. Do not invent menu names or prices.
+
+        IMPORTANT PRICE RULE:
+        - menuPrice is the price of ONE SALES PACKAGE described by menuCount.
+          It is NOT the price of one individual item.
+        - Example: [14, "Green kiwi", 5000, "6 items"] means six kiwis cost
+          5000 total. Twelve kiwis require ceil(12 / 6) = 2 packages and cost
+          2 × 5000 = 10000.
+        - If the user requests boxes/baskets/whole packages, multiply the
+          requested package count by menuPrice.
+        - If a store is named, use menu data from that store only.
+        - Verify package count, package price, each subtotal, and the final sum.
+          Never multiply menuPrice directly by an individual-item quantity.
 
         [Menu Data]
         {json.dumps(menu_context, ensure_ascii=False)}
@@ -566,7 +717,16 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
           "result": {{
             "status": "success",
             "intent": "get_total_price",
-            "items": []
+            "items": [
+              {{
+                "menu_name": "<menu name>",
+                "requested_quantity": "<requested quantity>",
+                "package_count": <number of sales packages>,
+                "package_unit": "<menuCount>",
+                "package_price": <menuPrice>,
+                "subtotal": <subtotal>
+              }}
+            ]
           }}
         }}
         """
@@ -591,37 +751,64 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         }}
         """
 
-    # 공통 GPT 호출
+    # 공통 LLM 호출
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": text}
     ]
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-5.2-chat-latest",
-            messages=messages,
-            response_format={"type": "json_object"}
+        local_response = local_chat_completion(
+            messages,
+            temperature=0.0,
+            max_tokens=1200,
+            json_mode=True,
         )
-        return response.choices[0].message.content.strip()
 
-    except Exception as e:
-        print(f"⚠️ GPT-5-mini 호출 실패 (또는 모델 없음), gpt-4o로 전환합니다: {e}")
+        # JSON 형식까지 정상일 때만 로컬 응답을 사용한다.
+        json_match = re.search(r'\{.*\}', local_response, re.DOTALL)
+        json.loads(json_match.group() if json_match else local_response)
+        return local_response
+    except Exception as local_error:
+        logging.warning(
+            "Local response generation failed; falling back to OpenAI: %s",
+            local_error
+        )
+        print(f"⚠️ 로컬 LLM 호출 실패, OpenAI로 전환합니다: {local_error}")
+
+    try:
+        return openai_chat_completion(
+            messages,
+            model="gpt-5.2-chat-latest",
+            json_mode=True,
+        )
+    except Exception as primary_openai_error:
+        print(
+            "⚠️ OpenAI 주 모델 호출 실패, gpt-4o로 전환합니다: "
+            f"{primary_openai_error}"
+        )
         try:
-            response = client.chat.completions.create(
+            return openai_chat_completion(
+                messages,
                 model="gpt-4o",
-                messages=messages,
                 temperature=0.5,
-                response_format={"type": "json_object"}
+                json_mode=True,
             )
-            return response.choices[0].message.content.strip()
-        except Exception as e2:
-            return json.dumps({"error": str(e2)})
+        except Exception as secondary_openai_error:
+            return json.dumps({"error": str(secondary_openai_error)})
 
 
 # ==========================================
 # 4. Flask 라우트 (TTS 추가됨!)
 # ==========================================
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({
+        "status": "ok",
+        "local_llm_url": LOCAL_LLM_BASE_URL,
+    })
+
 
 @app.route('/api/tts', methods=['POST', 'OPTIONS'])
 def generate_tts():
@@ -700,7 +887,6 @@ def stt():
         })
 
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -725,11 +911,19 @@ def gpt():
         language = requested_language if requested_language in ('ko', 'en', 'vi') else detect_language(text)
         timer.mark("language_detected")
 
+        print(
+            f"\n[AI REQUEST] admin_id={admin_id} kiosk_id={kiosk_id} "
+            f"language={language}\n{text}",
+            flush=True,
+        )
+
         intent = detect_intent(text)
         timer.mark("intent_detected")
+        print(f"[AI INTENT] {intent}", flush=True)
 
         gpt_raw_response = get_response_by_intent(intent, text, admin_id, kiosk_id, language)
         timer.mark("llm_response_received")
+        print(f"[AI RAW RESPONSE]\n{gpt_raw_response}", flush=True)
 
         if isinstance(gpt_raw_response, dict) and "error" in gpt_raw_response:
             return jsonify({**gpt_raw_response, "timings": timer.result()}), 500
@@ -760,11 +954,19 @@ def gpt():
         timings = timer.result()
         result_json["timings"] = timings  # ✅ 응답에 포함
         logging.info(f"[GPT] timings={timings} intent={intent}")
+        print(
+            "[AI PARSED RESPONSE]\n"
+            f"{json.dumps(result_json, ensure_ascii=False, indent=2)}\n"
+            f"[AI TIMING] total={timings['total_ms']}ms",
+            flush=True,
+        )
 
         return jsonify(result_json)
 
     except Exception as e:
         timings = timer.result()
+        print(f"[AI ERROR] {e}", flush=True)
+        traceback.print_exc()
         logging.exception(f"[GPT] Endpoint Error timings={timings}")
         return jsonify({"error": str(e), "timings": timings}), 500
 
@@ -808,4 +1010,11 @@ def upload_jsons():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    flask_debug = os.getenv("FLASK_DEBUG", "false").lower() in ("1", "true", "yes")
+    ai_server_port = int(os.getenv("AI_SERVER_PORT", "8000"))
+    app.run(
+        host='0.0.0.0',
+        port=ai_server_port,
+        debug=flask_debug,
+        use_reloader=flask_debug,
+    )
