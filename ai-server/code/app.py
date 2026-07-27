@@ -4,8 +4,11 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor
 import torchaudio
 import os
 import json
+import base64
 from openai import OpenAI
 import io
+import wave
+import threading
 import traceback
 from flask_cors import CORS
 import logging
@@ -15,11 +18,11 @@ import langdetect
 import re
 from dotenv import load_dotenv
 from pathlib import Path
-import uuid
-import asyncio
-#import edge_tts
 import time
 from functools import wraps
+from urllib.error import HTTPError, URLError
+from urllib.request import Request as UrlRequest, urlopen
+from tts_text_normalizer import normalize_korean_tts_text
 
 
 # ==========================================
@@ -86,6 +89,25 @@ local_client = OpenAI(
     timeout=LOCAL_LLM_TIMEOUT,
     max_retries=0,
 )
+
+LOCAL_TTS_BASE_URL = os.getenv(
+    "LOCAL_TTS_BASE_URL",
+    "http://127.0.0.1:8020",
+).rstrip("/")
+LOCAL_TTS_MODEL = os.getenv(
+    "LOCAL_TTS_MODEL",
+    "qwen3-tts-0.6b-base-q8",
+)
+LOCAL_TTS_TIMEOUT = float(os.getenv("LOCAL_TTS_TIMEOUT", "300"))
+LOCAL_TTS_VOICE = os.getenv("LOCAL_TTS_VOICE", "friendly_female")
+LOCAL_TTS_SEED = int(os.getenv("LOCAL_TTS_SEED", "4"))
+LOCAL_TTS_VOICE_REFERENCE = (
+    Path(__file__).resolve().parent.parent
+    / "qwen-tts-server"
+    / "voices"
+    / "friendly-female-reference.wav"
+)
+_local_tts_voice_lock = threading.Lock()
 
 # OpenAI 클라이언트는 로컬 모델 실패 시에만 사용
 api_key = os.getenv("OPENAI_API_KEY")
@@ -810,46 +832,104 @@ def health():
     })
 
 
+def ensure_local_tts_voice():
+    with _local_tts_voice_lock:
+        voices_request = UrlRequest(
+            f"{LOCAL_TTS_BASE_URL}/v1/audio/voices",
+            method="GET",
+        )
+        with urlopen(voices_request, timeout=LOCAL_TTS_TIMEOUT) as response:
+            voices_data = json.loads(response.read().decode("utf-8"))
+
+        voices = voices_data.get("voices", [])
+        if any(voice.get("name") == LOCAL_TTS_VOICE for voice in voices):
+            return
+
+        if not LOCAL_TTS_VOICE_REFERENCE.is_file():
+            raise RuntimeError(
+                f"TTS voice reference is missing: {LOCAL_TTS_VOICE_REFERENCE}"
+            )
+
+        register_payload = json.dumps({
+            "name": LOCAL_TTS_VOICE,
+            "wav_b64": base64.b64encode(
+                LOCAL_TTS_VOICE_REFERENCE.read_bytes()
+            ).decode("ascii"),
+        }).encode("utf-8")
+        register_request = UrlRequest(
+            f"{LOCAL_TTS_BASE_URL}/v1/audio/voices",
+            data=register_payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(register_request, timeout=LOCAL_TTS_TIMEOUT):
+            pass
+
+
 @app.route('/api/tts', methods=['POST', 'OPTIONS'])
 def generate_tts():
     if request.method == 'OPTIONS':
         return '', 200
 
     try:
-        data = request.json
-        text = data.get('text')
-        language = data.get('language', 'ko')
+        data = request.get_json(silent=True) or {}
+        text = str(data.get('text') or '').strip()
+        language = str(data.get('language') or 'ko').lower().split('-', 1)[0]
 
         if not text:
             return jsonify({"error": "No text provided"}), 400
 
-        voice = "ko-KR-SunHiNeural"
-        if language == 'en':
-            voice = "en-US-AriaNeural"
-        elif language == 'vi':
-            voice = "vi-VN-HoaiMyNeural"
+        tts_text = normalize_korean_tts_text(text) if language == 'ko' else text
+        ensure_local_tts_voice()
+        payload = json.dumps({
+            "model": LOCAL_TTS_MODEL,
+            "input": tts_text,
+            "voice": LOCAL_TTS_VOICE,
+            "seed": LOCAL_TTS_SEED,
+            "response_format": "wav",
+        }, ensure_ascii=False).encode("utf-8")
+        upstream_request = UrlRequest(
+            f"{LOCAL_TTS_BASE_URL}/v1/audio/speech",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlopen(upstream_request, timeout=LOCAL_TTS_TIMEOUT) as response:
+            audio_bytes = response.read()
 
-        filename = f"tts_{uuid.uuid4()}.mp3"
+        try:
+            with wave.open(io.BytesIO(audio_bytes), "rb") as wav_file:
+                frame_rate = wav_file.getframerate()
+                duration_seconds = (
+                    wav_file.getnframes() / frame_rate if frame_rate > 0 else 0
+                )
+        except (wave.Error, EOFError) as wav_error:
+            raise RuntimeError("Local TTS returned an invalid WAV file") from wav_error
 
-        async def run_tts():
-            communicate = edge_tts.Communicate(text, voice)
-            await communicate.save(filename)
+        max_expected_seconds = max(6.0, len(tts_text) * 0.6)
+        if duration_seconds < 0.25 or duration_seconds > max_expected_seconds:
+            raise RuntimeError(
+                "Local TTS returned abnormal audio "
+                f"({duration_seconds:.2f}s for {len(tts_text)} characters)"
+            )
 
-        asyncio.run(run_tts())
-
-        with open(filename, 'rb') as f:
-            audio_data = io.BytesIO(f.read())
-
-        os.remove(filename)
+        audio_data = io.BytesIO(audio_bytes)
         audio_data.seek(0)
 
         return send_file(
             audio_data,
-            mimetype="audio/mpeg",
+            mimetype="audio/wav",
             as_attachment=False,
-            download_name="speech.mp3"
+            download_name="speech.wav"
         )
 
+    except HTTPError as e:
+        upstream_error = e.read().decode("utf-8", errors="replace")
+        print(f"TTS upstream HTTP error: {e.code} {upstream_error}")
+        return jsonify({"error": upstream_error}), 502
+    except URLError as e:
+        print(f"TTS upstream connection error: {e.reason}")
+        return jsonify({"error": "Local TTS service is unavailable"}), 503
     except Exception as e:
         print(f"TTS Error: {str(e)}")
         return jsonify({"error": str(e)}), 500

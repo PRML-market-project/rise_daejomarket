@@ -4,7 +4,6 @@ import { useCartStore } from '@/store/cartStore';
 import { useMenuStore } from '@/store/menuStore';
 import { useNavigationStore } from '@/store/navigationStore';
 import { useOrderStore } from '@/features/order/store/orderStore';
-import { getSpeech } from '@/utils/getSpeech';
 import { useLanguageStore } from '@/store/languageStore';
 import { useParams } from 'react-router-dom';
 import { useOrderHistoryStore } from '@/store/orderHistoryStore';
@@ -83,7 +82,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
     if (!intent) {
       if (safeMessage) {
         updateLastMessage(safeMessage);
-        getSpeech(safeMessage, language);
       }
       return;
     }
@@ -95,7 +93,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       case 'get_store':
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language);
         }
 
         if (items.length > 0) {
@@ -127,7 +124,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       case 'get_menu':
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language);
         }
 
         if (items.length > 0) {
@@ -156,7 +152,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
         // 1. 메시지 및 음성 안내
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language);
         }
 
         // 2. 언급된 상품이 있는 가게들을 깜빡이게 처리 (시각적 보조)
@@ -182,7 +177,7 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       // ---------------------------------------------------------
       // 4. 위치/지도 안내 (get_location)
       // ---------------------------------------------------------
-      case 'get_location':
+      case 'get_location': {
         // ✅ chat_message가 null이면 빈 문자열로 시작, 아래 로직에서 메시지 생성
         let finalMessage = safeMessage;
 
@@ -214,8 +209,8 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
 
         // 최종 메시지 출력 및 음성 안내
         updateLastMessage(finalMessage);
-        getSpeech(finalMessage, language);
         break;
+      }
 
       // ---------------------------------------------------------
       // 5. 그 외 (잡담 등)
@@ -223,7 +218,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       default:
         if (safeMessage) {
           updateLastMessage(safeMessage);
-          getSpeech(safeMessage, language);
         }
         break;
     }
@@ -267,7 +261,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       if (!isJson) {
         console.log('Non-JSON Response:', responseText);
         updateLastMessage(responseText);
-        getSpeech(responseText, language);
         return {
           user_message: text,
           chat_message: responseText,
@@ -312,7 +305,6 @@ export const useGpt = ({ apiUrl }: UseTextApiProps) => {
       setError(errorMessage);
       const failMessage = t(language, 'error');
       updateLastMessage(failMessage);
-      getSpeech(failMessage, language);
       throw err;
     } finally {
       setIsProcessing(false);

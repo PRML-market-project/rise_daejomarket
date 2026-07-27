@@ -14,6 +14,7 @@ import { useLanguageStore } from '@/store/languageStore';
 import { useParams } from 'react-router-dom';
 import { useNavigationStore } from '@/store/navigationStore';
 import { speechRecognitionLocales } from '@/i18n/language';
+import { cancelSpeech } from '@/utils/getSpeech';
 
 const apiUrl = import.meta.env.VITE_GPT_API_URL;
 
@@ -81,8 +82,13 @@ const Voice = () => {
         await new Promise((r) => setTimeout(r, 250));
 
         const text = (latestTextRef.current || capturedText || transcript || '').trim();
-        if (text && adminId && kioskId) {
-          await sendTextToApi(text, adminId, kioskId);
+        if (text && adminId && kioskId && !isSendingRef.current) {
+          isSendingRef.current = true;
+          try {
+            await sendTextToApi(text, adminId, kioskId);
+          } finally {
+            isSendingRef.current = false;
+          }
         }
         resetTranscript();
         setCapturedText('');
@@ -90,6 +96,7 @@ const Voice = () => {
         return;
       }
 
+      cancelSpeech();
       resetTranscript();
       setIsCapturing(true);
       setIsProcessing(true);
@@ -112,6 +119,7 @@ const Voice = () => {
   const runDevAsIfWebSpeech = useCallback(async (fullText: string) => {
     if (isSendingRef.current) return;
     isSendingRef.current = true;
+    cancelSpeech();
     const now = Date.now();
 
     setIsProcessing(true);
@@ -169,8 +177,13 @@ const Voice = () => {
       if (now - lastTextTimeRef.current > 2000) {
         stopSoft();
         const text = (latestTextRef.current || capturedText || transcript || '').trim();
-        if (text && adminId && kioskId) {
-          sendTextToApi(text, adminId, kioskId).catch((err) => console.error(err));
+        if (text && adminId && kioskId && !isSendingRef.current) {
+          isSendingRef.current = true;
+          sendTextToApi(text, adminId, kioskId)
+            .catch((err) => console.error(err))
+            .finally(() => {
+              isSendingRef.current = false;
+            });
         } else {
           resetTranscript();
         }

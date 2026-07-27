@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$env:PYTHONIOENCODING = "utf-8"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $autoStopSeconds = if ($env:DEV_LOCAL_AUTO_STOP_SECONDS) {
@@ -77,9 +78,16 @@ $services = @(
     @{
         Name = "local-llm"
         Path = "ai-server"
-        Command = "& .\.llama-cpp\llama-server.exe -m .\gemma-4-26B_q4_0-it.gguf --host 127.0.0.1 --port 8010 -ngl all -c 16384 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
+        Command = "& .\.llama-cpp\llama-server.exe -m .\gemma-4-26B_q4_0-it.gguf --host 127.0.0.1 --port 8010 -ngl all -c 8192 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
         Url = "http://localhost:8010"
         ReadyUrl = "http://127.0.0.1:8010/health"
+    },
+    @{
+        Name = "qwen-tts"
+        Path = "ai-server\qwen-tts-server"
+        Command = "& .\qwentts.cpp\build\Release\tts-server.exe --model .\models\qwen-talker-0.6b-base-Q8_0.gguf --codec .\models\qwen-tokenizer-12hz-Q8_0.gguf --alias qwen3-tts-0.6b-base-q8 --host 127.0.0.1 --port 8020 --lang korean --no-fa --clamp-fp16"
+        Url = "http://localhost:8020"
+        ReadyUrl = "http://127.0.0.1:8020/health"
     },
     @{
         Name = "backend"
@@ -146,6 +154,7 @@ try {
     Write-Host "local-llm:      http://localhost:8010"
     Write-Host "backend:        http://localhost:8080"
     Write-Host "ai-server:      http://localhost:8000"
+    Write-Host "qwen-tts:       http://localhost:8020"
     Write-Host "frontend:       http://localhost:5173"
     Write-Host "admin-frontend: http://localhost:3000"
     Write-Host ""

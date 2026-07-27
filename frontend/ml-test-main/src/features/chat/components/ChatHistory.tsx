@@ -3,7 +3,7 @@ import { useChatStore } from '../store/chatStore';
 import ChatBubble from './ChatBubble';
 import { useEffect, useRef, useCallback } from 'react';
 import { useLanguageStore } from '@/store/languageStore';
-import { getSpeech } from '@/utils/getSpeech';
+import { cancelSpeech, getSpeech } from '@/utils/getSpeech';
 import { useVoiceStore } from '@/features/order/store/voiceStore';
 
 const ChatHistory = () => {
@@ -38,7 +38,7 @@ const ChatHistory = () => {
 
   // 언어 바뀔 때 TTS 테스트
   useEffect(() => {
-    if (isCovered) return;
+    if (isCovered || messages.length > 0) return;
 
     try {
       const testMessage =
@@ -48,11 +48,13 @@ const ChatHistory = () => {
             ? 'Hi! How may I help you?'
             : '안녕하세요! 어떤 도움이 필요하신가요?';
 
-      getSpeech(testMessage, language);
+      void getSpeech(testMessage, language);
     } catch (error) {
       console.error('TTS test failed:', error);
     }
-  }, [language, isCovered]);
+
+    return cancelSpeech;
+  }, [language, isCovered, messages.length]);
 
   // 화면 덮힘 상태면 자동으로 마이크/감지 끄기
   useEffect(() => {
@@ -64,6 +66,21 @@ const ChatHistory = () => {
   }, [isCovered, isMicOn, stopMic, stopHotwordDetection]);
 
   const lastMsg = messages[messages.length - 1];
+  const lastMsgText = lastMsg?.text ?? '';
+  const lastMsgIsUser = lastMsg?.isUser ?? false;
+
+  // Speak exactly the final assistant message shown in the chat. Keeping
+  // TTS here prevents intent-specific branches and navigation updates from
+  // skipping or duplicating playback.
+  useEffect(() => {
+    if (isCovered || lastMsgIsUser) return;
+
+    const finalText = lastMsgText.trim();
+    if (!finalText || finalText === 'loading') return;
+
+    void getSpeech(finalText, language);
+  }, [isCovered, language, lastMsgIsUser, lastMsgText]);
+
   const shouldAutoFollow =
     !!lastMsg && !lastMsg.isUser && lastMsg.text !== 'loading';
 
