@@ -2,7 +2,7 @@ import { useNavigationStore } from '@/store/navigationStore';
 import { useMenuStore } from '@/store/menuStore';
 import { useLanguageStore } from '@/store/languageStore';
 import clsx from 'clsx';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   localizedCategoryType,
   localizedValue,
@@ -23,6 +23,20 @@ const CategoryList = () => {
 
   const { categories } = useMenuStore();
   const { language } = useLanguageStore();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number>();
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+
+    const updateHeight = () => setContentHeight(content.scrollHeight);
+    updateHeight();
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
 
   const filteredCategories = categories.filter(
     (category) => category.categoryName !== '전체'
@@ -73,7 +87,14 @@ const CategoryList = () => {
   };
 
   return (
-    <div className='sticky top-0 z-20 w-full bg-background/95 backdrop-blur-md border-b border-border'>
+    <div
+      className='sticky top-0 z-20 w-full overflow-hidden border-b border-border transition-[height] duration-300 ease-in-out'
+      style={{ height: contentHeight }}
+    >
+      <div
+        ref={contentRef}
+        className='w-full bg-background/95 backdrop-blur-md'
+      >
       {/* 수정 1: items-start -> items-center
         (전체 행을 세로 중앙 정렬하여 높이 차이로 인한 치우침 방지)
       */}
@@ -160,6 +181,7 @@ const CategoryList = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
