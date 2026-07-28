@@ -11,6 +11,7 @@ import SpeechRecognition from 'react-speech-recognition';
 import { useLanguageStore } from '@/store/languageStore';
 import { useMenuStore } from '@/store/menuStore';
 import { useNavigationStore } from '@/store/navigationStore';
+import HandwritingPad from './HandwritingPad';
 import {
   Language,
   languageLabels,
@@ -234,6 +235,9 @@ const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [inputPanelMode, setInputPanelMode] = useState<
+    'keyboard' | 'handwriting'
+  >('keyboard');
   const [keyboardLanguage, setKeyboardLanguage] = useState<'ko' | 'en'>(
     language === 'ko' ? 'ko' : 'en'
   );
@@ -627,22 +631,47 @@ const Header = () => {
           >
             <div className='mx-auto max-w-4xl'>
               <div className='mb-2 flex items-center justify-between'>
-                <span className='text-sm font-bold text-muted-foreground'>
-                  가상 키보드
-                </span>
-                <div className='flex items-center gap-2'>
+                <div className='flex rounded-lg border border-border bg-secondary p-1'>
                   <button
                     type='button'
                     onPointerDown={(event) => event.preventDefault()}
-                    onClick={() =>
-                      setKeyboardLanguage((current) =>
-                        current === 'ko' ? 'en' : 'ko'
-                      )
-                    }
-                    className='h-9 rounded-lg border border-border bg-secondary px-4 text-sm font-bold text-secondary-foreground active:bg-accent'
+                    onClick={() => setInputPanelMode('keyboard')}
+                    className={`h-9 rounded-md px-4 text-sm font-bold transition-colors ${
+                      inputPanelMode === 'keyboard'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-secondary-foreground'
+                    }`}
                   >
-                    {keyboardLanguage === 'ko' ? '한 / 영' : 'EN / 한'}
+                    ⌨ 키보드
                   </button>
+                  <button
+                    type='button'
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={() => setInputPanelMode('handwriting')}
+                    className={`h-9 rounded-md px-4 text-sm font-bold transition-colors ${
+                      inputPanelMode === 'handwriting'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-secondary-foreground'
+                    }`}
+                  >
+                    ✍ 손글씨
+                  </button>
+                </div>
+                <div className='flex items-center gap-2'>
+                  {inputPanelMode === 'keyboard' && (
+                    <button
+                      type='button'
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        setKeyboardLanguage((current) =>
+                          current === 'ko' ? 'en' : 'ko'
+                        )
+                      }
+                      className='h-9 rounded-lg border border-border bg-secondary px-4 text-sm font-bold text-secondary-foreground active:bg-accent'
+                    >
+                      {keyboardLanguage === 'ko' ? '한 / 영' : 'EN / 한'}
+                    </button>
+                  )}
                   <button
                     type='button'
                     onPointerDown={(event) => event.preventDefault()}
@@ -658,73 +687,82 @@ const Header = () => {
                 </div>
               </div>
 
-              <div className='space-y-1.5'>
-                {(keyboardLanguage === 'ko'
-                  ? KOREAN_KEYS
-                  : ENGLISH_KEYS
-                ).map((row, rowIndex) => (
-                  <div
-                    key={rowIndex}
-                    className='flex justify-center gap-1.5'
-                  >
-                    {row.map((key) => (
-                      <button
-                        key={key}
-                        type='button'
-                        onPointerDown={(event) => event.preventDefault()}
-                        onClick={() => handleVirtualKey(key)}
-                        className='h-11 min-w-0 flex-1 rounded-lg border border-border bg-card text-lg font-bold text-card-foreground shadow-sm active:translate-y-px active:bg-accent'
+              {inputPanelMode === 'keyboard' ? (
+                <>
+                  <div className='space-y-1.5'>
+                    {(keyboardLanguage === 'ko'
+                      ? KOREAN_KEYS
+                      : ENGLISH_KEYS
+                    ).map((row, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        className='flex justify-center gap-1.5'
                       >
-                        {key}
-                      </button>
+                        {row.map((key) => (
+                          <button
+                            key={key}
+                            type='button'
+                            onPointerDown={(event) => event.preventDefault()}
+                            onClick={() => handleVirtualKey(key)}
+                            className='h-11 min-w-0 flex-1 rounded-lg border border-border bg-card text-lg font-bold text-card-foreground shadow-sm active:translate-y-px active:bg-accent'
+                          >
+                            {key}
+                          </button>
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
-              </div>
 
-              <div className='mt-1.5 flex gap-1.5'>
-                <button
-                  type='button'
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={() =>
-                    setKeyboardLanguage((current) =>
-                      current === 'ko' ? 'en' : 'ko'
-                    )
-                  }
-                  className='h-11 w-20 rounded-lg border border-border bg-secondary text-sm font-bold text-secondary-foreground active:bg-accent'
-                >
-                  한/영
-                </button>
-                <button
-                  type='button'
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={() => setSearchQuery((query) => query + ' ')}
-                  className='h-11 flex-1 rounded-lg border border-border bg-card text-sm font-semibold text-muted-foreground active:bg-accent'
-                >
-                  Space
-                </button>
-                <button
-                  type='button'
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={handleVirtualBackspace}
-                  className='h-11 w-20 rounded-lg border border-border bg-secondary text-xl font-bold text-secondary-foreground active:bg-accent'
-                  aria-label='한 글자 지우기'
-                >
-                  ⌫
-                </button>
-                <button
-                  type='button'
-                  onPointerDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    if (searchResults[0]) {
-                      handleSearchResultClick(searchResults[0]);
-                    }
-                  }}
-                  className='h-11 w-24 rounded-lg bg-primary text-sm font-extrabold text-primary-foreground active:brightness-95'
-                >
-                  검색
-                </button>
-              </div>
+                  <div className='mt-1.5 flex gap-1.5'>
+                    <button
+                      type='button'
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        setKeyboardLanguage((current) =>
+                          current === 'ko' ? 'en' : 'ko'
+                        )
+                      }
+                      className='h-11 w-20 rounded-lg border border-border bg-secondary text-sm font-bold text-secondary-foreground active:bg-accent'
+                    >
+                      한/영
+                    </button>
+                    <button
+                      type='button'
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={() => setSearchQuery((query) => query + ' ')}
+                      className='h-11 flex-1 rounded-lg border border-border bg-card text-sm font-semibold text-muted-foreground active:bg-accent'
+                    >
+                      Space
+                    </button>
+                    <button
+                      type='button'
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={handleVirtualBackspace}
+                      className='h-11 w-20 rounded-lg border border-border bg-secondary text-xl font-bold text-secondary-foreground active:bg-accent'
+                      aria-label='한 글자 지우기'
+                    >
+                      ⌫
+                    </button>
+                    <button
+                      type='button'
+                      onPointerDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        if (searchResults[0]) {
+                          handleSearchResultClick(searchResults[0]);
+                        }
+                      }}
+                      className='h-11 w-24 rounded-lg bg-primary text-sm font-extrabold text-primary-foreground active:brightness-95'
+                    >
+                      검색
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <HandwritingPad
+                  language={language}
+                  onRecognized={(text) => setSearchQuery(text)}
+                />
+              )}
             </div>
           </div>,
           document.body
