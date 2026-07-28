@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { flushSync } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import SpeechRecognition from 'react-speech-recognition';
 import { useLanguageStore } from '@/store/languageStore';
@@ -74,6 +74,151 @@ type SearchResult = {
   score: number;
 };
 
+const INITIALS = [
+  'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ',
+  'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+];
+const VOWELS = [
+  'ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ',
+  'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ',
+];
+const FINALS = [
+  '', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ',
+  'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ',
+  'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+];
+const COMBINED_VOWELS: Record<string, string> = {
+  'ㅗㅏ': 'ㅘ', 'ㅗㅐ': 'ㅙ', 'ㅗㅣ': 'ㅚ',
+  'ㅜㅓ': 'ㅝ', 'ㅜㅔ': 'ㅞ', 'ㅜㅣ': 'ㅟ', 'ㅡㅣ': 'ㅢ',
+  'ㅏㅣ': 'ㅐ', 'ㅑㅣ': 'ㅒ', 'ㅓㅣ': 'ㅔ', 'ㅕㅣ': 'ㅖ',
+};
+const SPLIT_VOWELS: Record<string, string> = Object.fromEntries(
+  Object.entries(COMBINED_VOWELS).map(([parts, combined]) => [
+    combined,
+    parts[0],
+  ])
+);
+const COMBINED_FINALS: Record<string, string> = {
+  'ㄱㅅ': 'ㄳ', 'ㄴㅈ': 'ㄵ', 'ㄴㅎ': 'ㄶ', 'ㄹㄱ': 'ㄺ',
+  'ㄹㅁ': 'ㄻ', 'ㄹㅂ': 'ㄼ', 'ㄹㅅ': 'ㄽ', 'ㄹㅌ': 'ㄾ',
+  'ㄹㅍ': 'ㄿ', 'ㄹㅎ': 'ㅀ', 'ㅂㅅ': 'ㅄ',
+};
+const SPLIT_FINALS: Record<string, [string, string]> = Object.fromEntries(
+  Object.entries(COMBINED_FINALS).map(([parts, combined]) => [
+    combined,
+    [parts[0], parts[1]],
+  ])
+);
+const DOUBLE_INITIALS: Record<string, string> = {
+  'ㄱㄱ': 'ㄲ',
+  'ㄷㄷ': 'ㄸ',
+  'ㅂㅂ': 'ㅃ',
+  'ㅅㅅ': 'ㅆ',
+  'ㅈㅈ': 'ㅉ',
+};
+
+const makeSyllable = (initial: string, vowel: string, final = '') =>
+  String.fromCharCode(
+    0xac00 +
+      (INITIALS.indexOf(initial) * 21 + VOWELS.indexOf(vowel)) * 28 +
+      FINALS.indexOf(final)
+  );
+
+const getSyllableParts = (character: string) => {
+  const code = character.charCodeAt(0) - 0xac00;
+  if (code < 0 || code > 11171) return null;
+  return {
+    initial: INITIALS[Math.floor(code / 588)],
+    vowel: VOWELS[Math.floor((code % 588) / 28)],
+    final: FINALS[code % 28],
+  };
+};
+
+const appendHangul = (text: string, key: string) => {
+  if (!text) return key;
+  const last = text.at(-1) || '';
+  const prefix = text.slice(0, -1);
+  const parts = getSyllableParts(last);
+  const isVowel = VOWELS.includes(key);
+
+  if (isVowel) {
+    if (parts) {
+      if (!parts.final) {
+        const combined = COMBINED_VOWELS[parts.vowel + key];
+        return combined
+          ? prefix + makeSyllable(parts.initial, combined)
+          : text + key;
+      }
+
+      const splitFinal = SPLIT_FINALS[parts.final];
+      const remainingFinal = splitFinal?.[0] || '';
+      const nextInitial = splitFinal?.[1] || parts.final;
+      return (
+        prefix +
+        makeSyllable(parts.initial, parts.vowel, remainingFinal) +
+        makeSyllable(nextInitial, key)
+      );
+    }
+
+    if (INITIALS.includes(last)) {
+      return prefix + makeSyllable(last, key);
+    }
+    const combined = COMBINED_VOWELS[last + key];
+    return combined ? prefix + combined : text + key;
+  }
+
+  if (parts) {
+    if (!parts.final && FINALS.includes(key)) {
+      return prefix + makeSyllable(parts.initial, parts.vowel, key);
+    }
+    if (parts.final) {
+      const combined = COMBINED_FINALS[parts.final + key];
+      if (combined) {
+        return prefix + makeSyllable(parts.initial, parts.vowel, combined);
+      }
+    }
+    return text + key;
+  }
+
+  if (INITIALS.includes(last)) {
+    const doubled = DOUBLE_INITIALS[last + key];
+    return doubled ? prefix + doubled : text + key;
+  }
+  return text + key;
+};
+
+const removeLastHangulKey = (text: string) => {
+  if (!text) return text;
+  const last = text.at(-1) || '';
+  const prefix = text.slice(0, -1);
+  const parts = getSyllableParts(last);
+  if (!parts) return prefix;
+
+  if (parts.final) {
+    const splitFinal = SPLIT_FINALS[parts.final];
+    return prefix + makeSyllable(
+      parts.initial,
+      parts.vowel,
+      splitFinal?.[0] || ''
+    );
+  }
+  const simpleVowel = SPLIT_VOWELS[parts.vowel];
+  return simpleVowel
+    ? prefix + makeSyllable(parts.initial, simpleVowel)
+    : prefix + parts.initial;
+};
+
+const ENGLISH_KEYS = [
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
+];
+const KOREAN_KEYS = [
+  ['ㅂ', 'ㅈ', 'ㄷ', 'ㄱ', 'ㅅ', 'ㅛ', 'ㅕ', 'ㅑ', 'ㅐ', 'ㅔ'],
+  ['ㅁ', 'ㄴ', 'ㅇ', 'ㄹ', 'ㅎ', 'ㅗ', 'ㅓ', 'ㅏ', 'ㅣ'],
+  ['ㅋ', 'ㅌ', 'ㅊ', 'ㅍ', 'ㅠ', 'ㅜ', 'ㅡ'],
+];
+
 const Header = () => {
   const { language, setLanguage } = useLanguageStore();
   const categories = useMenuStore((state) => state.categories);
@@ -88,6 +233,10 @@ const Header = () => {
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [keyboardLanguage, setKeyboardLanguage] = useState<'ko' | 'en'>(
+    language === 'ko' ? 'ko' : 'en'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [titleWidth, setTitleWidth] = useState<number>();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -100,6 +249,10 @@ const Header = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      const isVirtualKeyboardClick = Boolean(
+        target.closest('[data-virtual-keyboard]')
+      );
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
@@ -108,9 +261,11 @@ const Header = () => {
       }
       if (
         searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
+        !searchRef.current.contains(event.target as Node) &&
+        !isVirtualKeyboardClick
       ) {
         setIsSearchOpen(false);
+        setIsKeyboardOpen(false);
       }
     };
 
@@ -119,8 +274,15 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    if (isSearchOpen) searchInputRef.current?.focus();
+    if (isSearchOpen) {
+      searchInputRef.current?.focus();
+      setIsKeyboardOpen(true);
+    }
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    setKeyboardLanguage(language === 'ko' ? 'ko' : 'en');
+  }, [language]);
 
   useLayoutEffect(() => {
     if (titleTextRef.current) {
@@ -224,6 +386,7 @@ const Header = () => {
   const handleSearchToggle = () => {
     if (isSearchOpen) {
       searchInputRef.current?.blur();
+      setIsKeyboardOpen(false);
       setIsSearchOpen(false);
       return;
     }
@@ -232,6 +395,7 @@ const Header = () => {
     // 모바일/키오스크의 화면 키보드가 안정적으로 열린다.
     flushSync(() => setIsSearchOpen(true));
     searchInputRef.current?.focus({ preventScroll: true });
+    setIsKeyboardOpen(true);
   };
 
   const handleSearchResultClick = (result: SearchResult) => {
@@ -240,7 +404,22 @@ const Header = () => {
     setCurrentCategory(result.categoryId);
     setCurrentMenu(result.menuId);
     setSearchQuery('');
+    setIsKeyboardOpen(false);
     setIsSearchOpen(false);
+  };
+
+  const handleVirtualKey = (key: string) => {
+    setSearchQuery((query) =>
+      keyboardLanguage === 'ko' ? appendHangul(query, key) : query + key
+    );
+  };
+
+  const handleVirtualBackspace = () => {
+    setSearchQuery((query) =>
+      keyboardLanguage === 'ko'
+        ? removeLastHangulKey(query)
+        : query.slice(0, -1)
+    );
   };
 
   return (
@@ -366,15 +545,19 @@ const Header = () => {
               <input
                 ref={searchInputRef}
                 type='search'
-                inputMode='search'
+                inputMode='none'
                 enterKeyHint='search'
                 autoComplete='off'
                 autoCapitalize='none'
                 spellCheck={false}
                 value={searchQuery}
+                onFocus={() => setIsKeyboardOpen(true)}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Escape') setIsSearchOpen(false);
+                  if (event.key === 'Escape') {
+                    setIsKeyboardOpen(false);
+                    setIsSearchOpen(false);
+                  }
                   if (event.key === 'Enter' && searchResults[0]) {
                     handleSearchResultClick(searchResults[0]);
                   }
@@ -430,6 +613,122 @@ const Header = () => {
           </div>
         </div>
       </div>
+
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            data-virtual-keyboard
+            className={`fixed inset-x-0 bottom-0 z-[200] border-t border-border bg-background/98 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(0,0,0,0.18)] backdrop-blur-md transition-transform duration-300 ease-in-out ${
+              isKeyboardOpen && isSearchOpen
+                ? 'translate-y-0'
+                : 'pointer-events-none translate-y-full'
+            }`}
+            aria-hidden={!isKeyboardOpen || !isSearchOpen}
+          >
+            <div className='mx-auto max-w-4xl'>
+              <div className='mb-2 flex items-center justify-between'>
+                <span className='text-sm font-bold text-muted-foreground'>
+                  가상 키보드
+                </span>
+                <div className='flex items-center gap-2'>
+                  <button
+                    type='button'
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={() =>
+                      setKeyboardLanguage((current) =>
+                        current === 'ko' ? 'en' : 'ko'
+                      )
+                    }
+                    className='h-9 rounded-lg border border-border bg-secondary px-4 text-sm font-bold text-secondary-foreground active:bg-accent'
+                  >
+                    {keyboardLanguage === 'ko' ? '한 / 영' : 'EN / 한'}
+                  </button>
+                  <button
+                    type='button'
+                    onPointerDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      searchInputRef.current?.blur();
+                      setIsKeyboardOpen(false);
+                    }}
+                    className='flex h-9 w-11 items-center justify-center rounded-lg border border-border bg-secondary text-lg font-bold text-secondary-foreground active:bg-accent'
+                    aria-label='가상 키보드 닫기'
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              <div className='space-y-1.5'>
+                {(keyboardLanguage === 'ko'
+                  ? KOREAN_KEYS
+                  : ENGLISH_KEYS
+                ).map((row, rowIndex) => (
+                  <div
+                    key={rowIndex}
+                    className='flex justify-center gap-1.5'
+                  >
+                    {row.map((key) => (
+                      <button
+                        key={key}
+                        type='button'
+                        onPointerDown={(event) => event.preventDefault()}
+                        onClick={() => handleVirtualKey(key)}
+                        className='h-11 min-w-0 flex-1 rounded-lg border border-border bg-card text-lg font-bold text-card-foreground shadow-sm active:translate-y-px active:bg-accent'
+                      >
+                        {key}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              <div className='mt-1.5 flex gap-1.5'>
+                <button
+                  type='button'
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() =>
+                    setKeyboardLanguage((current) =>
+                      current === 'ko' ? 'en' : 'ko'
+                    )
+                  }
+                  className='h-11 w-20 rounded-lg border border-border bg-secondary text-sm font-bold text-secondary-foreground active:bg-accent'
+                >
+                  한/영
+                </button>
+                <button
+                  type='button'
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => setSearchQuery((query) => query + ' ')}
+                  className='h-11 flex-1 rounded-lg border border-border bg-card text-sm font-semibold text-muted-foreground active:bg-accent'
+                >
+                  Space
+                </button>
+                <button
+                  type='button'
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={handleVirtualBackspace}
+                  className='h-11 w-20 rounded-lg border border-border bg-secondary text-xl font-bold text-secondary-foreground active:bg-accent'
+                  aria-label='한 글자 지우기'
+                >
+                  ⌫
+                </button>
+                <button
+                  type='button'
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    if (searchResults[0]) {
+                      handleSearchResultClick(searchResults[0]);
+                    }
+                  }}
+                  className='h-11 w-24 rounded-lg bg-primary text-sm font-extrabold text-primary-foreground active:brightness-95'
+                >
+                  검색
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </header>
   );
 };
