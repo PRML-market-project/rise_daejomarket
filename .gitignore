@@ -5,6 +5,10 @@ admin-frontend/node_modules/
 dist/
 build/
 
+# .NET
+bin/
+obj/
+
 # Python
 .venv/
 venv/

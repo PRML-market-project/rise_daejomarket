@@ -532,14 +532,14 @@ const Header = () => {
           maxHeight: isSearchOpen
             ? searchQuery.trim()
               ? '55vh'
-              : '76px'
+              : '96px'
             : '0px',
         }}
       >
         <div>
           <div
             id='header-search-panel'
-            className={`relative border-t border-border bg-background px-4 py-3 transition-all duration-300 ease-in-out ${
+            className={`relative border-t border-border bg-background px-4 pb-3 pt-4 transition-all duration-300 ease-in-out ${
               isSearchOpen
                 ? 'translate-y-0 opacity-100'
                 : '-translate-y-3 opacity-0'
@@ -567,7 +567,7 @@ const Header = () => {
                   }
                 }}
                 placeholder='상점명 또는 상품명 검색'
-                className='h-12 w-full rounded-xl border-2 border-border bg-card px-4 text-lg text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/20'
+                className='relative z-10 h-12 w-full rounded-xl border-2 border-border bg-card px-4 text-lg text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-inset focus:ring-primary/20'
                 aria-label='상점명 또는 상품명 검색'
               />
             </label>

@@ -103,6 +103,13 @@ $services = @(
         ReadyUrl = "http://127.0.0.1:8000/health"
     },
     @{
+        Name = "handwriting-server"
+        Path = "handwriting-server"
+        Command = "dotnet run --configuration Release"
+        Url = "http://localhost:17832"
+        ReadyUrl = "http://127.0.0.1:17832/health"
+    },
+    @{
         Name = "frontend"
         Path = "frontend\ml-test-main"
         Command = "npm.cmd run dev"
@@ -155,6 +162,7 @@ try {
     Write-Host "backend:        http://localhost:8080"
     Write-Host "ai-server:      http://localhost:8000"
     Write-Host "qwen-tts:       http://localhost:8020"
+    Write-Host "handwriting:    http://localhost:17832"
     Write-Host "frontend:       http://localhost:5173"
     Write-Host "admin-frontend: http://localhost:3000"
     Write-Host ""
