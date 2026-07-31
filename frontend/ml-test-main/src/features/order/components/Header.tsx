@@ -289,9 +289,19 @@ const Header = () => {
   }, [language]);
 
   useLayoutEffect(() => {
-    if (titleTextRef.current) {
-      setTitleWidth(titleTextRef.current.scrollWidth);
-    }
+    const title = titleTextRef.current;
+    if (!title) return;
+
+    const updateTitleWidth = () => {
+      setTitleWidth(Math.ceil(title.getBoundingClientRect().width));
+    };
+    const observer = new ResizeObserver(updateTitleWidth);
+
+    updateTitleWidth();
+    observer.observe(title);
+    void document.fonts?.ready.then(updateTitleWidth);
+
+    return () => observer.disconnect();
   }, [language]);
 
   const searchResults = useMemo<SearchResult[]>(() => {
@@ -432,7 +442,7 @@ const Header = () => {
       className='w-full bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-50'
     >
       <div className='flex h-14 items-center justify-between gap-2 px-4'>
-        <div className='flex items-center justify-center gap-2'>
+        <div className='flex min-w-0 items-center gap-1'>
           <div
             className='w-9 aspect-square text-sm rounded-full bg-gradient-to-br from-ml-yellow-light to-ml-yellow text-black font-extrabold tracking-tight flex items-center justify-center border border-ml-yellow relative overflow-hidden'
             style={{ boxShadow: '0 0 15px var(--color-indigo-shadow)' }}
@@ -460,7 +470,7 @@ const Header = () => {
           <div className='relative' ref={dropdownRef}>
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className='p-2 hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-full transition-colors'
+              className='p-1.5 hover:bg-accent text-muted-foreground hover:text-accent-foreground rounded-full transition-colors'
               aria-label='Settings'
             >
               <img
