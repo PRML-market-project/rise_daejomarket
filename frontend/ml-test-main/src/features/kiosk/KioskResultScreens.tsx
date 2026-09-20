@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Shop } from "@/types/shop";
-import type { Language } from "@/i18n/language";
+
+type Language = "ko" | "en" | "vi";
 
 const GREEN = "linear-gradient(105deg, #289064 0%, #116543 82%)";
 

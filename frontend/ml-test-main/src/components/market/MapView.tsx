@@ -5,15 +5,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Shop } from "@/types/shop";
-
-interface MapViewProps {
-  shops: Shop[];
-  selectedShopId: string | null;
-  onShopSelect: (shopId: string) => void;
-  showNavigation: boolean;
-  overlay?: React.ReactNode;
-}
 
 interface Point {
   x: number;
@@ -40,9 +31,6 @@ const INITIAL_LABEL_PT = 18;
 const CSS_PIXELS_PER_POINT = 4 / 3;
 const SOURCE_LABEL_HEIGHT = 38;
 
-const PANEL_WIDTH = 2800;
-const PANEL_HEIGHT = 3000;
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
@@ -54,7 +42,7 @@ function clampCenter(point: Point): Point {
   };
 }
 
-export function MapView({ overlay }: MapViewProps) {
+export function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const pointersRef = useRef(new Map<number, Point>());
   const gestureRef = useRef<{ midpoint: Point; distance: number } | null>(null);
@@ -200,11 +188,6 @@ export function MapView({ overlay }: MapViewProps) {
     changeZoom(INITIAL_LABEL_PT);
   };
 
-  const panelScale = Math.min(
-    (containerSize.width * 0.44) / PANEL_WIDTH,
-    (containerSize.height * 0.62) / PANEL_HEIGHT,
-  );
-
   return (
     <div
       ref={containerRef}
@@ -269,28 +252,6 @@ export function MapView({ overlay }: MapViewProps) {
       <output className="pointer-events-none absolute bottom-5 left-5 z-10 rounded-full bg-gray-900/80 px-4 py-2 text-sm font-semibold text-white">
         {Math.round(labelPt)}pt
       </output>
-
-      {overlay && panelScale > 0 && (
-        <div
-          className="absolute bottom-5 right-24 z-30 overflow-hidden"
-          style={{
-            width: PANEL_WIDTH * panelScale,
-            height: PANEL_HEIGHT * panelScale,
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <div
-            style={{
-              width: PANEL_WIDTH,
-              height: PANEL_HEIGHT,
-              transform: `scale(${panelScale})`,
-              transformOrigin: "left top",
-            }}
-          >
-            {overlay}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

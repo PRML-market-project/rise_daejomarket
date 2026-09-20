@@ -1,9 +1,7 @@
-// src/App.tsx
-
-import AppRouter from './router';
+import KioskSearchApp from '@/features/kiosk/KioskSearchApp';
 
 const App = () => {
-  return <AppRouter />;
+  return <KioskSearchApp />;
 };
 
 export default App;

@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView } from "@/components/market/MapView";
 import { marketShops } from "@/data/market-shops";
-import { useLanguageStore } from "@/store/languageStore";
-import type { Language } from "@/i18n/language";
 import {
   DirectionsPanel,
   FloatingSearchBar,
@@ -15,6 +13,7 @@ import {
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
 type Screen = "welcome" | "search" | "processing" | "results" | "directions" | "map" | "no-results" | "error" | "language";
+type Language = "ko" | "en" | "vi";
 
 const DESIGN_WIDTH = 1080;
 const DESIGN_HEIGHT = 1920;
@@ -29,9 +28,7 @@ const keyboardRows = [
 
 const languageLabels = { ko: "한국어", en: "English", vi: "Tiếng Việt" } as const;
 
-function Header({ onMap, onLanguage }: { onMap: () => void; onLanguage: () => void }) {
-  const language = useLanguageStore((state) => state.language);
-
+function Header({ language, onMap, onLanguage }: { language: Language; onMap: () => void; onLanguage: () => void }) {
   return (
     <header className="flex h-[120px] shrink-0 items-center justify-between border-b-2 border-[#ebebeb] px-[52px]">
       <img src="/figma/daecho-logo.svg" alt="대조시장" className="h-[44px] w-[142px]" />
@@ -391,8 +388,7 @@ function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state
 }
 
 export default function KioskSearchApp() {
-  const language = useLanguageStore((state) => state.language);
-  const setLanguage = useLanguageStore((state) => state.setLanguage);
+  const [language, setLanguage] = useState<Language>("ko");
   const [scale, setScale] = useState(1);
   const [screen, setScreen] = useState<Screen>("welcome");
   const [mode, setMode] = useState<InputMode>("keyboard");
@@ -507,6 +503,7 @@ export default function KioskSearchApp() {
       >
         {!(["results", "directions", "map"] as Screen[]).includes(screen) && (
           <Header
+            language={language}
             onMap={() => setScreen("map")}
             onLanguage={() => {
               setPendingLanguage(language);
@@ -544,7 +541,7 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={marketShops} selectedShopId={selectedShopId} onShopSelect={setSelectedShopId} showNavigation={false} />
+            <MapView />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
             <ResultsPanel
               shops={resultShops}
@@ -558,7 +555,7 @@ export default function KioskSearchApp() {
 
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={marketShops} selectedShopId={selectedShop.id} onShopSelect={() => undefined} showNavigation />
+            <MapView />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
             <div className="pointer-events-none absolute left-[716px] top-[360px] z-20 h-[920px] w-[20px] bg-[radial-gradient(circle,#116543_0_5px,transparent_6px)] bg-[length:20px_32px]" />
             <DirectionsPanel shopName={selectedShop.name} onBack={() => setScreen("results")} onHome={returnToWelcome} />
@@ -567,7 +564,7 @@ export default function KioskSearchApp() {
 
         {screen === "map" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={marketShops} selectedShopId={null} onShopSelect={() => undefined} showNavigation={false} />
+            <MapView />
             <FloatingSearchBar onClick={() => setScreen("search")} />
             <MarketMapPanel onHome={returnToWelcome} onSearch={() => setScreen("search")} />
           </main>
