@@ -20,11 +20,39 @@ const DESIGN_HEIGHT = 1920;
 const INACTIVITY_TIMEOUT_MS = 30_000;
 const GREEN = "linear-gradient(105deg, #289064 0%, #116543 82%)";
 
-const keyboardRows = [
-  ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ"],
-  ["ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ"],
-  ["ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ"],
-];
+type KeyboardLayout = "ko" | "en" | "number";
+
+const keyboardLayouts: Record<KeyboardLayout, string[][]> = {
+  ko: [
+    ["ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ"],
+    ["ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ"],
+    ["ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ"],
+  ],
+  en: [
+    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+    ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+    ["z", "x", "c", "v", "b", "n", "m"],
+  ],
+  number: [
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    ["-", "/", ";", ":", "(", ")", "₩", "&", "@"],
+    [".", ",", "?", "!", "'", "\"", "#"],
+  ],
+};
+
+const shiftedKeyboardLayouts: Record<KeyboardLayout, string[][]> = {
+  ko: [
+    ["ㅃ", "ㅉ", "ㄸ", "ㄱ", "ㅆ", "ㅛ", "ㅕ", "ㅑ", "ㅒ", "ㅖ"],
+    keyboardLayouts.ko[1],
+    keyboardLayouts.ko[2],
+  ],
+  en: keyboardLayouts.en.map((row) => row.map((key) => key.toUpperCase())),
+  number: [
+    ["[", "]", "{", "}", "#", "%", "^", "*", "+", "="],
+    ["_", "\\", "|", "~", "<", ">", "€", "£", "¥"],
+    ["…", "`", "•", "§", "±", "÷", "×"],
+  ],
+};
 
 const languageLabels = { ko: "한국어", en: "English", vi: "Tiếng Việt" } as const;
 
@@ -147,25 +175,42 @@ function CategoryChips({ onChoose }: { onChoose: (value: string) => void }) {
 }
 
 function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange: (value: string) => void; onSubmit: () => void }) {
+  const [layout, setLayout] = useState<KeyboardLayout>("ko");
+  const [alphaLayout, setAlphaLayout] = useState<Exclude<KeyboardLayout, "number">>("ko");
+  const [shifted, setShifted] = useState(false);
   const keyClass = "flex h-[104px] shrink-0 items-center justify-center whitespace-nowrap rounded-[12px] bg-[#f8fbf8] text-[36px] font-medium leading-[48px] text-[#19211c] shadow-[0_2px_0_rgba(0,0,0,.12)] active:translate-y-[2px] active:shadow-none";
+  const rows = (shifted ? shiftedKeyboardLayouts : keyboardLayouts)[layout];
   const append = (key: string) => onChange(value + key);
+  const toggleLanguage = () => {
+    const nextLayout = alphaLayout === "ko" ? "en" : "ko";
+    setAlphaLayout(nextLayout);
+    setLayout(nextLayout);
+    setShifted(false);
+  };
+  const toggleNumbers = () => {
+    setLayout((current) => current === "number" ? alphaLayout : "number");
+    setShifted(false);
+  };
+  const usesEnglishLabels = layout === "en" || (layout === "number" && alphaLayout === "en");
+  const shiftLabel = layout === "ko" ? "쌍자음" : layout === "en" ? "Shift" : "기호";
+
   return (
     <div className="flex h-[584px] w-full flex-col gap-[12px] rounded-[24px] bg-[#ebebeb] px-[24px] py-[48px]">
-      {keyboardRows.slice(0, 2).map((row, index) => (
+      {rows.slice(0, 2).map((row, index) => (
         <div key={index} className="flex justify-center gap-[8px]">
           {row.map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
         </div>
       ))}
       <div className="flex justify-center gap-[8px]">
-        <button type="button" className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⇧</span><span>쌍자음</span></button>
-        {keyboardRows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
-        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>삭제</span></button>
+        <button type="button" aria-pressed={shifted} onClick={() => setShifted((current) => !current)} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px] ${shifted ? "bg-[#d8e8df] text-[#116543]" : ""}`}><span className="text-[24px]">⇧</span><span>{shiftLabel}</span></button>
+        {rows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
+        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>{usesEnglishLabels ? "Del" : "삭제"}</span></button>
       </div>
       <div className="flex justify-center gap-[8px]">
-        <button type="button" className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>123</button>
-        <button type="button" className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>한/영</button>
-        <button type="button" onClick={() => append(" ")} className={`${keyClass} w-[456px] text-[24px] leading-[36px]`}>띄어쓰기</button>
-        <button type="button" onClick={onSubmit} className="h-[104px] w-[208px] shrink-0 whitespace-nowrap rounded-[12px] bg-[#363636] text-[28px] font-bold leading-[40px] text-white shadow-[0_2px_0_rgba(0,0,0,.12)]">확인</button>
+        <button type="button" aria-pressed={layout === "number"} onClick={toggleNumbers} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>{layout === "number" ? (alphaLayout === "ko" ? "가나다" : "ABC") : "123"}</button>
+        <button type="button" onClick={toggleLanguage} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>한/영</button>
+        <button type="button" onClick={() => append(" ")} className={`${keyClass} w-[456px] text-[24px] leading-[36px]`}>{usesEnglishLabels ? "Space" : "띄어쓰기"}</button>
+        <button type="button" onClick={onSubmit} className="h-[104px] w-[208px] shrink-0 whitespace-nowrap rounded-[12px] bg-[#363636] text-[28px] font-bold leading-[40px] text-white shadow-[0_2px_0_rgba(0,0,0,.12)]">{usesEnglishLabels ? "Confirm" : "확인"}</button>
       </div>
     </div>
   );
