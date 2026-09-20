@@ -32,7 +32,7 @@ type Props = {
 
 const API_URL =
   import.meta.env.VITE_HANDWRITING_API_URL ?? 'http://127.0.0.1:17832';
-const RECOGNITION_DELAY_MS = 450;
+const RECOGNITION_DELAY_MS = 1500;
 
 const HandwritingPad = ({ language, onRecognized }: Props) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
