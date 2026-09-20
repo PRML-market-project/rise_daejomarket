@@ -92,7 +92,7 @@ function MethodTabs({ mode, onChange }: { mode: InputMode; onChange: (mode: Inpu
           key={value}
           type="button"
           onClick={() => onChange(value)}
-          className={`flex-1 rounded-full text-[36px] font-medium ${
+          className={`flex-1 whitespace-nowrap rounded-full text-[36px] font-medium leading-[48px] ${
             mode === value ? "text-white" : "text-[#a1a1a1]"
           }`}
           style={mode === value ? { backgroundImage: GREEN } : undefined}
@@ -147,25 +147,25 @@ function CategoryChips({ onChoose }: { onChoose: (value: string) => void }) {
 }
 
 function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange: (value: string) => void; onSubmit: () => void }) {
-  const keyClass = "flex h-[104px] items-center justify-center rounded-[12px] bg-[#f8fbf8] text-[36px] font-medium text-[#19211c] shadow-[0_2px_0_rgba(0,0,0,.12)] active:translate-y-[2px] active:shadow-none";
+  const keyClass = "flex h-[104px] shrink-0 items-center justify-center whitespace-nowrap rounded-[12px] bg-[#f8fbf8] text-[36px] font-medium leading-[48px] text-[#19211c] shadow-[0_2px_0_rgba(0,0,0,.12)] active:translate-y-[2px] active:shadow-none";
   const append = (key: string) => onChange(value + key);
   return (
     <div className="flex h-[584px] w-full flex-col gap-[12px] rounded-[24px] bg-[#ebebeb] px-[24px] py-[48px]">
       {keyboardRows.slice(0, 2).map((row, index) => (
         <div key={index} className="flex justify-center gap-[8px]">
-          {row.map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86px]`}>{key}</button>)}
+          {row.map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
         </div>
       ))}
       <div className="flex justify-center gap-[8px]">
-        <button type="button" className={`${keyClass} w-[134px] text-[24px]`}>⇧ 쌍자음</button>
-        {keyboardRows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86px]`}>{key}</button>)}
-        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[134px] text-[24px]`}>⌫ 삭제</button>
+        <button type="button" className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⇧</span><span>쌍자음</span></button>
+        {keyboardRows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
+        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>삭제</span></button>
       </div>
       <div className="flex justify-center gap-[8px]">
-        <button type="button" className={`${keyClass} w-[124px] text-[24px]`}>123</button>
-        <button type="button" className={`${keyClass} w-[124px] text-[24px]`}>한/영</button>
-        <button type="button" onClick={() => append(" ")} className={`${keyClass} w-[456px] text-[24px]`}>띄어쓰기</button>
-        <button type="button" onClick={onSubmit} className="h-[104px] w-[208px] rounded-[12px] bg-[#363636] text-[28px] font-bold text-white shadow-[0_2px_0_rgba(0,0,0,.12)]">확인</button>
+        <button type="button" className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>123</button>
+        <button type="button" className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>한/영</button>
+        <button type="button" onClick={() => append(" ")} className={`${keyClass} w-[456px] text-[24px] leading-[36px]`}>띄어쓰기</button>
+        <button type="button" onClick={onSubmit} className="h-[104px] w-[208px] shrink-0 whitespace-nowrap rounded-[12px] bg-[#363636] text-[28px] font-bold leading-[40px] text-white shadow-[0_2px_0_rgba(0,0,0,.12)]">확인</button>
       </div>
     </div>
   );
@@ -180,15 +180,15 @@ const HANDWRITING_IDLE_MS = 1500;
 const HANDWRITING_WIDTH = 984;
 const HANDWRITING_HEIGHT = 780;
 
-function HandwritingPad({ language, onRecognized }: { language: Language; onRecognized: (text: string) => void }) {
+function HandwritingPad({ language, recognized, onRecognized }: { language: Language; recognized: boolean; onRecognized: (text: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hasInk, setHasInk] = useState(false);
   const strokesRef = useRef<InkStroke[]>([]);
   const activeStrokeRef = useRef<InkStroke | null>(null);
   const activePointerRef = useRef<number | null>(null);
   const strokeStartedAtRef = useRef(0);
   const recognitionTimerRef = useRef<number | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
-  const [status, setStatus] = useState("손가락이나 펜으로 검색어를 써주세요.");
 
   const configureContext = useCallback(() => {
     const context = canvasRef.current?.getContext("2d");
@@ -224,21 +224,11 @@ function HandwritingPad({ language, onRecognized }: { language: Language; onReco
     requestControllerRef.current = null;
   }, []);
 
-  const clearCanvas = useCallback(() => {
-    cancelPendingRecognition();
-    strokesRef.current = [];
-    activeStrokeRef.current = null;
-    activePointerRef.current = null;
-    redraw();
-    setStatus("손가락이나 펜으로 검색어를 써주세요.");
-  }, [cancelPendingRecognition, redraw]);
-
   const recognize = useCallback(async () => {
     if (!strokesRef.current.length) return;
     requestControllerRef.current?.abort();
     const controller = new AbortController();
     requestControllerRef.current = controller;
-    setStatus("Microsoft 손글씨 인식 중…");
 
     try {
       const response = await fetch(`${HANDWRITING_API_URL}/recognize`, {
@@ -251,18 +241,15 @@ function HandwritingPad({ language, onRecognized }: { language: Language; onReco
       if (!response.ok) throw new Error(result.detail ?? result.error ?? "recognition failed");
       const recognizedWord = result.candidates?.find((candidate) => candidate.trim());
       if (!recognizedWord) {
-        setStatus("인식하지 못했어요. 조금 크게 다시 써주세요.");
         return;
       }
       onRecognized(recognizedWord);
       strokesRef.current = [];
       activeStrokeRef.current = null;
+      setHasInk(false);
       redraw();
-      setStatus(`“${recognizedWord}”을 검색어에 입력했어요.`);
     } catch (error) {
-      if ((error as Error).name !== "AbortError") {
-        setStatus("손글씨 인식 서버에 연결할 수 없어요.");
-      }
+      if ((error as Error).name === "AbortError") return;
     } finally {
       if (requestControllerRef.current === controller) requestControllerRef.current = null;
     }
@@ -270,7 +257,6 @@ function HandwritingPad({ language, onRecognized }: { language: Language; onReco
 
   const scheduleRecognition = useCallback(() => {
     if (recognitionTimerRef.current !== null) window.clearTimeout(recognitionTimerRef.current);
-    setStatus("입력이 끝나면 자동으로 인식해요…");
     recognitionTimerRef.current = window.setTimeout(() => {
       recognitionTimerRef.current = null;
       void recognize();
@@ -309,10 +295,10 @@ function HandwritingPad({ language, onRecognized }: { language: Language; onReco
   };
 
   return (
-    <div className="relative h-[780px] overflow-hidden rounded-[24px] bg-[#ebebeb]">
-      <img src="/figma/handwriting-guide.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-70" />
-      {!strokesRef.current.length && !activeStrokeRef.current && (
-        <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[32px] font-medium text-[#0a3825]">검색할 내용을 손가락으로 적어주세요</p>
+    <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] bg-[#ebebeb]">
+      {!recognized && <img src="/figma/handwriting-guide.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full rounded-[28px] object-cover object-bottom opacity-15" />}
+      {!hasInk && (
+        <p className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] ${recognized ? "text-[#a1a1a1]" : "text-[#0a3825]"}`}>검색할 내용을 손가락으로 적어주세요</p>
       )}
       <canvas
         ref={canvasRef}
@@ -324,7 +310,7 @@ function HandwritingPad({ language, onRecognized }: { language: Language; onReco
           activePointerRef.current = event.pointerId;
           strokeStartedAtRef.current = performance.now();
           activeStrokeRef.current = { points: [pointFor(event)] };
-          setStatus("필기 중…");
+          setHasInk(true);
         }}
         onPointerMove={(event) => {
           if (activePointerRef.current !== event.pointerId || !activeStrokeRef.current) return;
@@ -337,10 +323,6 @@ function HandwritingPad({ language, onRecognized }: { language: Language; onReco
         onPointerUp={finishStroke}
         onPointerCancel={finishStroke}
       />
-      <div className="absolute bottom-[24px] left-[32px] right-[32px] z-30 flex items-center justify-between rounded-full bg-white/90 px-[28px] py-[16px] shadow-sm">
-        <span className="text-[24px] font-medium text-[#0a3825]">{status}</span>
-        <button type="button" onClick={clearCanvas} className="rounded-full bg-[#ebebeb] px-[28px] py-[12px] text-[22px] font-bold text-[#19211c]">전체 삭제</button>
-      </div>
     </div>
   );
 }
@@ -360,11 +342,11 @@ function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state
 
   if (state === "confirmed") {
     return (
-      <div className="relative flex h-[780px] items-center justify-center overflow-hidden rounded-[24px]">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[28px]">
         <img src="/figma/voice-confirm-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="relative z-10 text-center text-white">
           <p className="text-[48px]">“{transcript}”</p>
-          <button type="button" onClick={onRetry} className="mt-[40px] rounded-full border-2 border-white px-[32px] py-[12px] text-[28px]">↻ 다시 말하기</button>
+          <button type="button" onClick={onRetry} className="mt-[40px] rounded-full border-2 border-[#ebebeb] bg-white/30 px-[32px] py-[16px] text-[32px]">↻ 다시 말하기</button>
         </div>
       </div>
     );
@@ -372,15 +354,15 @@ function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state
 
   const active = state === "listening" || state === "recognizing";
   return (
-    <div className="flex flex-1 flex-col items-center justify-center pb-[100px]">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
       <button
         type="button"
         onClick={onStart}
-        className={`flex h-[340px] w-[340px] items-center justify-center rounded-full ${active ? "bg-[#00af55] shadow-[0_0_100px_rgba(0,190,95,.55)]" : "bg-[#168259]"}`}
+        className={`flex h-[320px] w-[320px] items-center justify-center rounded-full ${active ? "bg-[#00af55] shadow-[0_0_100px_rgba(0,190,95,.55)]" : "bg-[#168259]"}`}
       >
-        <img src="/figma/mic.svg" alt="음성 입력" className="h-[96px] w-[96px]" />
+        <img src="/figma/mic.svg" alt="음성 입력" className="h-[84px] w-[84px]" />
       </button>
-      <p className="mt-[28px] text-[32px] font-medium text-[#0a3825]">
+      <p className="mt-[24px] text-[36px] font-medium leading-[48px] text-[#0a3825]">
         {state === "idle" ? "원을 터치한 뒤 말씀해주세요" : state === "listening" ? "듣고 있어요..." : `“${transcript || "단팥빵을 사고..."}”`}
       </p>
     </div>
@@ -395,6 +377,7 @@ export default function KioskSearchApp() {
   const [query, setQuery] = useState("");
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
+  const [handwritingResetKey, setHandwritingResetKey] = useState(0);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
   const [languageReturnScreen, setLanguageReturnScreen] = useState<Screen>("welcome");
@@ -495,6 +478,19 @@ export default function KioskSearchApp() {
     setScreen("processing");
   };
 
+  const clearInput = () => {
+    setQuery("");
+    setTranscript("");
+    setVoiceState("idle");
+    setHandwritingResetKey((current) => current + 1);
+  };
+
+  const changeInputMode = (nextMode: InputMode) => {
+    if (nextMode === mode) return;
+    clearInput();
+    setMode(nextMode);
+  };
+
   const canvas = (
     <div className="fixed inset-0 overflow-hidden bg-[#e8ece9]">
       <div
@@ -571,7 +567,7 @@ export default function KioskSearchApp() {
         )}
 
         {screen === "search" && (
-          <main className="flex h-[1800px] flex-col px-[48px] pb-[80px] pt-[56px]">
+          <main className="flex h-[1800px] flex-col px-[48px] pb-[160px] pt-[56px]">
             {voiceState !== "error" && (
               <section className="shrink-0 text-[#0a3825]">
                 <h1 className="text-[80px] font-bold leading-[1.3]">{title[0]}<br />{title[1]}</h1>
@@ -589,25 +585,40 @@ export default function KioskSearchApp() {
               />
             ) : (
               <div className="mt-[120px] flex min-h-0 flex-1 flex-col">
-                <MethodTabs mode={mode} onChange={(next) => { setMode(next); setVoiceState("idle"); }} />
+                <MethodTabs mode={mode} onChange={changeInputMode} />
 
-                {mode !== "voice" && <div className="mt-[24px]"><SearchField value={query} onChange={setQuery} /></div>}
-                {mode === "keyboard" && <div className="mt-[24px]"><CategoryChips onChoose={setQuery} /></div>}
-
-                <div className="mt-auto">
-                  {mode === "keyboard" && <TouchKeyboard value={query} onChange={setQuery} onSubmit={submit} />}
-                  {mode === "handwriting" && <HandwritingPad language={language} onRecognized={setQuery} />}
-                  {mode === "voice" && <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={() => setVoiceState("idle")} />}
-
-                  <div className="mt-[40px] flex gap-[24px]">
-                    <button type="button" onClick={() => { setQuery(""); setTranscript(""); setVoiceState("idle"); }} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
-                    {mode === "voice" && voiceState === "confirmed" ? (
-                      <PrimaryButton onClick={submit} className="flex-1">검색하기</PrimaryButton>
-                    ) : (
-                      <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
-                    )}
+                {mode === "voice" ? (
+                  <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
+                    <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={() => setVoiceState("idle")} />
+                    <div className="mt-[40px] flex shrink-0 gap-[24px]">
+                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
+                      <PrimaryButton disabled={voiceState !== "confirmed" || !query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
+                    </div>
                   </div>
-                </div>
+                ) : mode === "keyboard" ? (
+                  <div className="mt-[24px] flex min-h-0 flex-1 flex-col">
+                    <SearchField value={query} onChange={setQuery} />
+                    <div className="mt-[24px]"><CategoryChips onChoose={setQuery} /></div>
+                    <div className="mt-auto">
+                      <TouchKeyboard value={query} onChange={setQuery} onSubmit={submit} />
+                      <div className="mt-[40px] flex gap-[24px]">
+                        <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
+                        <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-[24px] flex min-h-0 flex-1 flex-col">
+                    <SearchField value={query} onChange={setQuery} />
+                    <div className="mt-[40px] min-h-0 flex-1">
+                      <HandwritingPad key={handwritingResetKey} language={language} recognized={Boolean(query.trim())} onRecognized={setQuery} />
+                    </div>
+                    <div className="mt-[40px] flex shrink-0 gap-[24px]">
+                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
+                      <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </main>
