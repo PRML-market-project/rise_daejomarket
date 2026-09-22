@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapView } from "@/components/market/MapView";
-import { marketShops } from "@/data/market-shops";
+import { figmaMapShops as marketShops } from "@/data/figma-map-shops";
 import {
   DirectionsPanel,
   FloatingSearchBar,
@@ -456,9 +456,8 @@ export default function KioskSearchApp() {
 
   const resultShops = useMemo(() => {
     const normalized = query.replace(/\s/g, "").toLowerCase();
-    const preferredIds = ["22", "14", "21", "6", "5", "3", "57", "56", "42", "33", "87", "88"];
     if (["주변식당", "주변음식점", "음식점", "식당"].some((term) => normalized.includes(term))) {
-      return preferredIds.map((id) => effectiveShops.find((shop) => shop.id === id)).filter((shop): shop is (typeof effectiveShops)[number] => Boolean(shop));
+      return effectiveShops.filter((shop) => shop.category === "식당").slice(0, 12);
     }
     const category = normalized.includes("반찬") || normalized.includes("간식") ? "식품" : normalized;
     return effectiveShops.filter((shop) =>
@@ -610,7 +609,7 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView />
+            <MapView shops={resultShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
             <ResultsPanel
               shops={resultShops}
@@ -624,16 +623,15 @@ export default function KioskSearchApp() {
 
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
-            <MapView />
+            <MapView shops={resultShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
-            <div className="pointer-events-none absolute left-[716px] top-[360px] z-20 h-[920px] w-[20px] bg-[radial-gradient(circle,#116543_0_5px,transparent_6px)] bg-[length:20px_32px]" />
             <DirectionsPanel shopName={selectedShop.name} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>
         )}
 
         {screen === "map" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView />
+            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
             <FloatingSearchBar onClick={() => setScreen("search")} />
             <MarketMapPanel onHome={returnToWelcome} onSearch={() => setScreen("search")} />
           </main>

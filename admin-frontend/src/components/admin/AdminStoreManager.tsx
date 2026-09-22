@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
 import { absoluteAssetUrl, getKioskExperience, saveManagedShops, saveOperationMode, uploadPromotion } from "@/lib/kioskExperienceApi";
+import { figmaMapShops, leftMapIconCells, rightMapIconCells, type FigmaMapIconCell } from "@/data/figmaMapShops";
 
 type OperationMode = "길찾기" | "홍보";
 type DialogState = "session" | "unsaved" | "invalid-move" | "saving" | "save-error" | "upload" | "upload-error" | null;
 type IconOption = { label: string; Icon: ComponentType<{ size?: number; strokeWidth?: number }> };
 type ShopForm = { name: string; description: string; keywords: string };
-type AdminShop = { name: string; meta: string; markerX: number; markerY: number };
 
 const initialForm: ShopForm = {
   name: "불광돌쇠닭강정",
@@ -30,24 +30,14 @@ const initialForm: ShopForm = {
   keywords: "불광돌쇠닭강정, 음식점, 닭강정, 옛날통닭, 치킨",
 };
 
-const NORTH_AISLE_MARKER_X = 4850;
-const SECOND_FLOOR_MARKER_X = 5250;
-const northAisleY = (mapNumber: number) => 1852 + mapNumber * 90;
-const mapShop = (name: string, meta: string, mapNumber: number, markerX = NORTH_AISLE_MARKER_X): AdminShop => ({
-  name,
-  meta,
-  markerX,
-  markerY: northAisleY(mapNumber),
+type PositionedShop = (typeof figmaMapShops)[number] & { iconCell: FigmaMapIconCell | null };
+const shops: PositionedShop[] = figmaMapShops.map((shop) => {
+  const cells = shop.markerX === 4987 ? rightMapIconCells : shop.markerX === 4852 ? leftMapIconCells : [];
+  const nearest = cells.reduce<FigmaMapIconCell | null>((best, cell) => !best || Math.abs(cell.y + cell.height / 2 - shop.markerY) < Math.abs(best.y + best.height / 2 - shop.markerY) ? cell : best, null);
+  const iconCell = nearest && Math.abs(nearest.y + nearest.height / 2 - shop.markerY) <= 48 ? nearest : null;
+  return iconCell ? { ...shop, markerX: iconCell.x + iconCell.width / 2, markerY: iconCell.y + iconCell.height / 2, iconCell } : { ...shop, markerX: shop.name === "진영153수산" ? 4879 : shop.markerX, iconCell: null };
 });
 
-const shops: AdminShop[] = [
-  mapShop("남영상회", "지도 2·4번", 4), mapShop("행운손만두", "지도 7번", 7), mapShop("금산약초", "지도 8번", 8),
-  mapShop("재덕정육점", "지도 9번", 9), mapShop("신흥고추", "지도 10번", 10), mapShop("서울건어물", "지도 11번", 11),
-  mapShop("전라도김치", "지도 12번", 12), mapShop("고원문방구", "지도 13번", 13), mapShop("불광돌쇠닭강정", "선택됨 · 수정 중", 14),
-  mapShop("황가네순대국 (2층)", "지도 3번", 3, SECOND_FLOOR_MARKER_X), mapShop("엉터리집 (2층)", "지도 5번", 5, SECOND_FLOOR_MARKER_X), mapShop("늘푸른야채", "지도 15번", 15),
-  { name: "봉화장 여관 (2층)", meta: "지도에서 위치 확인", markerX: 4440, markerY: 3290 }, mapShop("문창식품", "지도 16번", 16), mapShop("대광사화장품", "지도 17번", 17),
-  mapShop("좋은축산마을", "지도 18번", 18), { name: "칠공주 호떡&떡갈비", meta: "지도 번호 없음", markerX: 4440, markerY: 2480 }, mapShop("양지상회", "지도 20번", 20),
-];
 
 const iconOptions: IconOption[] = [
   { label: "정육청과수산", Icon: Wheat }, { label: "식품", Icon: Soup },
@@ -145,7 +135,7 @@ function MarketMap({ zoom, setZoom, selectedName, onSelect }: { zoom: number; se
     return () => observer.disconnect();
   }, []);
 
-  const labelRight = selectedShop.markerX - 39;
+  const labelRight = selectedShop.iconCell ? selectedShop.iconCell.x - 14 : selectedShop.markerX;
   const labelLeft = labelRight - labelWidth;
   return (
     <section className="flex min-h-0 flex-col gap-[16px] rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
@@ -161,7 +151,7 @@ function MarketMap({ zoom, setZoom, selectedName, onSelect }: { zoom: number; se
                 role="button"
                 tabIndex={0}
                 aria-label={`${shop.name} 선택`}
-                className="group cursor-pointer outline-none"
+                className="cursor-pointer outline-none"
                 onClick={() => onSelect(shop.name)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
@@ -178,7 +168,7 @@ function MarketMap({ zoom, setZoom, selectedName, onSelect }: { zoom: number; se
                   height="82"
                   rx="18"
                   fill="transparent"
-                  className="transition-colors group-hover:fill-[#12bf68]/15 group-focus:fill-[#12bf68]/15"
+                  pointerEvents="all"
                 />
               </g>
             );
@@ -186,9 +176,8 @@ function MarketMap({ zoom, setZoom, selectedName, onSelect }: { zoom: number; se
           <g className="pointer-events-none" aria-hidden="true">
             <rect x={labelLeft} y={selectedShop.markerY - 34} width={labelWidth} height="68" rx="18" fill="#12bf68" />
             <path d={`M ${labelRight - 1} ${selectedShop.markerY - 18} L ${labelRight + 25} ${selectedShop.markerY} L ${labelRight - 1} ${selectedShop.markerY + 18} Z`} fill="#12bf68" />
-            <rect x={selectedShop.markerX - 28} y={selectedShop.markerY - 34} width="56" height="68" rx="12" fill="#08a957" />
             <text x={labelLeft + 20} y={selectedShop.markerY + 11} fill="white" fontSize="34" fontWeight="700" fontFamily="Pretendard, Arial, sans-serif">{selectedShop.name}</text>
-            <Utensils x={selectedShop.markerX - 17} y={selectedShop.markerY - 18} width={34} height={36} color="white" strokeWidth={2.4} />
+            {selectedShop.iconCell && <><rect x={selectedShop.iconCell.x} y={selectedShop.iconCell.y} width={selectedShop.iconCell.width} height={selectedShop.iconCell.height} rx="8" fill="#08a957" /><Utensils x={selectedShop.markerX - 16} y={selectedShop.markerY - 17} width={32} height={34} color="white" strokeWidth={2.4} /></>}
           </g>
         </svg>
         <div className="absolute left-[16px] top-[16px] flex gap-[8px]">
@@ -216,7 +205,7 @@ function IconPicker({ open, selected, onToggle, onSelect }: { open: boolean; sel
   </section>;
 }
 
-function StoreEditor({ form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail }: { form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void }) {
+function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail }: { shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void }) {
   const [tags, setTags] = useState(["닭강정", "옛날통닭", "포장"]);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(4);
@@ -239,7 +228,7 @@ function StoreEditor({ form, setForm, baseline, setBaseline, setDialog, saved, s
     setNameError(""); setDialog("saving");
     try {
       const config = await getKioskExperience();
-      const managed = { id: "22", name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail.startsWith("/api/") ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
+      const managed = { id: shopId, name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail.startsWith("/api/") ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
       await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id), managed]);
       setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false);
     } catch { setDialog("save-error"); }
@@ -365,7 +354,7 @@ export default function AdminStoreManager() {
       <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
       <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(selectedMode === "홍보" ? "PROMOTION" : "DIRECTIONS"); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
       <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
-        <ShopList selectedName={selectedShopName} onSelect={selectShop} /><MarketMap zoom={zoom} setZoom={setZoom} selectedName={selectedShopName} onSelect={selectShop} /><StoreEditor form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} />
+        <ShopList selectedName={selectedShopName} onSelect={selectShop} /><MarketMap zoom={zoom} setZoom={setZoom} selectedName={selectedShopName} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.name === selectedShopName)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} />
       </div>
       </>}
     </div>
