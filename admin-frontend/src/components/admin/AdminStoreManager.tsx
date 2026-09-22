@@ -211,17 +211,28 @@ function IconPicker({ open, selected, onToggle, onSelect }: { open: boolean; sel
   const CurrentIcon = iconOptions[selected].Icon;
   return <section className="flex flex-col gap-[16px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]">
     <strong className="text-[14px] leading-[20px]">지도 아이콘</strong>
-    <div className="flex items-center gap-[16px]"><span className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] bg-[#7a7a7a] text-white"><CurrentIcon size={22} /></span><span className="flex-1 text-[16px] font-medium">{selected === 4 ? "식사" : iconOptions[selected].label}</span><PillButton kind="outline" className="h-[32px] w-[120px] text-[14px]" onClick={onToggle}>{open ? "닫기" : "아이콘 변경"}</PillButton></div>
+    <div className="flex items-center gap-[16px]"><span className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] bg-[#7a7a7a] text-white"><CurrentIcon size={22} /></span><span className="flex-1 text-[16px] font-medium">{selected === 4 ? "식사" : iconOptions[selected].label}</span><PillButton kind="outline" className="h-[32px] w-[136px] shrink-0 whitespace-nowrap text-[14px]" onClick={onToggle}>{open ? "닫기" : "아이콘 변경"}</PillButton></div>
     {open && <div className="grid grid-cols-4 gap-[12px]">{iconOptions.map(({ label, Icon }, index) => <button type="button" key={label} onClick={() => onSelect(index)} className={`flex flex-col items-center gap-[8px] rounded-[12px] border p-[8px] text-[14px] font-medium ${selected === index ? "border-2 border-[#116543] bg-[#cfeadb]" : "border-[#e1e5e1] bg-[#f8fbf8]"}`}><span className="flex h-[34px] w-[34px] items-center justify-center rounded-[6px] bg-[#7a7a7a] text-white"><Icon size={23} /></span>{label}</button>)}</div>}
   </section>;
 }
 
 function StoreEditor({ form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail }: { form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void }) {
   const [tags, setTags] = useState(["닭강정", "옛날통닭", "포장"]);
+  const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(4);
   const [nameError, setNameError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
+
+  const finishTagEditing = (index: number) => {
+    setTags((all) => {
+      const value = all[index]?.trim() ?? "";
+      if (!value) return all.filter((_, tagIndex) => tagIndex !== index);
+      return all.map((tag, tagIndex) => tagIndex === index ? value : tag);
+    });
+    setEditingTagIndex(null);
+    setSaved(false);
+  };
 
   const save = async () => {
     if (!form.name.trim()) { setNameError("가게명을 입력해주세요."); return; }
@@ -249,7 +260,7 @@ function StoreEditor({ form, setForm, baseline, setBaseline, setDialog, saved, s
       <Field multiline label="가게 설명" value={form.description} onChange={(description) => { setForm((prev) => ({ ...prev, description })); setSaved(false); }} />
       <section className="flex flex-col gap-[8px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]">
         <div className="flex text-[14px] font-bold leading-[20px]"><span className="flex-1">설명 태그</span><span className="font-medium text-[#116543]">{tags.length} / 3</span></div>
-        <div className="flex gap-[8px]">{tags.map((tag) => <button key={tag} type="button" onClick={() => { setTags((all) => all.filter((item) => item !== tag)); setSaved(false); }} className="rounded-full bg-[#cfeadb] px-[12px] py-[6px] text-[14px] font-medium text-[#0a3825]">{tag}　×</button>)}<button type="button" disabled={tags.length >= 3} onClick={() => setTags((all) => [...all, "새 태그"])} className="rounded-full bg-[#ebebeb] px-[12px] py-[6px] text-[14px] font-medium disabled:opacity-50">+ 추가</button></div>
+        <div className="flex flex-wrap gap-[8px]">{tags.map((tag, index) => <span key={index} className="flex min-h-[34px] items-center rounded-full bg-[#cfeadb] px-[12px] py-[5px] text-[14px] font-medium text-[#0a3825]">{editingTagIndex === index ? <input autoFocus value={tag} maxLength={20} placeholder="태그 입력" aria-label={`${index + 1}번째 설명 태그`} onChange={(event) => { const value = event.target.value; setTags((all) => all.map((item, tagIndex) => tagIndex === index ? value : item)); setSaved(false); }} onBlur={() => finishTagEditing(index)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} className="w-[92px] bg-transparent outline-none placeholder:text-[#56816f]" /> : <button type="button" onClick={() => setEditingTagIndex(index)} className="max-w-[120px] truncate text-left">{tag}</button>}<button type="button" aria-label={`${tag || "빈"} 태그 삭제`} onClick={() => { setTags((all) => all.filter((_, tagIndex) => tagIndex !== index)); setEditingTagIndex(null); setSaved(false); }} className="ml-[7px] text-[17px] leading-none">×</button></span>)}<button type="button" disabled={tags.length >= 3} onClick={() => { setTags((all) => [...all, ""]); setEditingTagIndex(tags.length); setSaved(false); }} className="min-h-[34px] whitespace-nowrap rounded-full bg-[#ebebeb] px-[12px] py-[6px] text-[14px] font-medium disabled:opacity-50">+ 추가</button></div>
         <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">최대 3개 · 태그를 삭제하면 새 태그를 추가할 수 있어요.</p>
       </section>
       <section className="rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><Field label="검색용 키워드 · 관리자 전용" value={form.keywords} onChange={(keywords) => { setForm((prev) => ({ ...prev, keywords })); setSaved(false); }} /><p className="mt-[6px] text-[14px] font-medium leading-[21px] text-[#a1a1a1]">검색에만 사용되며, 이용자 화면에는 표시되지 않습니다. 쉼표로 구분하세요.</p></section>
