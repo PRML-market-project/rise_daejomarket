@@ -31,3 +31,5 @@ application-secret.yml
 # OS
 .DS_Store
 Thumbs.db
+
+artifacts/

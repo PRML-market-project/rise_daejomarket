@@ -1,62 +1,11 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import { Inter } from 'next/font/google';
-import { Barlow } from 'next/font/google';
-import { Poppins } from 'next/font/google';
-import { Toaster } from '@/components/ui/sonner';
-import './globals.css';
-
-const poppins = Poppins({
-  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
-  subsets: ['latin'],
-  variable: '--font-poppins',
-  display: 'swap',
-});
-
-const barlow = Barlow({
-  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
-  subsets: ['latin'],
-  variable: '--font-barlow',
-  display: 'swap',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'market 관리자',
-  description: 'market 관리자',
-  icons: {
-    icon: '/logo.svg',
-  },
+  title: "대조시장 관리자",
+  description: "대조시장 가게 정보와 키오스크 운영 관리",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang='en'>
-      <body
-        className={`${barlow.variable} ${inter.variable} ${geistSans.variable} ${geistMono.variable} ${poppins.variable} antialiased`}
-      >
-        {children}
-        <Toaster />
-      </body>
-    </html>
-  );
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return <html lang="ko"><body>{children}</body></html>;
 }
