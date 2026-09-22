@@ -18,6 +18,12 @@ import java.io.UnsupportedEncodingException;
 @RestControllerAdvice // @ControllerAdvice + @ResponseBody. 예외 발생 시 JSON 형태로 응답을 반환한다.
 public class ExceptionControllerAdvice {
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ExceptionResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("Invalid request: {}", ex.getMessage());
+        return new ResponseEntity<>(ExceptionResponse.from(ex.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
     // MethodArgumentNotValidException 처리 (검증 예외 처리)
     @ExceptionHandler(MethodArgumentNotValidException.class) // -> 클라이언트가 잘못된 형식의 데이터 전송?
     public ResponseEntity<ExceptionResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
@@ -38,7 +44,7 @@ public class ExceptionControllerAdvice {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ExceptionResponse> handleMaxSizeException(MaxUploadSizeExceededException ex) {
         log.error("MaxUploadSizeExceededException 발생: {}", ex.getMessage(), ex);
-        ExceptionResponse response = ExceptionResponse.from("파일 크기가 너무 큽니다. 최대 5MB까지 업로드할 수 있습니다.");
+        ExceptionResponse response = ExceptionResponse.from("파일 크기가 너무 큽니다. 홍보 콘텐츠는 최대 100MB까지 업로드할 수 있습니다.");
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 

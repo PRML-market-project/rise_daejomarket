@@ -1,7 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { ChangeEvent, ComponentType, useMemo, useRef, useState } from "react";
+import { ChangeEvent, ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { CircleUserRound, Croissant, Milk, Plus, Search, Shirt, ShoppingCart, Soup, Store, Utensils, Wheat, X } from "lucide-react";
+import { absoluteAssetUrl, getKioskExperience, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "@/lib/kioskExperienceApi";
 
 type ButtonProps = { children: React.ReactNode; kind?: "primary" | "secondary" | "danger" | "outline"; disabled?: boolean; className?: string; onClick?: () => void };
 function Button({ children, kind = "primary", disabled, className = "", onClick }: ButtonProps) {
@@ -19,31 +21,55 @@ function Modal({ title, children, onClose, footer }: { title: string; children: 
   </div>;
 }
 
-type MediaItem = { id: number; name: string; type: "image" | "video"; duration: string; fit: "contain" | "cover" };
-const seedMedia: MediaItem[] = [
-  { id: 1, name: "시장안내.jpg", type: "image", duration: "10초", fit: "contain" },
-  { id: 2, name: "대조시장_소개.mp4", type: "video", duration: "재생 종료 후 다음", fit: "cover" },
-];
+type MediaItem = PromotionContent;
 
-function Poster({ video = false }: { video?: boolean }) {
+function Poster({ video = false, src, fit = "contain" }: { video?: boolean; src?: string; fit?: "contain" | "cover" }) {
+  if (src) return video
+    ? <video src={absoluteAssetUrl(src)} className="h-full w-full" style={{ objectFit: fit }} muted controls playsInline />
+    : <img src={absoluteAssetUrl(src)} alt="홍보 콘텐츠" className="h-full w-full" style={{ objectFit: fit }} />;
   return <div className={`flex h-full max-h-[690px] aspect-[9/16] flex-col items-center justify-between px-8 py-12 text-center text-white ${video ? "bg-[#063d2b]" : "bg-[#0d6a47]"}`}>
     <span className="text-[11px] font-bold">대조시장</span><div><strong className="block text-[30px] leading-[38px]">{video ? <>시장의 이야기를<br />영상으로 만나요</> : <>오늘도 반가운<br />우리 동네 시장</>}</strong><span className="mt-3 block text-[11px]">함께 보고, 함께 웃는 곳</span></div><span className="text-[10px]">DAEJO MARKET</span>
   </div>;
 }
 
-export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (target: "store" | "tags") => void; onModeApply: () => void }) {
-  const [items, setItems] = useState(seedMedia);
-  const [selected, setSelected] = useState<number | null>(1);
+export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (target: "store" | "tags") => void; onModeApply: (mode: "길찾기" | "홍보") => void }) {
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [baseline, setBaseline] = useState<MediaItem[]>([]);
+  const [selected, setSelected] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState<"delete" | "leave" | "applying" | "mode-error" | null>(null);
   const [pendingTarget, setPendingTarget] = useState<"store" | "tags">("store");
+  const [currentMode, setCurrentMode] = useState<"길찾기" | "홍보">("길찾기");
+  const [selectedMode, setSelectedMode] = useState<"길찾기" | "홍보">("길찾기");
   const fileRef = useRef<HTMLInputElement>(null);
   const active = items.find((item) => item.id === selected) ?? null;
 
+  useEffect(() => {
+    getKioskExperience().then((config) => {
+      setItems(config.promotions); setBaseline(config.promotions); setSelected(config.promotions[0]?.id ?? null);
+      const mode = config.operationMode === "PROMOTION" ? "홍보" : "길찾기";
+      setCurrentMode(mode); setSelectedMode(mode);
+    }).catch((error: Error) => setMessage(error.message)).finally(() => setLoading(false));
+  }, []);
+
   const navigate = (target: "store" | "tags") => { if (dirty) { setPendingTarget(target); setDialog("leave"); } else onNavigate(target); };
   const move = (index: number, delta: number) => { const next = [...items]; const to = index + delta; if (to < 0 || to >= next.length) return; [next[index], next[to]] = [next[to], next[index]]; setItems(next); setDirty(true); };
-  const addMedia = (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; const isVideo = file.type.startsWith("video/"); const next: MediaItem = { id: Date.now(), name: file.name, type: isVideo ? "video" : "image", duration: isVideo ? "재생 종료 후 다음" : "10초", fit: "contain" }; setItems((all) => [...all, next]); setSelected(next.id); setDirty(true); event.target.value = ""; };
-  const applyMode = () => { if (!items.length) return; setDialog("applying"); window.setTimeout(() => { setDialog(null); onModeApply(); }, 900); };
+  const addMedia = async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; setMessage("파일을 업로드하고 있습니다."); try { const uploaded = await uploadPromotion(file); const next: MediaItem = { id: Date.now(), name: uploaded.name, type: uploaded.type, url: uploaded.url, durationSeconds: 10, fit: "contain" }; setItems((all) => [...all, next]); setSelected(next.id); setDirty(true); setMessage("업로드가 완료되었습니다. 콘텐츠 저장을 눌러주세요."); } catch (error) { setMessage((error as Error).message); } finally { event.target.value = ""; } };
+  const persist = async () => { try { const config = await savePromotions(items); setItems(config.promotions); setBaseline(config.promotions); setDirty(false); setMessage("콘텐츠를 저장했습니다."); } catch (error) { setMessage((error as Error).message); } };
+  const applyMode = async () => {
+    setDialog("applying");
+    try {
+      const saved = await savePromotions(items);
+      const requestedMode = selectedMode === "홍보" && saved.promotions.length ? "PROMOTION" : "DIRECTIONS";
+      const applied = await saveOperationMode(requestedMode);
+      const appliedMode = applied.operationMode === "PROMOTION" ? "홍보" : "길찾기";
+      setItems(saved.promotions); setBaseline(saved.promotions); setDirty(false); setDialog(null);
+      setCurrentMode(appliedMode); setSelectedMode(appliedMode); onModeApply(appliedMode);
+      setMessage(selectedMode === "홍보" && !saved.promotions.length ? "등록된 콘텐츠가 없어 길찾기 모드를 유지합니다." : `${appliedMode} 모드를 적용했습니다.`);
+    } catch (error) { setMessage((error as Error).message); setDialog("mode-error"); }
+  };
 
   return <>
     <div className="flex h-[60px] items-start justify-between">
@@ -51,26 +77,26 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
       <Button kind="outline" onClick={() => navigate("tags")}>검색 태그 관리하기 〉</Button>
     </div>
     <section className="mt-[20px] flex h-[115px] items-center justify-between rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
-      <div className="flex gap-[40px]"><div className="w-[280px]"><span className="text-[14px]">현재 운영 중</span><strong className="mt-[16px] flex items-center gap-1 text-[24px] text-[#116543]"><i className="h-2 w-2 rounded-full bg-[#168259]" />길찾기 서비스</strong></div><div><span className="text-[14px]">모드 변경하기</span><div className="mt-2 flex gap-2"><Button kind="secondary" className="w-[128px]">길찾기</Button><Button className="w-[128px]">홍보</Button></div></div></div>
-      <Button className="w-[180px]" disabled={!items.length} onClick={applyMode}>운영 모드 적용</Button>
+      <div className="flex gap-[40px]"><div className="w-[280px]"><span className="text-[14px]">현재 운영 중</span><strong className="mt-[16px] flex items-center gap-1 text-[24px] text-[#116543]"><i className="h-2 w-2 rounded-full bg-[#168259]" />{currentMode} 서비스</strong></div><div><span className="text-[14px]">모드 변경하기</span><div className="mt-2 flex gap-2"><Button kind={selectedMode === "길찾기" ? "primary" : "secondary"} className="w-[128px]" onClick={() => setSelectedMode("길찾기")}>길찾기</Button><Button kind={selectedMode === "홍보" ? "primary" : "secondary"} className="w-[128px]" onClick={() => setSelectedMode("홍보")}>홍보</Button></div></div></div>
+      <Button className="w-[180px]" disabled={loading} onClick={applyMode}>운영 모드 적용</Button>
     </section>
     <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[360px_minmax(500px,852px)_minmax(480px,596px)] gap-[24px]">
       <aside className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5">
         <div className="flex"><h2 className="flex-1 text-[20px] font-bold">재생 목록</h2><span className="text-[14px]">{items.length}개</span></div>
         <Button kind="secondary" className="w-full" onClick={() => fileRef.current?.click()}>+ 이미지·영상 추가</Button><input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={addMedia} />
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">{items.length ? items.map((item, index) => <button type="button" key={item.id} onClick={() => setSelected(item.id)} className={`w-full rounded-[14px] border p-3 text-left ${selected === item.id ? "border-[#116543] bg-[#cfeadb]" : "border-[#ebebeb]"}`}>
-          <div className="flex gap-3"><div className="h-20 w-[46px] overflow-hidden rounded-md"><Poster video={item.type === "video"} /></div><div><strong className="text-[16px]">{String(index + 1).padStart(2, "0")}　{item.name}</strong><span className="mt-1 block text-[12px]">{item.type === "image" ? "이미지" : "영상"} · {item.duration}</span></div></div>
+          <div className="flex gap-3"><div className="h-20 w-[46px] overflow-hidden rounded-md"><Poster video={item.type === "video"} src={item.url} fit={item.fit} /></div><div><strong className="text-[16px]">{String(index + 1).padStart(2, "0")}　{item.name}</strong><span className="mt-1 block text-[12px]">{item.type === "image" ? `이미지 · ${item.durationSeconds}초` : "영상 · 재생 종료 후 다음"}</span></div></div>
           <div className="mt-3 flex gap-2"><Button kind="secondary" disabled={index === 0} className="h-8 flex-1 px-2 text-[14px]" onClick={() => move(index, -1)}>위로</Button><Button kind="secondary" disabled={index === items.length - 1} className="h-8 flex-1 px-2 text-[14px]" onClick={() => move(index, 1)}>아래로</Button><Button kind="secondary" className="h-8 flex-1 px-2 text-[14px]" onClick={() => { setSelected(item.id); setDialog("delete"); }}>삭제</Button></div>
         </button>) : <div className="flex h-full flex-col items-center justify-center text-center"><strong>등록된 콘텐츠가 없습니다.</strong><span className="mt-2 text-[14px] text-[#a1a1a1]">이미지나 영상을 추가해주세요.</span></div>}</div>
         <p className="text-[12px] text-[#a1a1a1]">목록 순서대로 자동 재생합니다.<br />마지막 콘텐츠가 끝나면 처음부터 반복합니다.</p>
       </aside>
-      <section className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5"><div className="flex"><h2 className="flex-1 text-[20px] font-bold">키오스크 노출 미리보기</h2><span className="rounded-full bg-[#ebebeb] px-3 py-1 text-[14px]">{active ? `${active.type === "image" ? "이미지" : "영상"} · ${active.duration}` : "콘텐츠 없음"}</span></div><div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[16px] bg-[#ebebeb] p-4">{active ? <Poster video={active.type === "video"} /> : <span className="text-[#a1a1a1]">추가한 콘텐츠가 여기에 표시됩니다.</span>}</div><p className="text-[14px] text-[#a1a1a1]">{active ? "홍보 모드에서는 다른 UI 없이 이미지·영상만 전체 화면으로 표시됩니다." : "콘텐츠를 저장한 뒤 홍보 모드를 적용할 수 있습니다."}</p></section>
-      <section className="flex min-h-0 flex-col gap-10 rounded-[20px] border border-[#ebebeb] bg-white p-5"><h2 className="text-[32px] font-bold">선택한 콘텐츠 설정</h2>{active ? <div className="min-h-0 flex-1 space-y-4 overflow-y-auto"><label className="block text-[14px] font-bold">선택한 파일<input readOnly value={active.name} className="mt-2 min-h-12 w-full rounded-xl border border-[#ebebeb] p-3 text-[16px] font-medium" /></label>{active.type === "image" && <label className="block rounded-xl bg-[#f6f6f6] p-3 text-[14px] font-bold">이미지 노출 시간<select value={active.duration} onChange={(e) => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, duration: e.target.value } : x)); setDirty(true); }} className="mt-2 h-12 w-full rounded-xl border border-[#ebebeb] bg-white p-3 text-[16px]"><option>5초</option><option>10초</option><option>15초</option></select><span className="mt-2 block font-medium text-[#a1a1a1]">이미지는 지정 시간 후, 영상은 재생 종료 후 다음 콘텐츠로 넘어갑니다.</span></label>}<div className="rounded-xl bg-[#f6f6f6] p-3"><strong className="text-[14px]">화면 표시 방식</strong><div className="mt-2 flex gap-2"><Button className="flex-1" kind={active.fit === "contain" ? "primary" : "secondary"} onClick={() => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, fit: "contain" } : x)); setDirty(true); }}>전체 보이기</Button><Button className="flex-1" kind={active.fit === "cover" ? "primary" : "secondary"} onClick={() => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, fit: "cover" } : x)); setDirty(true); }}>화면 채우기</Button></div><p className="mt-2 text-[14px] text-[#a1a1a1]">전체 보이기: 원본 비율을 유지하고 잘리지 않게 표시합니다.</p></div><div className="rounded-xl bg-[#f6f6f6] p-4 text-[14px]"><strong>재생 규칙</strong><p className="mt-2">가로 방향으로 다음 콘텐츠 전환<br />마지막 콘텐츠 종료 후 처음부터 반복</p></div></div> : <p className="flex-1 text-[#a1a1a1]">콘텐츠를 추가하면 설정할 수 있습니다.</p>}
-        <div><p className="mb-2 text-[14px] text-[#116543]">{dirty ? "저장하지 않은 변경이 있습니다." : "저장한 내용이 키오스크에 반영됩니다."}</p><div className="flex gap-3"><Button kind="secondary" disabled={!dirty} className="h-14 w-36" onClick={() => { setItems(seedMedia); setSelected(1); setDirty(false); }}>변경 취소</Button><Button disabled={!active || !dirty} className="h-14 flex-1" onClick={() => setDirty(false)}>콘텐츠 저장</Button></div></div>
+      <section className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5"><div className="flex"><h2 className="flex-1 text-[20px] font-bold">키오스크 노출 미리보기</h2><span className="rounded-full bg-[#ebebeb] px-3 py-1 text-[14px]">{active ? active.type === "image" ? `이미지 · ${active.durationSeconds}초` : "영상 · 전체 미리보기" : "콘텐츠 없음"}</span></div><div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[16px] bg-[#ebebeb] p-4">{active ? <Poster video={active.type === "video"} src={active.url} fit={active.fit} /> : <span className="text-[#a1a1a1]">추가한 콘텐츠가 여기에 표시됩니다.</span>}</div><p className="text-[14px] text-[#a1a1a1]">{active ? "홍보 모드에서는 다른 UI 없이 이미지·영상만 전체 화면으로 표시됩니다." : "콘텐츠가 없으면 키오스크는 기존 대기화면을 표시합니다."}</p></section>
+      <section className="flex min-h-0 flex-col gap-10 rounded-[20px] border border-[#ebebeb] bg-white p-5"><h2 className="text-[32px] font-bold">선택한 콘텐츠 설정</h2>{active ? <div className="min-h-0 flex-1 space-y-4 overflow-y-auto"><label className="block text-[14px] font-bold">선택한 파일<input readOnly value={active.name} className="mt-2 min-h-12 w-full rounded-xl border border-[#ebebeb] p-3 text-[16px] font-medium" /></label>{active.type === "image" && <label className="block rounded-xl bg-[#f6f6f6] p-3 text-[14px] font-bold">이미지 노출 시간<select value={active.durationSeconds} onChange={(e) => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, durationSeconds: Number(e.target.value) } : x)); setDirty(true); }} className="mt-2 h-12 w-full rounded-xl border border-[#ebebeb] bg-white p-3 text-[16px]">{[5, 10, 15, 20, 25, 30].map((seconds) => <option key={seconds} value={seconds}>{seconds}초</option>)}</select><span className="mt-2 block font-medium text-[#a1a1a1]">이미지는 지정 시간 후, 영상은 재생 종료 후 다음 콘텐츠로 넘어갑니다.</span></label>}<div className="rounded-xl bg-[#f6f6f6] p-3"><strong className="text-[14px]">화면 표시 방식</strong><div className="mt-2 flex gap-2"><Button className="flex-1" kind={active.fit === "contain" ? "primary" : "secondary"} onClick={() => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, fit: "contain" } : x)); setDirty(true); }}>전체 보이기</Button><Button className="flex-1" kind={active.fit === "cover" ? "primary" : "secondary"} onClick={() => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, fit: "cover" } : x)); setDirty(true); }}>화면 채우기</Button></div><p className="mt-2 text-[14px] text-[#a1a1a1]">전체 보이기: 원본 비율을 유지하고 잘리지 않게 표시합니다.</p></div><div className="rounded-xl bg-[#f6f6f6] p-4 text-[14px]"><strong>재생 규칙</strong><p className="mt-2">목록 순서대로 다음 콘텐츠 전환<br />마지막 콘텐츠 종료 후 처음부터 반복</p></div></div> : <p className="flex-1 text-[#a1a1a1]">콘텐츠를 추가하면 설정할 수 있습니다.</p>}
+        <div><p className="mb-2 text-[14px] text-[#116543]">{message || (dirty ? "저장하지 않은 변경이 있습니다." : "저장한 내용이 키오스크에 반영됩니다.")}</p><div className="flex gap-3"><Button kind="secondary" disabled={!dirty} className="h-14 w-36" onClick={() => { setItems(baseline); setSelected(baseline[0]?.id ?? null); setDirty(false); setMessage(""); }}>변경 취소</Button><Button disabled={!dirty} className="h-14 flex-1" onClick={persist}>콘텐츠 저장</Button></div></div>
       </section>
     </div>
     {dialog === "delete" && active && <Modal title="이 콘텐츠를 목록에서 삭제할까요?" onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>취소</Button><Button kind="danger" className="h-14 flex-1" onClick={() => { setItems((all) => all.filter((x) => x.id !== active.id)); setSelected(items.find((x) => x.id !== active.id)?.id ?? null); setDirty(true); setDialog(null); }}>목록에서 삭제</Button></>}><p>“{active.name}” 콘텐츠를 삭제합니다.<br />삭제 후 콘텐츠 저장을 눌러야 키오스크에 반영됩니다.</p></Modal>}
-    {dialog === "leave" && <Modal title="변경 내용을 저장할까요?" onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => { setDirty(false); setDialog(null); onNavigate(pendingTarget); }}>저장 안 함</Button><Button className="h-14 flex-1" onClick={() => { setDirty(false); setDialog(null); onNavigate(pendingTarget); }}>저장하고 이동</Button></>}><p>저장하지 않은 홍보 콘텐츠 변경 내용이 있습니다.</p></Modal>}
+    {dialog === "leave" && <Modal title="변경 내용을 저장할까요?" onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => { setItems(baseline); setDirty(false); setDialog(null); onNavigate(pendingTarget); }}>저장 안 함</Button><Button className="h-14 flex-1" onClick={async () => { await persist(); setDialog(null); onNavigate(pendingTarget); }}>저장하고 이동</Button></>}><p>저장하지 않은 홍보 콘텐츠 변경 내용이 있습니다.</p></Modal>}
     {dialog === "applying" && <Modal title="홍보 모드를 적용하고 있어요."><p>키오스크의 적용 완료를 확인하고 있습니다.<br />확인 전까지 현재 운영 중인 길찾기 서비스를 유지합니다.</p><div className="mt-5 flex justify-center"><i className="admin-spin h-8 w-8 rounded-full border-[3px] border-[#cfeadb] border-t-[#116543]" /></div></Modal>}
     {dialog === "mode-error" && <Modal title="운영 모드를 바꾸지 못했어요." onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>돌아가기</Button><Button className="h-14 flex-1" onClick={applyMode}>다시 적용</Button></>}><p>현재 길찾기 서비스가 계속 운영됩니다.<br />키오스크 연결을 확인한 뒤 다시 시도해주세요.</p></Modal>}
   </>;
@@ -82,15 +108,16 @@ type SearchTag = { id: number; name: string; keywords: string; icon: number; vis
 const seedTags: SearchTag[] = [{ id: 1, name: "식당찾기", keywords: "음식점, 불광돌쇠닭강정, 영덕리김, 유미네집", icon: 4, visible: true }, { id: 2, name: "반찬가게", keywords: "반찬, 영덕리김", icon: 1, visible: true }, { id: 3, name: "간식가게", keywords: "간식, 호떡", icon: 8, visible: true }, { id: 4, name: "분식가게", keywords: "분식, 떡볶이", icon: 4, visible: false }];
 
 export function SearchTagManager({ onBack }: { onBack: () => void }) {
-  const [tags, setTags] = useState(seedTags); const [selected, setSelected] = useState<number | null>(1); const [dirty, setDirty] = useState(false); const [error, setError] = useState(""); const [deleteOpen, setDeleteOpen] = useState(false); const [iconDialog, setIconDialog] = useState<"empty" | "ready" | "failed" | null>(null); const [customIcons, setCustomIcons] = useState<TagIcon[]>([]); const [iconName, setIconName] = useState(""); const [iconFile, setIconFile] = useState<File | null>(null); const fileRef = useRef<HTMLInputElement>(null);
+  const [tags, setTags] = useState(seedTags); const [selected, setSelected] = useState<number | null>(1); const [dirty, setDirty] = useState(false); const [error, setError] = useState(""); const [deleteOpen, setDeleteOpen] = useState(false); const [iconDialog, setIconDialog] = useState<"empty" | "ready" | "failed" | null>(null); const [customIcons, setCustomIcons] = useState<TagIcon[]>([]); const [iconUrls, setIconUrls] = useState<Record<number, string>>({}); const [iconName, setIconName] = useState(""); const [iconFile, setIconFile] = useState<File | null>(null); const fileRef = useRef<HTMLInputElement>(null);
   const icons = [...baseIcons, ...customIcons]; const current = tags.find((tag) => tag.id === selected) ?? null; const visibleCount = tags.filter((tag) => tag.visible).length;
   const previewTags = useMemo(() => tags.filter((tag) => tag.visible).slice(0, 3), [tags]);
+  useEffect(() => { getKioskExperience().then((config) => { if (!config.searchTags.length) return; const loaded = config.searchTags.map((tag) => ({ id: tag.id, name: tag.name, keywords: tag.keywords, icon: Math.max(0, baseIcons.findIndex((option) => option.label === tag.icon)), visible: tag.visible })); setTags(loaded); setSelected(loaded[0]?.id ?? null); }).catch((cause: Error) => setError(cause.message)); }, []);
   const update = (patch: Partial<SearchTag>) => { if (!current) return; setTags((all) => all.map((tag) => tag.id === current.id ? { ...tag, ...patch } : tag)); setDirty(true); setError(""); };
   const addTag = () => { const id = Date.now(); setTags((all) => [{ id, name: "새 태그", keywords: "", icon: 4, visible: false }, ...all]); setSelected(id); setDirty(true); };
   const move = (index: number, delta: number) => { const next = [...tags]; const to = index + delta; if (to < 0 || to >= next.length) return; [next[index], next[to]] = [next[to], next[index]]; setTags(next); setDirty(true); };
-  const save = () => { if (!current?.name.trim()) { setError("이름을 입력하세요."); return; } if (!current.keywords.trim()) { setError("연결 검색어를 입력하세요."); return; } setDirty(false); };
+  const save = async () => { if (!current?.name.trim()) { setError("이름을 입력하세요."); return; } if (!current.keywords.trim()) { setError("연결 검색어를 입력하세요."); return; } try { const payload: ApiSearchTag[] = tags.map((tag) => ({ id: tag.id, name: tag.name, keywords: tag.keywords, icon: icons[tag.icon]?.label ?? "식당", iconUrl: iconUrls[tag.icon], visible: tag.visible })); await saveSearchTags(payload); setDirty(false); setError(""); } catch (cause) { setError((cause as Error).message); } };
   const chooseIconFile = (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0] ?? null; setIconFile(file); if (!file) return; if (file.type !== "image/svg+xml" || file.size > 1024 * 1024) setIconDialog("failed"); else setIconDialog("ready"); };
-  const addIcon = () => { if (!iconName.trim() || !iconFile) return; setCustomIcons((all) => [...all, { label: iconName, Icon: Croissant }]); update({ icon: icons.length }); setIconDialog(null); setIconName(""); setIconFile(null); };
+  const addIcon = async () => { if (!iconName.trim() || !iconFile) return; try { const uploaded = await uploadSearchIcon(iconFile); const newIndex = icons.length; setCustomIcons((all) => [...all, { label: iconName, Icon: Croissant }]); setIconUrls((all) => ({ ...all, [newIndex]: uploaded.url })); update({ icon: newIndex }); setIconDialog(null); setIconName(""); setIconFile(null); } catch (cause) { setError((cause as Error).message); setIconDialog("failed"); } };
   return <>
     <div className="flex h-[60px] items-start justify-between"><div className="flex gap-8 text-[40px] leading-[60px] text-[#c3c3c3]"><button onClick={onBack}>가게 관리</button><button onClick={onBack}>홍보 관리</button></div><Button onClick={onBack}>검색 태그 관리 〉</Button></div>
     <div className="mt-5 rounded-xl bg-[#cfeadb] px-5 py-4 text-[14px]">검색창 아래에 표시되는 공통 태그입니다. 가게별 설명 태그·검색용 키워드와 따로 관리합니다.</div>

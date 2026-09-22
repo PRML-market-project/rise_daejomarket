@@ -16,11 +16,13 @@ import {
   X,
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
+import { absoluteAssetUrl, getKioskExperience, saveManagedShops, saveOperationMode, uploadPromotion } from "@/lib/kioskExperienceApi";
 
 type OperationMode = "길찾기" | "홍보";
 type DialogState = "session" | "unsaved" | "invalid-move" | "saving" | "save-error" | "upload" | "upload-error" | null;
 type IconOption = { label: string; Icon: ComponentType<{ size?: number; strokeWidth?: number }> };
 type ShopForm = { name: string; description: string; keywords: string };
+type AdminShop = { name: string; meta: string; markerX: number; markerY: number };
 
 const initialForm: ShopForm = {
   name: "불광돌쇠닭강정",
@@ -28,14 +30,24 @@ const initialForm: ShopForm = {
   keywords: "불광돌쇠닭강정, 음식점, 닭강정, 옛날통닭, 치킨",
 };
 
-const shops = [
-  ["남영상회", "지도 2·4번"], ["행운손만두", "지도 7번"], ["금산약초", "지도 8번"],
-  ["재덕정육점", "지도 9번"], ["신흥고추", "지도 10번"], ["서울건어물", "지도 11번"],
-  ["전라도김치", "지도 12번"], ["고원문방구", "지도 13번"], ["불광돌쇠닭강정", "선택됨 · 수정 중"],
-  ["황가네순대국 (2층)", "지도 3번"], ["엉터리집 (2층)", "지도 5번"], ["늘푸른야채", "지도 15번"],
-  ["봉화장 여관 (2층)", "지도에서 위치 확인"], ["문창식품", "지도 16번"], ["대광사화장품", "지도 17번"],
-  ["좋은축산마을", "지도 18번"], ["칠공주 호떡&떡갈비", "지도 번호 없음"], ["양지상회", "지도 20번"],
-] as const;
+const NORTH_AISLE_MARKER_X = 4850;
+const SECOND_FLOOR_MARKER_X = 5250;
+const northAisleY = (mapNumber: number) => 1852 + mapNumber * 90;
+const mapShop = (name: string, meta: string, mapNumber: number, markerX = NORTH_AISLE_MARKER_X): AdminShop => ({
+  name,
+  meta,
+  markerX,
+  markerY: northAisleY(mapNumber),
+});
+
+const shops: AdminShop[] = [
+  mapShop("남영상회", "지도 2·4번", 4), mapShop("행운손만두", "지도 7번", 7), mapShop("금산약초", "지도 8번", 8),
+  mapShop("재덕정육점", "지도 9번", 9), mapShop("신흥고추", "지도 10번", 10), mapShop("서울건어물", "지도 11번", 11),
+  mapShop("전라도김치", "지도 12번", 12), mapShop("고원문방구", "지도 13번", 13), mapShop("불광돌쇠닭강정", "선택됨 · 수정 중", 14),
+  mapShop("황가네순대국 (2층)", "지도 3번", 3, SECOND_FLOOR_MARKER_X), mapShop("엉터리집 (2층)", "지도 5번", 5, SECOND_FLOOR_MARKER_X), mapShop("늘푸른야채", "지도 15번", 15),
+  { name: "봉화장 여관 (2층)", meta: "지도에서 위치 확인", markerX: 4440, markerY: 3290 }, mapShop("문창식품", "지도 16번", 16), mapShop("대광사화장품", "지도 17번", 17),
+  mapShop("좋은축산마을", "지도 18번", 18), { name: "칠공주 호떡&떡갈비", meta: "지도 번호 없음", markerX: 4440, markerY: 2480 }, mapShop("양지상회", "지도 20번", 20),
+];
 
 const iconOptions: IconOption[] = [
   { label: "정육청과수산", Icon: Wheat }, { label: "식품", Icon: Soup },
@@ -85,17 +97,17 @@ function OperationPanel({ current, selected, onSelect, onApply }: { current: Ope
   );
 }
 
-function ShopList() {
+function ShopList({ selectedName, onSelect }: { selectedName: string; onSelect: (name: string) => void }) {
   const [search, setSearch] = useState("");
-  const filtered = shops.filter(([name, meta]) => `${name} ${meta}`.includes(search));
+  const filtered = shops.filter(({ name, meta }) => `${name} ${meta}`.includes(search));
   return (
     <aside className="flex min-h-0 flex-col gap-[16px] overflow-hidden rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
       <div className="flex items-start gap-[12px]"><h2 className="flex-1 text-[20px] font-bold leading-[29px]">가게 목록</h2><span className="text-[12px] font-medium leading-[17px]">126개</span></div>
       <label className="flex shrink-0 items-center gap-[8px] rounded-full bg-[#f8fbf8] p-[12px] text-[#a1a1a1]"><Search size={18} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="가게명 또는 지도 번호" className="min-w-0 flex-1 bg-transparent text-[14px] leading-[20px] outline-none placeholder:text-[#a1a1a1]" /></label>
       <div className="flex min-h-0 flex-1 flex-col gap-[8px] overflow-y-auto pr-[2px]">
-        {filtered.map(([name, meta]) => {
-          const selected = name === "불광돌쇠닭강정";
-          return <button type="button" key={name} className={`flex shrink-0 items-center gap-[12px] rounded-[14px] border p-[12px] text-left ${selected ? "border-[#116543] bg-[#cfeadb]" : "border-[#ebebeb] bg-white"}`}>
+        {filtered.map(({ name, meta }) => {
+          const selected = name === selectedName;
+          return <button type="button" key={name} onClick={() => onSelect(name)} className={`flex shrink-0 items-center gap-[12px] rounded-[14px] border p-[12px] text-left ${selected ? "border-[#116543] bg-[#cfeadb]" : "border-[#ebebeb] bg-white"}`}>
             <span className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] ${selected ? "bg-[#a1a1a1]" : "bg-[#ebebeb] text-[#116543]"}`}>
               {selected ? <img src="/api/design-asset/thumbnail" alt="" className="h-full w-full object-cover" /> : <Store size={24} />}
             </span>
@@ -107,22 +119,85 @@ function ShopList() {
   );
 }
 
-function MarketMap({ zoom, setZoom }: { zoom: number; setZoom: (value: number) => void }) {
+function MarketMap({ zoom, setZoom, selectedName, onSelect }: { zoom: number; setZoom: (value: number) => void; selectedName: string; onSelect: (name: string) => void }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [mapSize, setMapSize] = useState({ width: 852, height: 620 });
+  const selectedShop = shops.find((shop) => shop.name === selectedName) ?? shops[8];
+  const labelWidth = Math.max(250, selectedShop.name.length * 31 + 44);
+  const viewWidth = 1100 / zoom;
+  const viewHeight = viewWidth * (mapSize.height / mapSize.width);
+  const focusX = selectedShop.markerX - Math.min(labelWidth * .42, 170);
+  const focusY = selectedShop.markerY;
+  const viewX = Math.min(Math.max(focusX - viewWidth / 2, 0), 6807 - viewWidth);
+  const viewY = Math.min(Math.max(focusY - viewHeight / 2, 0), 10577 - viewHeight);
+  const viewBox = `${viewX} ${viewY} ${viewWidth} ${viewHeight}`;
+
+  useEffect(() => {
+    const container = mapRef.current;
+    if (!container) return;
+    const updateSize = () => {
+      const bounds = container.getBoundingClientRect();
+      setMapSize({ width: Math.max(bounds.width, 1), height: Math.max(bounds.height, 1) });
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const labelRight = selectedShop.markerX - 39;
+  const labelLeft = labelRight - labelWidth;
   return (
     <section className="flex min-h-0 flex-col gap-[16px] rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
       <h2 className="flex items-center gap-[12px] text-[20px] font-bold leading-[29px]"><MapIcon size={20} />가게 지도</h2>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[16px] bg-[#f1f2f1]">
-        <img src="/api/design-asset/map" alt="대조시장 가게 지도" className="absolute left-1/2 top-1/2 h-[1360px] w-[875px] max-w-none -translate-x-1/2 -translate-y-1/2 object-contain transition-transform duration-200" style={{ transform: `translate(-50%, -50%) scale(${zoom})` }} />
+      <div ref={mapRef} className="relative min-h-0 flex-1 overflow-hidden rounded-[16px] bg-[#f1f2f1]">
+        <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="h-full w-full" role="img" aria-label={`${selectedShop.name} 위치가 선택된 대조시장 가게 지도`}>
+          <image href="/api/design-asset/map" x="0" y="0" width="6807" height="10577" preserveAspectRatio="none" />
+          {shops.map((shop) => {
+            const hitWidth = Math.max(290, shop.name.length * 27 + 80);
+            return (
+              <g
+                key={shop.name}
+                role="button"
+                tabIndex={0}
+                aria-label={`${shop.name} 선택`}
+                className="group cursor-pointer outline-none"
+                onClick={() => onSelect(shop.name)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onSelect(shop.name);
+                  }
+                }}
+              >
+                <title>{shop.name}</title>
+                <rect
+                  x={shop.markerX - hitWidth - 35}
+                  y={shop.markerY - 41}
+                  width={hitWidth + 70}
+                  height="82"
+                  rx="18"
+                  fill="transparent"
+                  className="transition-colors group-hover:fill-[#12bf68]/15 group-focus:fill-[#12bf68]/15"
+                />
+              </g>
+            );
+          })}
+          <g className="pointer-events-none" aria-hidden="true">
+            <rect x={labelLeft} y={selectedShop.markerY - 34} width={labelWidth} height="68" rx="18" fill="#12bf68" />
+            <path d={`M ${labelRight - 1} ${selectedShop.markerY - 18} L ${labelRight + 25} ${selectedShop.markerY} L ${labelRight - 1} ${selectedShop.markerY + 18} Z`} fill="#12bf68" />
+            <rect x={selectedShop.markerX - 28} y={selectedShop.markerY - 34} width="56" height="68" rx="12" fill="#08a957" />
+            <text x={labelLeft + 20} y={selectedShop.markerY + 11} fill="white" fontSize="34" fontWeight="700" fontFamily="Pretendard, Arial, sans-serif">{selectedShop.name}</text>
+            <Utensils x={selectedShop.markerX - 17} y={selectedShop.markerY - 18} width={34} height={36} color="white" strokeWidth={2.4} />
+          </g>
+        </svg>
         <div className="absolute left-[16px] top-[16px] flex gap-[8px]">
           <PillButton kind="secondary" className="w-[48px] px-0" onClick={() => setZoom(Math.max(.65, zoom - .15))}>−</PillButton>
           <PillButton kind="secondary" className="w-[48px] px-0" onClick={() => setZoom(Math.min(1.7, zoom + .15))}>+</PillButton>
           <PillButton kind="secondary" className="w-[104px]" onClick={() => setZoom(1)}>전체 보기</PillButton>
         </div>
-        <div className="absolute left-[45%] top-[24%] flex items-center rounded-[12px] bg-[#12bf68] text-white shadow-sm">
-          <strong className="px-[16px] py-[10px] text-[18px]">불광돌쇠닭강정</strong><span className="flex h-[44px] w-[44px] items-center justify-center rounded-[8px] bg-[#05a952]"><Utensils size={22} /></span>
-        </div>
       </div>
-      <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">목록에서 가게를 선택하면 지도에서 위치를 확인할 수 있습니다.</p>
+      <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">목록 또는 지도에서 가게를 선택하면 위치와 정보를 확인할 수 있습니다.</p>
     </section>
   );
 }
@@ -148,17 +223,23 @@ function StoreEditor({ form, setForm, baseline, setBaseline, setDialog, saved, s
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) { setNameError("가게명을 입력해주세요."); return; }
     setNameError(""); setDialog("saving");
-    window.setTimeout(() => { setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false); }, 900);
+    try {
+      const config = await getKioskExperience();
+      const managed = { id: "22", name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail.startsWith("/api/") ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
+      await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id), managed]);
+      setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false);
+    } catch { setDialog("save-error"); }
   };
-  const chooseFile = (event: ChangeEvent<HTMLInputElement>) => {
+  const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) { setDialog("upload-error"); return; }
     setDialog("upload");
-    window.setTimeout(() => { setThumbnail(URL.createObjectURL(file)); setDialog(null); setSaved(false); }, 1100);
+    try { const uploaded = await uploadPromotion(file); setThumbnail(uploaded.url); setDialog(null); setSaved(false); }
+    catch { setDialog("upload-error"); }
   };
 
   return <section className="flex min-h-0 flex-col gap-[40px] overflow-hidden rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
@@ -172,9 +253,9 @@ function StoreEditor({ form, setForm, baseline, setBaseline, setDialog, saved, s
         <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">최대 3개 · 태그를 삭제하면 새 태그를 추가할 수 있어요.</p>
       </section>
       <section className="rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><Field label="검색용 키워드 · 관리자 전용" value={form.keywords} onChange={(keywords) => { setForm((prev) => ({ ...prev, keywords })); setSaved(false); }} /><p className="mt-[6px] text-[14px] font-medium leading-[21px] text-[#a1a1a1]">검색에만 사용되며, 이용자 화면에는 표시되지 않습니다. 쉼표로 구분하세요.</p></section>
-      <section className="flex flex-col gap-[8px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><strong className="text-[14px] leading-[20px]">썸네일 이미지</strong><div className="flex items-center gap-[16px]"><img src={thumbnail} alt="현재 썸네일" className="h-[96px] w-[96px] rounded-[12px] object-cover" /><div className="flex flex-1 flex-col gap-[16px]"><span className="text-[14px] font-medium">가게_썸네일.jpg</span><div className="flex gap-[8px]"><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => fileRef.current?.click()}>이미지 교체</PillButton><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => { setThumbnail("/api/design-asset/thumbnail"); setSaved(false); }}>기본 이미지</PillButton></div></div><input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={chooseFile} /></div></section>
+      <section className="flex flex-col gap-[8px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><strong className="text-[14px] leading-[20px]">썸네일 이미지</strong><div className="flex items-center gap-[16px]"><img src={thumbnail.startsWith("/api/") ? thumbnail : absoluteAssetUrl(thumbnail)} alt="현재 썸네일" className="h-[96px] w-[96px] rounded-[12px] object-cover" /><div className="flex flex-1 flex-col gap-[16px]"><span className="text-[14px] font-medium">가게_썸네일.jpg</span><div className="flex gap-[8px]"><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => fileRef.current?.click()}>이미지 교체</PillButton><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => { setThumbnail("/api/design-asset/thumbnail"); setSaved(false); }}>기본 이미지</PillButton></div></div><input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={chooseFile} /></div></section>
       <IconPicker open={iconOpen} selected={selectedIcon} onToggle={() => setIconOpen(!iconOpen)} onSelect={(index) => { setSelectedIcon(index); setIconOpen(false); setSaved(false); }} />
-      <section className="flex flex-col gap-[8px]"><strong className="text-[14px] leading-[20px]">카드 미리보기</strong><div className="flex justify-center rounded-[24px] bg-[#ebebeb] px-[12px] py-[24px]"><div className="flex h-[120px] w-[426px] items-center gap-[17px] rounded-[23px] border border-[#ebebeb] bg-white px-[23px]"><img src={thumbnail} alt="" className="h-[87px] w-[87px] rounded-[12px] object-cover" /><div className="min-w-0"><strong className="block truncate text-[26px] leading-[32px]">{form.name || "가게명"}</strong><div className="mt-[10px] flex gap-[3px]">{tags.map((tag) => <span key={tag} className="rounded-full bg-[#ebebeb] px-[9px] py-[3px] text-[13px] text-[#6f6f6f]">{tag}</span>)}</div><span className="mt-[6px] block text-[12px] text-[#a1a1a1]">현재 위치에서 2분</span></div></div></div></section>
+      <section className="flex flex-col gap-[8px]"><strong className="text-[14px] leading-[20px]">카드 미리보기</strong><div className="flex justify-center rounded-[24px] bg-[#ebebeb] px-[12px] py-[24px]"><div className="flex h-[120px] w-[426px] items-center gap-[17px] rounded-[23px] border border-[#ebebeb] bg-white px-[23px]"><img src={thumbnail.startsWith("/api/") ? thumbnail : absoluteAssetUrl(thumbnail)} alt="" className="h-[87px] w-[87px] rounded-[12px] object-cover" /><div className="min-w-0"><strong className="block truncate text-[26px] leading-[32px]">{form.name || "가게명"}</strong><div className="mt-[10px] flex gap-[3px]">{tags.map((tag) => <span key={tag} className="rounded-full bg-[#ebebeb] px-[9px] py-[3px] text-[13px] text-[#6f6f6f]">{tag}</span>)}</div><span className="mt-[6px] block text-[12px] text-[#a1a1a1]">현재 위치에서 2분</span></div></div></div></section>
     </div>
     <div className="flex shrink-0 flex-col gap-[8px]"><p className={`text-[14px] font-medium leading-[17px] ${saved && !dirty ? "text-[#116543]" : "text-[#116543]"}`}>{saved && !dirty ? "모든 변경 내용이 저장되었습니다." : "저장하지 않은 변경 내용이 있습니다."}</p><div className="flex gap-[12px]"><PillButton kind="secondary" className="h-[56px] w-[144px]" onClick={() => { setForm(baseline); setNameError(""); setIconOpen(false); }}>변경 취소</PillButton><PillButton className="h-[56px] flex-1" onClick={save}>가게 정보 저장</PillButton></div></div>
   </section>;
@@ -206,6 +287,7 @@ export default function AdminStoreManager() {
   const [thumbnail, setThumbnail] = useState("/api/design-asset/thumbnail");
   const [zoom, setZoom] = useState(1);
   const [activePage, setActivePage] = useState<"store" | "promotion" | "tags">("store");
+  const [selectedShopName, setSelectedShopName] = useState(initialForm.name);
   const [pendingPage, setPendingPage] = useState<"store" | "promotion" | "tags">("promotion");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
 
@@ -222,6 +304,10 @@ export default function AdminStoreManager() {
     if (state === "saved") { setSaved(true); setBaseline(initialForm); }
     const page = new URLSearchParams(window.location.search).get("page");
     if (page === "promotion" || page === "tags") setActivePage(page);
+    getKioskExperience().then((config) => {
+      const mode: OperationMode = config.operationMode === "PROMOTION" ? "홍보" : "길찾기";
+      setCurrentMode(mode); setSelectedMode(mode);
+    }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -236,6 +322,14 @@ export default function AdminStoreManager() {
     if (!form.name.trim()) setDialog("invalid-move");
     else if (dirty) setDialog("unsaved");
     else setActivePage(page);
+  };
+  const selectShop = (name: string) => {
+    const next = { name, description: "", keywords: name };
+    setSelectedShopName(name);
+    setForm(next);
+    setBaseline(next);
+    setSaved(true);
+    setIconOpen(false);
   };
   const closeDialog = () => setDialog(null);
   const primaryDialogAction = () => {
@@ -254,13 +348,13 @@ export default function AdminStoreManager() {
   return <main className="min-h-screen min-w-[1400px] bg-[#f8fbf8]">
     <Header mode={currentMode} onLogout={logout} />
     <div className="px-[32px] pb-[24px] pt-[24px]">
-      {activePage === "promotion" && <PromotionManager onNavigate={setActivePage} onModeApply={() => setCurrentMode("홍보")} />}
+      {activePage === "promotion" && <PromotionManager onNavigate={setActivePage} onModeApply={(mode) => { setCurrentMode(mode); setSelectedMode(mode); }} />}
       {activePage === "tags" && <SearchTagManager onBack={() => setActivePage("store")} />}
       {activePage === "store" && <>
       <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
-      <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={() => setCurrentMode(selectedMode)} /></div>
-      <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[1223px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
-        <ShopList /><MarketMap zoom={zoom} setZoom={setZoom} /><StoreEditor form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} />
+      <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(selectedMode === "홍보" ? "PROMOTION" : "DIRECTIONS"); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
+      <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
+        <ShopList selectedName={selectedShopName} onSelect={selectShop} /><MarketMap zoom={zoom} setZoom={setZoom} selectedName={selectedShopName} onSelect={selectShop} /><StoreEditor form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} />
       </div>
       </>}
     </div>

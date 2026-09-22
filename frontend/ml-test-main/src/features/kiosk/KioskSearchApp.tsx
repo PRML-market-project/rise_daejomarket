@@ -9,6 +9,7 @@ import {
   ResultsPanel,
   SearchStatusScreen,
 } from "./KioskResultScreens";
+import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
@@ -149,19 +150,20 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
   );
 }
 
-function CategoryChips({ onChoose }: { onChoose: (value: string) => void }) {
-  const chips = [
+function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string) => void; configuredTags?: KioskExperience["searchTags"] }) {
+  const defaults = [
     ["주변식당", "/figma/restaurant.svg", "#ff9500"],
     ["반찬가게", "/figma/side-dish.svg", "#ff85ba"],
     ["간식가게", "/figma/snack.svg", "#0062ff"],
   ];
+  const chips = configuredTags?.filter((tag) => tag.visible).slice(0, 3).map((tag, index) => [tag.name, tag.iconUrl ? `${(import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "")}${tag.iconUrl}` : defaults[index]?.[1] ?? "/figma/restaurant.svg", defaults[index]?.[2] ?? "#116543", tag.keywords]) ?? defaults;
   return (
     <div className="flex gap-[8px]">
-      {chips.map(([label, icon, color]) => (
+      {chips.map(([label, icon, color, keywords]) => (
         <button
           type="button"
           key={label}
-          onClick={() => onChoose(label)}
+          onClick={() => onChoose(keywords || label)}
           className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] text-[#19211c]"
         >
           <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full" style={{ backgroundColor: color }}>
@@ -426,23 +428,49 @@ export default function KioskSearchApp() {
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
   const [languageReturnScreen, setLanguageReturnScreen] = useState<Screen>("welcome");
+  const [experience, setExperience] = useState<KioskExperience | null>(null);
+  const updateExperience = useCallback((value: KioskExperience) => {
+    setExperience((current) => JSON.stringify(current) === JSON.stringify(value) ? current : value);
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    const load = () => {
+      const controller = new AbortController();
+      fetchKioskExperience(controller.signal).then((value) => { if (!disposed) updateExperience(value); }).catch(() => undefined);
+      return controller;
+    };
+    let controller = load();
+    const unsubscribe = subscribeToKioskExperience((value) => { if (!disposed) updateExperience(value); });
+    const timer = window.setInterval(() => { controller.abort(); controller = load(); }, 30_000);
+    return () => { disposed = true; controller.abort(); unsubscribe(); window.clearInterval(timer); };
+  }, [updateExperience]);
+
+  const effectiveShops = useMemo(() => {
+    const managed = new Map((experience?.shops ?? []).map((shop) => [shop.id, shop]));
+    return marketShops.map((shop) => {
+      const override = managed.get(shop.id);
+      return override ? { ...shop, name: override.name, category: override.tags[0] || shop.category, searchKeywords: override.keywords } : shop;
+    });
+  }, [experience?.shops]);
 
   const resultShops = useMemo(() => {
     const normalized = query.replace(/\s/g, "").toLowerCase();
     const preferredIds = ["22", "14", "21", "6", "5", "3", "57", "56", "42", "33", "87", "88"];
     if (["주변식당", "주변음식점", "음식점", "식당"].some((term) => normalized.includes(term))) {
-      return preferredIds.map((id) => marketShops.find((shop) => shop.id === id)).filter((shop): shop is (typeof marketShops)[number] => Boolean(shop));
+      return preferredIds.map((id) => effectiveShops.find((shop) => shop.id === id)).filter((shop): shop is (typeof effectiveShops)[number] => Boolean(shop));
     }
     const category = normalized.includes("반찬") || normalized.includes("간식") ? "식품" : normalized;
-    return marketShops.filter((shop) =>
+    return effectiveShops.filter((shop) =>
       shop.name.replace(/\s/g, "").toLowerCase().includes(normalized)
-      || shop.category.replace(/\s/g, "").toLowerCase().includes(category),
+      || shop.category.replace(/\s/g, "").toLowerCase().includes(category)
+      || ("searchKeywords" in shop && String(shop.searchKeywords).replace(/\s/g, "").toLowerCase().includes(normalized))
     ).slice(0, 12);
-  }, [query]);
+  }, [effectiveShops, query]);
 
   const selectedShop = useMemo(
-    () => marketShops.find((shop) => shop.id === selectedShopId) ?? null,
-    [selectedShopId],
+    () => effectiveShops.find((shop) => shop.id === selectedShopId) ?? null,
+    [effectiveShops, selectedShopId],
   );
 
   const returnToWelcome = useCallback(() => {
@@ -643,7 +671,7 @@ export default function KioskSearchApp() {
                 ) : mode === "keyboard" ? (
                   <div className="mt-[24px] flex min-h-0 flex-1 flex-col">
                     <SearchField value={query} onChange={setQuery} />
-                    <div className="mt-[24px]"><CategoryChips onChoose={setQuery} /></div>
+                    <div className="mt-[24px]"><CategoryChips onChoose={setQuery} configuredTags={experience?.searchTags} /></div>
                     <div className="mt-auto">
                       <TouchKeyboard value={query} onChange={setQuery} onSubmit={submit} />
                       <div className="mt-[40px] flex gap-[24px]">
@@ -672,5 +700,8 @@ export default function KioskSearchApp() {
     </div>
   );
 
+  if (experience?.operationMode === "PROMOTION" && experience.promotions.length > 0) {
+    return <KioskPromotionPlayer contents={experience.promotions} />;
+  }
   return canvas;
 }
