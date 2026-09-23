@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getRouteDistanceForShop } from "@/components/market/MapView";
 import type { Shop } from "@/types/shop";
 
 type Language = "ko" | "en" | "vi";
@@ -134,7 +135,7 @@ export function LanguageSelectionScreen({
   );
 }
 
-function ResultCard({ shop, selected, onSelect }: { shop: Shop; selected: boolean; onSelect: () => void }) {
+function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; distanceMeters: number; selected: boolean; onSelect: () => void }) {
   const hasPhoto = shop.category === "식당" && shop.id !== "21";
   const tags = shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
   return (
@@ -153,7 +154,7 @@ function ResultCard({ shop, selected, onSelect }: { shop: Shop; selected: boolea
         <div className="mt-[8px] flex gap-[4px] overflow-hidden">
           {tags.slice(0, 3).map((tag) => <span key={tag} className={`shrink-0 rounded-[16px] px-[12px] py-[4px] text-[18px] leading-[28px] ${selected ? "bg-[#b9ead2] text-[#116543]" : "bg-[#ebebeb] text-[#6f6f6f]"}`}>{tag}</span>)}
         </div>
-        <span className="mt-[8px] block text-[16px] text-[#a1a1a1]">현재 위치에서 {shop.id === "22" ? 1 : 2}분</span>
+        <span className="mt-[8px] block text-[16px] text-[#a1a1a1]">현재 위치에서 {distanceMeters}m</span>
       </div>
     </button>
   );
@@ -173,25 +174,53 @@ export function ResultsPanel({
   onDirections: () => void;
 }) {
   const pageSize = 6;
-  const pageCount = Math.max(1, Math.ceil(shops.length / pageSize));
+  const [sortMode, setSortMode] = useState<"relevance" | "distance">("relevance");
   const [page, setPage] = useState(1);
-  const visible = shops.slice((page - 1) * pageSize, page * pageSize);
+  const orderedResults = useMemo(() => {
+    const results = shops.map((shop, relevanceIndex) => ({
+      shop,
+      relevanceIndex,
+      distanceMeters: getRouteDistanceForShop(shop),
+    }));
+
+    if (sortMode === "distance") {
+      results.sort((a, b) => a.distanceMeters - b.distanceMeters || a.relevanceIndex - b.relevanceIndex);
+    }
+
+    return results;
+  }, [shops, sortMode]);
+  const pageCount = Math.max(1, Math.ceil(orderedResults.length / pageSize));
+  const visible = orderedResults.slice((page - 1) * pageSize, page * pageSize);
 
   useEffect(() => {
     setPage(1);
-  }, [shops]);
+  }, [shops, sortMode]);
 
   return (
     <section className="absolute bottom-0 left-0 right-0 z-30 h-[1112px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
       <div className="flex items-center justify-between">
         <h2 className="text-[36px] font-medium">{shops.length}개의 가게를 찾았어요</h2>
         <div className="flex rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
-          <button type="button" className="w-[180px] rounded-full bg-[#363636] py-[8px] text-white">정확도순</button>
-          <button type="button" className="w-[180px] rounded-full py-[8px]">거리순</button>
+          <button
+            type="button"
+            aria-pressed={sortMode === "relevance"}
+            onClick={() => setSortMode("relevance")}
+            className={`w-[180px] rounded-full py-[8px] ${sortMode === "relevance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
+          >
+            정확도순
+          </button>
+          <button
+            type="button"
+            aria-pressed={sortMode === "distance"}
+            onClick={() => setSortMode("distance")}
+            className={`w-[180px] rounded-full py-[8px] ${sortMode === "distance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
+          >
+            거리순
+          </button>
         </div>
       </div>
       <div className="mt-[40px] grid grid-cols-2 gap-[16px]">
-        {visible.map((shop) => <ResultCard key={shop.id} shop={shop} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
+        {visible.map(({ shop, distanceMeters }) => <ResultCard key={shop.id} shop={shop} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
       </div>
       <div className="mt-[48px] flex items-center justify-center gap-[16px] text-[28px]">
         {pageCount > 1 && (
@@ -219,12 +248,12 @@ export function ResultsPanel({
   );
 }
 
-export function DirectionsPanel({ shopName, onBack, onHome }: { shopName: string; onBack: () => void; onHome: () => void }) {
+export function DirectionsPanel({ shopName, distanceMeters, onBack, onHome }: { shopName: string; distanceMeters: number; onBack: () => void; onHome: () => void }) {
   return (
     <section className="absolute bottom-0 left-0 right-0 z-30 h-[492px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
       <div className="flex items-center justify-between">
         <h2 className="max-w-[650px] text-[36px] font-bold leading-[52px]">“{shopName}”으로<br />이동하는 길을 알려드릴게요</h2>
-        <p className="text-[48px] font-bold text-[#19211c]"><strong className="text-[80px] text-[#116543]">30</strong>m 이동</p>
+        <p className="text-[48px] font-bold text-[#19211c]"><strong className="text-[80px] text-[#116543]">{distanceMeters}</strong>m 이동</p>
       </div>
       <div className="mt-[48px] flex gap-[24px]">
         <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">이전</button>

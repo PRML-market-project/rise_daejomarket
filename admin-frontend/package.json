@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync:map-data": "node scripts/sync-map-data.mjs",
+    "predev": "npm run sync:map-data",
     "dev": "next dev --turbopack",
+    "prebuild": "npm run sync:map-data",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

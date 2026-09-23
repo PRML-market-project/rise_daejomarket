@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapView } from "@/components/market/MapView";
+import { getRouteDistanceForShop, MapView } from "@/components/market/MapView";
 import { figmaMapShops as marketShops } from "@/data/figma-map-shops";
 import {
   DirectionsPanel,
@@ -450,7 +450,7 @@ export default function KioskSearchApp() {
     const managed = new Map((experience?.shops ?? []).map((shop) => [shop.id, shop]));
     return marketShops.map((shop) => {
       const override = managed.get(shop.id);
-      return override ? { ...shop, name: override.name, category: override.tags[0] || shop.category, searchKeywords: override.keywords } : shop;
+      return override ? { ...shop, name: override.name, category: override.tags[0] || shop.category, searchKeywords: override.keywords, icon: override.icon } : shop;
     });
   }, [experience?.shops]);
 
@@ -625,7 +625,7 @@ export default function KioskSearchApp() {
           <main className="relative h-[1920px] bg-white">
             <MapView shops={resultShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
-            <DirectionsPanel shopName={selectedShop.name} onBack={() => setScreen("results")} onHome={returnToWelcome} />
+            <DirectionsPanel shopName={selectedShop.name} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>
         )}
 
