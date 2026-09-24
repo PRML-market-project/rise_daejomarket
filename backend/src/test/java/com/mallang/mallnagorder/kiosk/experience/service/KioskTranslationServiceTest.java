@@ -35,4 +35,17 @@ class KioskTranslationServiceTest {
         assertThat(sources).doesNotContain("/image.png");
         assertThat(service.missing(Set.of("새 가게"), Map.of("새 가게", Map.of("en", "New shop")))).containsExactly("새 가게");
     }
+
+    @Test
+    void replacesOnlyOldFloorTransliterationsInTheSavedCache() throws Exception {
+        var service = new KioskTranslationService(mock(ArgosTranslatorService.class), new ObjectMapper());
+        var cache = Map.of(
+                "황가네순대국 (2층)", Map.of("en", "hwangganesundaegug (2cheung) (황가네순대국 (2층))", "vi", "Custom Vietnamese"),
+                "남영상회", Map.of("en", "Custom English", "vi", "Custom Vietnamese"));
+        var result = service.withSeeds(cache);
+        assertThat(result.get("황가네순대국 (2층)"))
+                .containsEntry("en", "hwangganesundaegug (황가네순대국) · 2F")
+                .containsEntry("vi", "Custom Vietnamese");
+        assertThat(result.get("남영상회")).isEqualTo(cache.get("남영상회"));
+    }
 }

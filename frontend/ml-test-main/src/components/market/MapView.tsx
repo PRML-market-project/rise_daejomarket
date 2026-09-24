@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Shop } from "@/types/shop";
-import { useKioskLocale } from "@/features/kiosk/i18n";
 
 interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
@@ -332,7 +331,6 @@ export function getRouteDistanceForShop(shop: Shop): number {
 }
 
 export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false }: MapViewProps) {
-  const { t, language } = useKioskLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraAnimationRef = useRef<number | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
@@ -440,7 +438,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => { const previous = pointersRef.current.get(event.pointerId); if (!previous) return; pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); if (pointersRef.current.size === 1) { panBy(event.clientX - previous.x, event.clientY - previous.y); gestureRef.current = { midpoint: { x: event.clientX, y: event.clientY }, distance: 0 }; } else updateGesture(); };
   const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => { pointersRef.current.delete(event.pointerId); setIsDragging(pointersRef.current.size > 0); updateGesture(); };
 
-  const selectedLabelBubble = selectedShop && selectedMarker ? getShopLabelBubble(selectedShop, selectedMarker, t(selectedShop.name)) : null;
+  const selectedLabelBubble = selectedShop && selectedMarker ? getShopLabelBubble(selectedShop, selectedMarker) : null;
   const selectedIconAsset = selectedShop ? getShopIconAsset(selectedShop) : undefined;
   const selectedRotatedIcon = selectedShop ? SPECIAL_ROTATED_ICON_CELLS.get(selectedShop.id) : undefined;
   const routeTarget = routePoints?.[routePoints.length - 1] ?? null;
@@ -450,20 +448,9 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const routeDistanceWidth = Math.max(132, routeDistanceLabel.length * 28 + 36);
 
   return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
-    <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${t(selectedShop.name)} · ${t("대조시장 안내 지도")}` : t("대조시장 안내 지도")}>
+    <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name} · 대조시장 안내 지도` : "대조시장 안내 지도"}>
       <style>{`@keyframes routeDashFlow{to{stroke-dashoffset:-104}}@keyframes routeArrowPulse{0%,100%{opacity:.25}45%{opacity:1}}.route-flow-dash{animation:routeDashFlow 1.1s linear infinite}.route-flow-arrow{animation:routeArrowPulse 1.15s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.route-flow-dash,.route-flow-arrow{animation:none}}`}</style>
       <image href="/images/daejomarket-map.svg" x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="none" pointerEvents="none" />
-      {language !== "ko" && iconShops.map(shop => {
-        const name = t(shop.name);
-        if (name === shop.name) return null;
-        const lines = getShopNameLines({ ...shop, name });
-        return <g key={`localized-${shop.id}`} pointerEvents="none">
-          <rect x={shop.x - 2} y={shop.y - 2} width={shop.width + 4} height={shop.height + 4} fill="#f7f7f7" />
-          <text x={shop.x + shop.width / 2} y={shop.y + shop.height / 2} textAnchor="middle" dominantBaseline="central" fontSize="28" fill="#6f6f6f">
-            {lines.map((line, index) => <tspan key={index} x={shop.x + shop.width / 2} dy={index === 0 ? -(lines.length - 1) * 17 : 34} textLength={line.length * 15 > shop.width ? shop.width : undefined} lengthAdjust="spacingAndGlyphs">{line}</tspan>)}
-          </text>
-        </g>;
-      })}
       {iconShops.map((shop) => {
         const cell = SPECIAL_ROTATED_ICON_CELLS.get(shop.id) ?? getShopIconCell(shop);
         if (!cell) return null;
@@ -473,7 +460,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
           <image href={getShopIconAsset(shop)} x={cell.x + cell.width / 2 - 17} y={cell.y + cell.height / 2 - 17} width="34" height="34" />
         </g>;
       })}
-      {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${t(shop.name)} · ${t("선택")}`} className="cursor-pointer outline-none" onPointerDown={(event) => event.stopPropagation()} onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{t(shop.name)}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
+      {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${shop.name} · 선택`} className="cursor-pointer outline-none" onPointerDown={(event) => event.stopPropagation()} onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{shop.name}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
       {showRoute && routeTarget && routePoints && <g pointerEvents="none">
         <polyline points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#19bf69" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" />
         <polyline className="route-flow-dash" points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#d8f5e7" strokeWidth="5" strokeDasharray="18 34" strokeLinecap="round" strokeLinejoin="round" />
@@ -495,7 +482,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       </g>}
     </svg>
     <div className="absolute right-5 top-[210px] z-20 flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-lg backdrop-blur" onPointerDown={(event) => event.stopPropagation()}>
-      <button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label={t("지도 확대")} onClick={() => changeZoom(labelPt * 1.2)}>+</button><div className="h-px bg-black/10" /><button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label={t("지도 축소")} onClick={() => changeZoom(labelPt / 1.2)}>−</button>
+      <button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label="지도 확대" onClick={() => changeZoom(labelPt * 1.2)}>+</button><div className="h-px bg-black/10" /><button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label="지도 축소" onClick={() => changeZoom(labelPt / 1.2)}>−</button>
     </div>
   </div>;
 }

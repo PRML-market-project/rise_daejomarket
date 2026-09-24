@@ -47,7 +47,15 @@ public class KioskTranslationService {
     public Map<String, Map<String, String>> withSeeds(Map<String, Map<String, String>> saved) {
         Map<String, Map<String, String>> result = new LinkedHashMap<>();
         seeds.forEach((source, value) -> result.put(source, new LinkedHashMap<>(value)));
-        saved.forEach((source, value) -> result.computeIfAbsent(source, ignored -> new LinkedHashMap<>()).putAll(value));
+        saved.forEach((source, value) -> {
+            Map<String, String> target = result.computeIfAbsent(source, ignored -> new LinkedHashMap<>());
+            value.forEach((language, text) -> {
+                // Replace only the old floor transliterations created by our seed.
+                if (source.matches(".*\\d+층.*") && text != null && text.matches(".*\\d+cheung.*")
+                        && target.containsKey(language)) return;
+                target.put(language, text);
+            });
+        });
         return result;
     }
 

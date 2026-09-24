@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 const assets = {
   logo: { path: ["figma", "daecho-logo.svg"], type: "image/svg+xml" },
   thumbnail: { path: ["figma", "search-result-food.png"], type: "image/png" },
-  map: { path: ["images", "daejomarket-map.svg"], type: "image/svg+xml" },
+  map: { path: ["images", "daejomarket-map.svg"], type: "image/svg+xml", local: true },
 } as const;
 
 export async function GET(_: Request, context: { params: Promise<{ name: string }> }) {
@@ -13,7 +13,9 @@ export async function GET(_: Request, context: { params: Promise<{ name: string 
   const asset = assets[name as keyof typeof assets];
   if (!asset) return new NextResponse("Not found", { status: 404 });
 
-  const assetPath = path.join(process.cwd(), "..", "frontend", "ml-test-main", "public", ...asset.path);
+  const assetPath = "local" in asset
+    ? path.join(process.cwd(), "public", ...asset.path)
+    : path.join(process.cwd(), "..", "frontend", "ml-test-main", "public", ...asset.path);
   try {
     const body = await readFile(assetPath);
     return new NextResponse(body, {

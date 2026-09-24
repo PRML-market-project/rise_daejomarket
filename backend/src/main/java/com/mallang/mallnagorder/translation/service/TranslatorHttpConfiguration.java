@@ -15,7 +15,12 @@ public class TranslatorHttpConfiguration {
     @Bean
     RestClientCustomizer translatorTimeouts(@Value("${argos.translator.read-timeout-seconds:120}") long timeoutSeconds) {
         return builder -> {
-            var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+            // Uvicorn serves HTTP/1.1; the JDK default HTTP/2 upgrade corrupts
+            // translation POST requests and Argos rejects them with HTTP 422.
+            var client = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1)
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
             var factory = new JdkClientHttpRequestFactory(client);
             factory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
             builder.requestFactory(factory);

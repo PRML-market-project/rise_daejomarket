@@ -286,7 +286,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom
       <h2 className="flex items-center gap-[12px] text-[20px] font-bold leading-[29px]"><MapIcon size={20} />가게 지도</h2>
       <div ref={mapRef} className={`relative min-h-0 flex-1 touch-none select-none overflow-hidden rounded-[16px] bg-[#f1f2f1] ${isPanning ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
         <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="h-full w-full" role="img" aria-label={`${selectedShop.name} 위치가 선택된 대조시장 가게 지도`}>
-          <image href="/api/design-asset/map" x="0" y="0" width="6807" height="10577" preserveAspectRatio="none" />
+          <image href="/images/daejomarket-map.svg" x="0" y="0" width="6807" height="10577" preserveAspectRatio="none" />
           {shops.map((shop) => {
             const cell = shop.iconCell;
             if (!cell) return null;

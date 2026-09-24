@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 from threading import Lock
 from typing import Literal
@@ -10,6 +11,24 @@ from pydantic import BaseModel, Field, model_validator
 from engine import ArgosEngine
 
 log = logging.getLogger(__name__)
+
+
+def translate_shop_name(text: str, targets: list[str]) -> dict[str, str]:
+    from hangul_romanize import Transliter
+    from hangul_romanize.rule import academic
+
+    floor = re.fullmatch(r"(.+?)\s*\((\d+)층(?:\s*(고객센터))?\)", text)
+    name = floor.group(1) if floor else text
+    romanized = Transliter(academic).translit(name)
+    label = f"{romanized} ({name})" if romanized != name else name
+    if not floor:
+        return {target: label for target in targets}
+    number, service = floor.group(2), floor.group(3)
+    suffixes = {
+        "en": f"{number}F" + (" Customer Center" if service else ""),
+        "vi": f"Tầng {number}" + (" · Trung tâm khách hàng" if service else ""),
+    }
+    return {target: f"{label} · {suffixes[target]}" for target in targets}
 
 
 class TranslationRequest(BaseModel):
@@ -51,11 +70,7 @@ def create_app(engine_factory=ArgosEngine):
             results = []
             for text in request.texts:
                 if text in request.nameTexts and request.source == "ko":
-                    from hangul_romanize import Transliter
-                    from hangul_romanize.rule import academic
-                    romanized = Transliter(academic).translit(text)
-                    label = f"{romanized} ({text})" if romanized != text else text
-                    translated = {target: label for target in request.targets}
+                    translated = translate_shop_name(text, request.targets)
                 else:
                     translated = app.state.engine.translate(text, request.source, request.targets)
                 results.append({"sourceText": text, "translations": translated})

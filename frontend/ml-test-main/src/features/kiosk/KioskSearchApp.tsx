@@ -153,12 +153,12 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
   );
 }
 
-function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string) => void; configuredTags?: KioskExperience["searchTags"] }) {
+function CategoryChips({ onChoose, configuredTags }: { onChoose: (tag: { name: string; keywords: string }) => void; configuredTags?: KioskExperience["searchTags"] }) {
   const { t } = useKioskLocale();
   const defaults = [
-    { id: 1, name: "주변식당", icon: "식당", keywords: "", visible: true },
-    { id: 2, name: "반찬가게", icon: "식품", keywords: "", visible: true },
-    { id: 3, name: "간식가게", icon: "간식", keywords: "", visible: true },
+    { id: 1, name: "주변식당", icon: "식당", keywords: "식당", visible: true },
+    { id: 2, name: "반찬가게", icon: "식품", keywords: "식품", visible: true },
+    { id: 3, name: "간식가게", icon: "간식", keywords: "식품", visible: true },
   ];
   // The API initializes searchTags to []; show the design defaults until tags
   // are configured. Filter afterwards so explicitly hidden tags stay hidden.
@@ -174,7 +174,7 @@ function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string)
         <button
           type="button"
           key={id}
-          onClick={() => onChoose(t(keywords || label))}
+          onClick={() => onChoose({ name: label, keywords: keywords || label })}
           className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] text-[#19211c]"
         >
           <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full" style={{ backgroundColor: color }}>
@@ -447,6 +447,7 @@ export default function KioskSearchApp() {
   const [screen, setScreen] = useState<Screen>("welcome");
   const [mode, setMode] = useState<InputMode>("keyboard");
   const [query, setQuery] = useState("");
+  const [tagSearch, setTagSearch] = useState<{ name: string; keywords: string } | null>(null);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [handwritingResetKey, setHandwritingResetKey] = useState(0);
@@ -483,6 +484,22 @@ export default function KioskSearchApp() {
 
   const resultShops = useMemo(() => {
     const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f\s]/g, "").replace(/đ/gi, "d").toLowerCase();
+    if (tagSearch) {
+      const terms = tagSearch.keywords.split(/[,，]/).map((term) => normalize(term.trim())).filter(Boolean);
+      const categoryGroups: Record<string, string[]> = {
+        정육청과수산: ["정육", "청과", "수산"],
+        음식점: ["식당"], 주변식당: ["식당"], 식당찾기: ["식당"],
+        반찬: ["식품"], 간식: ["식품"],
+      };
+      return effectiveShops.filter((shop, index) => {
+        const categories = [shop.category, marketShops[index]?.category, ...(shop.tags ?? [])].map(normalize);
+        const source = [shop.name, shop.description, shop.searchKeywords, ...(shop.tags ?? [])].filter((value): value is string => Boolean(value)).map(normalize);
+        return terms.some((term) => {
+          const categoryTerms = categoryGroups[term] ?? [term];
+          return categoryTerms.some((category) => categories.includes(category)) || source.some((text) => text.includes(term));
+        });
+      }).slice(0, 12);
+    }
     const normalized = normalize(query);
     if (["주변식당", "주변음식점", "음식점", "식당", "restaurant", "quán ăn", "nhà hàng"].some((term) => normalized.includes(normalize(term)))) {
       return effectiveShops.filter((shop) => shop.category === "식당").slice(0, 12);
@@ -498,7 +515,7 @@ export default function KioskSearchApp() {
       const index = source.flatMap(text => [text, en(text), vi(text)]).map(normalize);
       return terms.some(term => index.some(text => text.includes(term)));
     }).slice(0, 12);
-  }, [effectiveShops, query, experience?.translations]);
+  }, [effectiveShops, query, tagSearch, experience?.translations]);
 
   const selectedShop = useMemo(
     () => effectiveShops.find((shop) => shop.id === selectedShopId) ?? null,
@@ -509,6 +526,7 @@ export default function KioskSearchApp() {
     setScreen("welcome");
     setMode("keyboard");
     setQuery("");
+    setTagSearch(null);
     setTranscript("");
     setVoiceState("idle");
     setSelectedShopId(null);
@@ -541,11 +559,11 @@ export default function KioskSearchApp() {
   useEffect(() => {
     if (screen !== "processing") return;
     const timeoutId = window.setTimeout(() => {
-      if (/연결|오류/.test(query)) setScreen("error");
+      if (!tagSearch && /연결|오류/.test(query)) setScreen("error");
       else setScreen(resultShops.length ? "results" : "no-results");
     }, 900);
     return () => window.clearTimeout(timeoutId);
-  }, [query, resultShops.length, screen]);
+  }, [query, tagSearch, resultShops.length, screen]);
 
   const title = useMemo(() => {
     if (mode === "handwriting") return ["가게 정보를", "손가락으로 적어주세요."];
@@ -579,8 +597,21 @@ export default function KioskSearchApp() {
 
   const submit = () => {
     if (!query.trim()) return;
+    setTagSearch(null);
     setSelectedShopId(null);
     setScreen("processing");
+  };
+
+  const searchTag = (tag: { name: string; keywords: string }) => {
+    setQuery("");
+    setTagSearch(tag);
+    setSelectedShopId(null);
+    setScreen("processing");
+  };
+
+  const openSearch = () => {
+    setTagSearch(null);
+    setScreen("search");
   };
 
   const clearInput = () => {
@@ -636,19 +667,19 @@ export default function KioskSearchApp() {
           />
         )}
 
-        {screen === "processing" && <SearchStatusScreen kind="processing" query={query} onBack={() => setScreen("search")} onRetry={submit} />}
-        {screen === "no-results" && <SearchStatusScreen kind="empty" query={query} onBack={() => setScreen("search")} onRetry={submit} />}
-        {screen === "error" && <SearchStatusScreen kind="connection" query={query} onBack={() => setScreen("search")} onRetry={submit} />}
+        {screen === "processing" && <SearchStatusScreen kind="processing" query={tagSearch ? t(tagSearch.name) : query} onBack={openSearch} onRetry={tagSearch ? () => searchTag(tagSearch) : submit} />}
+        {screen === "no-results" && <SearchStatusScreen kind="empty" query={tagSearch ? t(tagSearch.name) : query} onBack={openSearch} onRetry={tagSearch ? () => searchTag(tagSearch) : submit} />}
+        {screen === "error" && <SearchStatusScreen kind="connection" query={query} onBack={openSearch} onRetry={submit} />}
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
             <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
-            <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
+            <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <ResultsPanel
               shops={resultShops}
               selectedId={selectedShopId}
               onSelect={setSelectedShopId}
-              onSearchAgain={() => setScreen("search")}
+              onSearchAgain={openSearch}
               onDirections={() => selectedShop && setScreen("directions")}
             />
           </main>
@@ -657,7 +688,7 @@ export default function KioskSearchApp() {
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
             <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute />
-            <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
+            <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <DirectionsPanel shopName={selectedShop.name} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>
         )}
@@ -665,8 +696,8 @@ export default function KioskSearchApp() {
         {screen === "map" && (
           <main className="relative h-[1920px] bg-white">
             <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
-            <FloatingSearchBar onClick={() => setScreen("search")} />
-            <MarketMapPanel onHome={returnToWelcome} onSearch={() => setScreen("search")} />
+            <FloatingSearchBar onClick={openSearch} />
+            <MarketMapPanel onHome={returnToWelcome} onSearch={openSearch} />
           </main>
         )}
 
@@ -702,7 +733,7 @@ export default function KioskSearchApp() {
                 ) : mode === "keyboard" ? (
                   <div className="mt-[24px] flex min-h-0 flex-1 flex-col">
                     <SearchField value={query} onChange={setQuery} />
-                    <div className="mt-[24px]"><CategoryChips onChoose={setQuery} configuredTags={experience?.searchTags} /></div>
+                    <div className="mt-[24px]"><CategoryChips onChoose={searchTag} configuredTags={experience?.searchTags} /></div>
                     <div className="mt-auto">
                       <TouchKeyboard key={language} value={query} onChange={setQuery} onSubmit={submit} />
                       <div className="mt-[40px] flex gap-[24px]">

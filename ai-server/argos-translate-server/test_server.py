@@ -26,6 +26,12 @@ class ServerTests(unittest.TestCase):
             self.assertIn("bulgwang", row["translations"]["en"])
             self.assertEqual(row["translations"]["en"], row["translations"]["vi"])
 
+    def test_floor_is_translated_in_shop_name(self):
+        with TestClient(create_app(FakeEngine)) as client:
+            row = client.post("/translate", json={"texts": ["황가네순대국 (2층)"], "nameTexts": ["황가네순대국 (2층)"]}).json()["results"][0]
+            self.assertEqual(row["translations"]["en"], "hwangganesundaegug (황가네순대국) · 2F")
+            self.assertEqual(row["translations"]["vi"], "hwangganesundaegug (황가네순대국) · Tầng 2")
+
     def test_failure_is_not_a_successful_translation(self):
         class BrokenEngine:
             def translate(self, *args):
