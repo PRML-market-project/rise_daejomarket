@@ -20,7 +20,7 @@ import com.mallang.mallnagorder.menu.exception.MenuException;
 import com.mallang.mallnagorder.menu.exception.MenuExceptionType;
 import com.mallang.mallnagorder.menu.repository.MenuRepository;
 import com.mallang.mallnagorder.order.repository.OrderItemRepository;
-import com.mallang.mallnagorder.translation.service.AzureTranslatorService;
+import com.mallang.mallnagorder.translation.service.ArgosTranslatorService;
 import com.mallang.mallnagorder.translation.service.VietnameseMenuCountTranslator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -45,7 +45,7 @@ public class MenuService {
     private final OrderItemRepository orderItemRepository;
     private final LocalFileUploader localFileUploader;
     private final AdminPayloadService adminPayloadService;
-    private final AzureTranslatorService azureTranslatorService;
+    private final ArgosTranslatorService argosTranslatorService;
     private final VietnameseMenuCountTranslator vietnameseMenuCountTranslator;
 
     @Transactional
@@ -73,7 +73,7 @@ public class MenuService {
         Menu menu = Menu.builder()
                 .menuName(request.getMenuName())
                 .menuNameEn(request.getMenuNameEn())
-                .menuNameVi(azureTranslatorService.translateToVietnamese(
+                .menuNameVi(argosTranslatorService.translateToVietnamese(
                         request.getMenuName(),
                         request.getMenuNameEn()
                 ).orElse(null))
@@ -118,7 +118,7 @@ public class MenuService {
 
         menu.setMenuName(request.getMenuName());
         menu.setMenuNameEn(request.getMenuNameEn());
-        menu.setMenuNameVi(azureTranslatorService.translateToVietnamese(
+        menu.setMenuNameVi(argosTranslatorService.translateToVietnamese(
                         request.getMenuName(),
                         request.getMenuNameEn()
                 )

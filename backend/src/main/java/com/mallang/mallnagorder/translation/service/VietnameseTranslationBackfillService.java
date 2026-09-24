@@ -21,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VietnameseTranslationBackfillService {
 
-    private final AzureTranslatorService translatorService;
+    private final ArgosTranslatorService translatorService;
     private final VietnameseMenuCountTranslator menuCountTranslator;
     private final AdminRepository adminRepository;
     private final CategoryRepository categoryRepository;

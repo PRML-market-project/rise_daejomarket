@@ -28,4 +28,8 @@ public class KioskExperience extends BaseEntity {
     @Lob
     @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String shopsJson = "[]";
+
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String translationsJson = "{}";
 }

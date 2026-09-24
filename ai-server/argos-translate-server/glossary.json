@@ -1,0 +1,90 @@
+{
+  "식품": {
+    "en": "Food",
+    "vi": "Thực phẩm"
+  },
+  "시장 서측 통로": {
+    "en": "West aisle",
+    "vi": "Lối phía tây"
+  },
+  "서비스업": {
+    "en": "Services",
+    "vi": "Dịch vụ"
+  },
+  "식당": {
+    "en": "Restaurant",
+    "vi": "Quán ăn"
+  },
+  "정육": {
+    "en": "Meat",
+    "vi": "Thịt"
+  },
+  "수산": {
+    "en": "Seafood",
+    "vi": "Hải sản"
+  },
+  "잡화": {
+    "en": "General goods",
+    "vi": "Tạp hóa"
+  },
+  "청과": {
+    "en": "Fruit and vegetables",
+    "vi": "Rau củ quả"
+  },
+  "시장 동측 통로": {
+    "en": "East aisle",
+    "vi": "Lối phía đông"
+  },
+  "시장 남측": {
+    "en": "South market",
+    "vi": "Phía nam chợ"
+  },
+  "주변식당": {
+    "en": "Restaurants",
+    "vi": "Quán ăn"
+  },
+  "반찬가게": {
+    "en": "Side dish shops",
+    "vi": "Cửa hàng món ăn kèm"
+  },
+  "간식가게": {
+    "en": "Snack shops",
+    "vi": "Cửa hàng đồ ăn vặt"
+  },
+  "음식점": {
+    "en": "Restaurant",
+    "vi": "Quán ăn"
+  },
+  "반찬": {
+    "en": "Side dishes",
+    "vi": "Món ăn kèm"
+  },
+  "간식": {
+    "en": "Snacks",
+    "vi": "Đồ ăn vặt"
+  },
+  "호떡": {
+    "en": "Hotteok (sweet pancakes)",
+    "vi": "Hotteok (bánh rán ngọt)"
+  },
+  "분식가게": {
+    "en": "Korean snack restaurant",
+    "vi": "Quán ăn nhẹ Hàn Quốc"
+  },
+  "식당찾기": {
+    "en": "Find restaurants",
+    "vi": "Tìm quán ăn"
+  },
+  "닭강정": {
+    "en": "Sweet crispy fried chicken",
+    "vi": "Gà chiên giòn sốt ngọt"
+  },
+  "옛날통닭": {
+    "en": "Traditional whole fried chicken",
+    "vi": "Gà nguyên con chiên kiểu truyền thống"
+  },
+  "한식뷔페": {
+    "en": "Korean buffet",
+    "vi": "Buffet Hàn Quốc"
+  }
+}

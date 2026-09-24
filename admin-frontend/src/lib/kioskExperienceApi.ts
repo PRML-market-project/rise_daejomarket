@@ -19,6 +19,8 @@ export type SearchTag = {
 };
 
 export type KioskExperience = {
+  translations?: Record<string, { en?: string; vi?: string }>;
+  pendingTranslations?: number;
   operationMode: OperationMode;
   promotions: PromotionContent[];
   searchTags: SearchTag[];

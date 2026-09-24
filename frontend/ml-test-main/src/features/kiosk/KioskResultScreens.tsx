@@ -1,3 +1,4 @@
+import { useKioskLocale } from "./i18n";
 import { useEffect, useMemo, useState } from "react";
 import { getRouteDistanceForShop } from "@/components/market/MapView";
 import type { Shop } from "@/types/shop";
@@ -7,6 +8,7 @@ type Language = "ko" | "en" | "vi";
 const GREEN = "linear-gradient(105deg, #289064 0%, #116543 82%)";
 
 export function FloatingSearchBar({ value, onClick }: { value?: string; onClick: () => void }) {
+  const { t } = useKioskLocale();
   return (
     <div className="absolute left-[48px] right-[48px] top-[56px] z-30">
       <button
@@ -16,7 +18,7 @@ export function FloatingSearchBar({ value, onClick }: { value?: string; onClick:
       >
         <img src="/figma/search.svg" alt="" className="h-[40px] w-[40px]" />
         <span className={`text-[40px] leading-[52px] ${value ? "text-[#19211c]" : "text-[#a1a1a1]"}`}>
-          {value || "검색어를 입력하세요"}
+          {value || t("검색어를 입력하세요")}
         </span>
       </button>
     </div>
@@ -54,12 +56,13 @@ export function SearchStatusScreen({
   onBack: () => void;
   onRetry: () => void;
 }) {
+  const { t } = useKioskLocale();
   const copy = statusCopy[kind];
   return (
     <main className="flex h-[1800px] flex-col items-center px-[48px] pb-[160px] pt-[320px] text-center text-[#0a3825]">
       <img src={copy.image} alt="" className="h-[200px] w-[200px] object-contain" />
-      <h1 className="mt-[16px] text-[64px] font-bold leading-[1.4]">{copy.title}</h1>
-      <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{copy.body}</p>
+      <h1 className="mt-[16px] text-[64px] font-bold leading-[1.4]">{t(copy.title)}</h1>
+      <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{t(copy.body)}</p>
 
       {kind === "empty" && (
         <div className="mt-[80px] w-full">
@@ -68,21 +71,19 @@ export function SearchStatusScreen({
             <span>{query}</span>
           </div>
           <button type="button" onClick={onBack} className="mt-[40px] flex h-[120px] w-full items-center justify-center gap-[20px] rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>
-            <span className="text-[44px]">↻</span> 다시 검색하기
-          </button>
+            <span className="text-[44px]">↻</span>{t("다시 검색하기")}</button>
         </div>
       )}
 
       {kind === "processing" && (
-        <button type="button" onClick={onBack} className="mt-[80px] h-[120px] w-full rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">검색 취소</button>
+        <button type="button" onClick={onBack} className="mt-[80px] h-[120px] w-full rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">{t("검색 취소")}</button>
       )}
 
       {kind === "connection" && (
         <div className="mt-[80px] flex w-full gap-[24px]">
-          <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">이전으로</button>
+          <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">{t("이전으로")}</button>
           <button type="button" onClick={onRetry} className="flex h-[120px] flex-1 items-center justify-center gap-[20px] rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>
-            <span className="text-[44px]">↻</span> 다시 시도
-          </button>
+            <span className="text-[44px]">↻</span>{t("다시 시도")}</button>
         </div>
       )}
     </main>
@@ -100,6 +101,7 @@ export function LanguageSelectionScreen({
   onBack: () => void;
   onComplete: () => void;
 }) {
+  const { t } = useKioskLocale();
   const languages: Array<{ value: Language; title: string; subtitle: string }> = [
     { value: "ko", title: "한국어", subtitle: "Korean" },
     { value: "en", title: "English", subtitle: "영어" },
@@ -108,7 +110,7 @@ export function LanguageSelectionScreen({
   return (
     <main className="flex h-[1800px] flex-col px-[48px] pb-[160px] pt-[320px] text-[#0a3825]">
       <div className="text-center">
-        <h1 className="text-[64px] font-bold leading-[1.4]">사용할 언어를 선택하세요</h1>
+        <h1 className="text-[64px] font-bold leading-[1.4]">{t("사용할 언어를 선택하세요")}</h1>
         <p className="mt-[16px] text-[36px] font-medium">Choose a language · Chọn ngôn ngữ</p>
       </div>
       <div className="mt-[80px] flex flex-col gap-[16px]">
@@ -122,39 +124,41 @@ export function LanguageSelectionScreen({
               className={`flex h-[160px] flex-col justify-center rounded-[32px] border-2 px-[32px] text-left ${active ? "border-[#116543] bg-[#e8f2ee]" : "border-[#ebebeb] bg-white"}`}
             >
               <span className="text-[40px] text-[#19211c]">{item.title}</span>
-              <span className="mt-[4px] text-[24px] text-[#19211c]">{item.subtitle}</span>
+              <span className="mt-[4px] text-[24px] text-[#19211c]">{t(item.subtitle)}</span>
             </button>
           );
         })}
       </div>
       <div className="mt-[40px] flex gap-[24px]">
-        <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">이전으로</button>
-        <button type="button" onClick={onComplete} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>완료</button>
+        <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">{t("이전으로")}</button>
+        <button type="button" onClick={onComplete} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>{t("완료")}</button>
       </div>
     </main>
   );
 }
 
 function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; distanceMeters: number; selected: boolean; onSelect: () => void }) {
+  const { t } = useKioskLocale();
   const hasPhoto = shop.category === "식당" && shop.id !== "21";
-  const tags = shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
+  const tags = shop.tags?.length ? shop.tags : shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
   return (
     <button
       type="button"
       onClick={onSelect}
       className={`flex h-[164px] min-w-0 flex-1 items-center gap-[24px] rounded-[32px] border-2 px-[28px] py-[16px] text-left ${selected ? "border-[#116543] bg-[#e8f2ee]" : "border-[#ebebeb] bg-white"}`}
     >
-      {hasPhoto ? (
-        <img src="/figma/search-result-food.png" alt="" className="h-[120px] w-[120px] shrink-0 rounded-[16px] object-cover" />
+      {shop.thumbnailUrl || hasPhoto ? (
+        <img src={shop.thumbnailUrl || "/figma/search-result-food.png"} alt="" className="h-[120px] w-[120px] shrink-0 rounded-[16px] object-cover" />
       ) : (
-        <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-[16px] bg-[#ebebeb] text-center text-[24px] font-bold leading-[28px] text-[#c9c9c9]">대조<br />시장</div>
+        <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-[16px] bg-[#ebebeb] text-center text-[24px] font-bold leading-[28px] text-[#c9c9c9]">{t("대조시장")}</div>
       )}
       <div className="min-w-0">
-        <strong className="block truncate text-[34px] font-bold leading-[44px] text-[#19211c]">{shop.name}</strong>
-        <div className="mt-[8px] flex gap-[4px] overflow-hidden">
-          {tags.slice(0, 3).map((tag) => <span key={tag} className={`shrink-0 rounded-[16px] px-[12px] py-[4px] text-[18px] leading-[28px] ${selected ? "bg-[#b9ead2] text-[#116543]" : "bg-[#ebebeb] text-[#6f6f6f]"}`}>{tag}</span>)}
+        <strong className="block truncate text-[34px] font-bold leading-[44px] text-[#19211c]">{t(shop.name)}</strong>
+        {shop.description && <span className="mt-1 block truncate text-[16px] leading-[22px] text-[#6f6f6f]" title={t(shop.description)}>{t(shop.description)}</span>}
+        <div className="mt-[4px] flex gap-[4px] overflow-hidden">
+          {tags.slice(0, 3).map((tag, index) => <span key={`${tag}-${index}`} className={`shrink-0 rounded-[16px] px-[12px] py-[2px] text-[16px] leading-[24px] ${selected ? "bg-[#b9ead2] text-[#116543]" : "bg-[#ebebeb] text-[#6f6f6f]"}`}>{t(tag)}</span>)}
         </div>
-        <span className="mt-[8px] block text-[16px] text-[#a1a1a1]">현재 위치에서 {distanceMeters}m</span>
+        <span className="mt-[4px] block text-[16px] leading-[20px] text-[#a1a1a1]">{t("현재 위치에서 {distance}m", { distance: distanceMeters })}</span>
       </div>
     </button>
   );
@@ -173,6 +177,7 @@ export function ResultsPanel({
   onSearchAgain: () => void;
   onDirections: () => void;
 }) {
+  const { t } = useKioskLocale();
   const pageSize = 6;
   const [sortMode, setSortMode] = useState<"relevance" | "distance">("relevance");
   const [page, setPage] = useState(1);
@@ -199,24 +204,20 @@ export function ResultsPanel({
   return (
     <section className="absolute bottom-0 left-0 right-0 z-30 h-[1112px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
       <div className="flex items-center justify-between">
-        <h2 className="text-[36px] font-medium">{shops.length}개의 가게를 찾았어요</h2>
+        <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: shops.length })}</h2>
         <div className="flex rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
           <button
             type="button"
             aria-pressed={sortMode === "relevance"}
             onClick={() => setSortMode("relevance")}
             className={`w-[180px] rounded-full py-[8px] ${sortMode === "relevance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
-          >
-            정확도순
-          </button>
+          >{t("정확도순")}</button>
           <button
             type="button"
             aria-pressed={sortMode === "distance"}
             onClick={() => setSortMode("distance")}
             className={`w-[180px] rounded-full py-[8px] ${sortMode === "distance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
-          >
-            거리순
-          </button>
+          >{t("거리순")}</button>
         </div>
       </div>
       <div className="mt-[40px] grid grid-cols-2 gap-[16px]">
@@ -241,35 +242,37 @@ export function ResultsPanel({
         )}
       </div>
       <div className="mt-[48px] flex gap-[24px]">
-        <button type="button" onClick={onSearchAgain} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">다시 검색하기</button>
-        <button type="button" disabled={!selectedId} onClick={onDirections} className="h-[120px] flex-1 rounded-full text-[40px] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1]" style={selectedId ? { backgroundImage: GREEN, color: "white" } : undefined}>길 찾기</button>
+        <button type="button" onClick={onSearchAgain} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("다시 검색하기")}</button>
+        <button type="button" disabled={!selectedId} onClick={onDirections} className="h-[120px] flex-1 rounded-full text-[40px] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1]" style={selectedId ? { backgroundImage: GREEN, color: "white" } : undefined}>{t("길 찾기")}</button>
       </div>
     </section>
   );
 }
 
 export function DirectionsPanel({ shopName, distanceMeters, onBack, onHome }: { shopName: string; distanceMeters: number; onBack: () => void; onHome: () => void }) {
+  const { t } = useKioskLocale();
   return (
     <section className="absolute bottom-0 left-0 right-0 z-30 h-[492px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
       <div className="flex items-center justify-between">
-        <h2 className="max-w-[650px] text-[36px] font-bold leading-[52px]">“{shopName}”으로<br />이동하는 길을 알려드릴게요</h2>
-        <p className="text-[48px] font-bold text-[#19211c]"><strong className="text-[80px] text-[#116543]">{distanceMeters}</strong>m 이동</p>
+        <h2 className="max-w-[650px] text-[36px] font-bold leading-[52px]">{t("{name}으로 이동하는 길을 알려드릴게요", { name: t(shopName) })}</h2>
+        <p className="text-[48px] font-bold text-[#19211c]"><strong className="text-[80px] text-[#116543]">{distanceMeters}</strong> m {t("이동")}</p>
       </div>
       <div className="mt-[48px] flex gap-[24px]">
-        <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">이전</button>
-        <button type="button" onClick={onHome} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>처음으로</button>
+        <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("이전")}</button>
+        <button type="button" onClick={onHome} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>{t("처음으로")}</button>
       </div>
     </section>
   );
 }
 
 export function MarketMapPanel({ onHome, onSearch }: { onHome: () => void; onSearch: () => void }) {
+  const { t } = useKioskLocale();
   return (
     <section className="absolute bottom-0 left-0 right-0 z-30 h-[420px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
-      <h2 className="text-[36px] font-medium">대조시장 전체 지도</h2>
+      <h2 className="text-[36px] font-medium">{t("대조시장 전체 지도")}</h2>
       <div className="mt-[48px] flex gap-[24px]">
-        <button type="button" onClick={onHome} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">처음으로</button>
-        <button type="button" onClick={onSearch} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>검색하기</button>
+        <button type="button" onClick={onHome} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("처음으로")}</button>
+        <button type="button" onClick={onSearch} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>{t("검색하기")}</button>
       </div>
     </section>
   );

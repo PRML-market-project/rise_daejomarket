@@ -9,8 +9,8 @@ const component = source.slice(source.indexOf("function CategoryChips("), source
 const js = ts.transpile(component.replaceAll("import.meta.env.VITE_API_URL", "undefined"), {
   jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2020,
 });
-const Chips = new Function("React", "getSearchTagIcon", `${js}; return CategoryChips;`)(
-  React, () => ({ asset: "restaurant", color: "#ff9500", size: 25.185 }),
+const Chips = new Function("React", "getSearchTagIcon", "useKioskLocale", `${js}; return CategoryChips;`)(
+  React, () => ({ asset: "restaurant", color: "#ff9500", size: 25.185 }), () => ({ t: text => text }),
 );
 const render = (configuredTags) => renderToStaticMarkup(React.createElement(Chips, { configuredTags, onChoose() {} }));
 for (const input of [undefined, []]) {

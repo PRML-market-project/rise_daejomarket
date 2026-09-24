@@ -1,5 +1,7 @@
+import { useKioskLocale } from "./i18n";
 /* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useState } from "react";
+import type { Translations } from "./i18n";
 
 export type PromotionContent = {
   id: number;
@@ -14,6 +16,7 @@ const API_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:8080").repla
 const assetUrl = (url: string) => url.startsWith("http") ? url : `${API_BASE}${url}`;
 
 export function KioskPromotionPlayer({ contents }: { contents: PromotionContent[] }) {
+  const { t } = useKioskLocale();
   const [index, setIndex] = useState(0);
   const next = useCallback(() => setIndex((current) => contents.length ? (current + 1) % contents.length : 0), [contents.length]);
   const active = contents[index] ?? contents[0];
@@ -30,14 +33,14 @@ export function KioskPromotionPlayer({ contents }: { contents: PromotionContent[
 
   if (!active) return null;
   const style = { objectFit: active.fit } as const;
-  return <main className="fixed inset-0 z-[100] overflow-hidden bg-black" aria-label="대조시장 홍보 콘텐츠">
+  return <main className="fixed inset-0 z-[100] overflow-hidden bg-black" aria-label={t("대조시장 홍보 콘텐츠")}>
     {active.type === "video"
       ? <video key={active.id} src={assetUrl(active.url)} autoPlay muted playsInline className="h-full w-full" style={style} onEnded={next} onError={next} />
       : <img key={active.id} src={assetUrl(active.url)} alt={active.name} className="h-full w-full" style={style} onError={next} />}
   </main>;
 }
 
-export type KioskExperience = { operationMode: "DIRECTIONS" | "PROMOTION"; promotions: PromotionContent[]; searchTags: Array<{ id: number; name: string; keywords: string; icon: string; iconUrl?: string; visible: boolean }>; shops: Array<{ id: string; name: string; description: string; keywords: string; tags: string[]; thumbnailUrl: string; icon: string }> };
+export type KioskExperience = { translations?: Translations; pendingTranslations?: number; operationMode: "DIRECTIONS" | "PROMOTION"; promotions: PromotionContent[]; searchTags: Array<{ id: number; name: string; keywords: string; icon: string; iconUrl?: string; visible: boolean }>; shops: Array<{ id: string; name: string; description: string; keywords: string; tags: string[]; thumbnailUrl: string; icon: string }> };
 
 export async function fetchKioskExperience(signal?: AbortSignal): Promise<KioskExperience> {
   const response = await fetch(`${API_BASE}/api/kiosk-experience`, { cache: "no-store", signal });

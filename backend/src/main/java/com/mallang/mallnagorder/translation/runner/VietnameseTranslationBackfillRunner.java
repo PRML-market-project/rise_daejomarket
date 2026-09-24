@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @ConditionalOnProperty(
-        name = "azure.translator.backfill-on-startup",
+        name = "argos.translator.backfill-on-startup",
         havingValue = "true"
 )
 public class VietnameseTranslationBackfillRunner implements ApplicationRunner {

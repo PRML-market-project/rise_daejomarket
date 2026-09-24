@@ -14,7 +14,7 @@ import com.mallang.mallnagorder.category.repository.MenuCategoryRepository;
 import com.mallang.mallnagorder.menu.domain.Menu;
 import com.mallang.mallnagorder.menu.domain.MenuCategory;
 import com.mallang.mallnagorder.menu.repository.MenuRepository;
-import com.mallang.mallnagorder.translation.service.AzureTranslatorService;
+import com.mallang.mallnagorder.translation.service.ArgosTranslatorService;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,7 +30,7 @@ public class CategoryService {
     private final AdminRepository adminRepository;
     private final MenuCategoryRepository menuCategoryRepository; // 추가 필요
     private final AdminPayloadService adminPayloadService;
-    private final AzureTranslatorService azureTranslatorService;
+    private final ArgosTranslatorService argosTranslatorService;
 
     @Transactional
     public CategoryResponse createCategory(String categoryName, String categoryNameEn, String categoryType, Long adminId) {
@@ -47,7 +47,7 @@ public class CategoryService {
         Category category = Category.builder()
                 .categoryName(categoryName)
                 .categoryNameEn(categoryNameEn)
-                .categoryNameVi(azureTranslatorService.translateToVietnamese(
+                .categoryNameVi(argosTranslatorService.translateToVietnamese(
                         categoryName,
                         categoryNameEn
                 ).orElse(null))
@@ -75,7 +75,7 @@ public class CategoryService {
 
         category.setCategoryName(newName);
         category.setCategoryNameEn(newNameEn);
-        category.setCategoryNameVi(azureTranslatorService.translateToVietnamese(newName, newNameEn)
+        category.setCategoryNameVi(argosTranslatorService.translateToVietnamese(newName, newNameEn)
                 .orElse(category.getCategoryNameVi()));
         category.setCategoryType(newCategoryType);
 

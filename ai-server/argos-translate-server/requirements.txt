@@ -1,0 +1,4 @@
+argostranslate==1.11.0
+hangul-romanize==0.1.0
+fastapi==0.136.1
+uvicorn==0.34.3

@@ -1,0 +1,578 @@
+{
+  "남영상회": {
+    "en": "nam-yeongsanghoe (남영상회)",
+    "vi": "nam-yeongsanghoe (남영상회)"
+  },
+  "식품": {
+    "en": "Food",
+    "vi": "Thực phẩm"
+  },
+  "시장 서측 통로": {
+    "en": "West aisle",
+    "vi": "Lối phía tây"
+  },
+  "불광일등약국": {
+    "en": "bulgwang-ildeung-yaggug (불광일등약국)",
+    "vi": "bulgwang-ildeung-yaggug (불광일등약국)"
+  },
+  "서비스업": {
+    "en": "Services",
+    "vi": "Dịch vụ"
+  },
+  "행운손만두": {
+    "en": "haeng-unsonmandu (행운손만두)",
+    "vi": "haeng-unsonmandu (행운손만두)"
+  },
+  "식당": {
+    "en": "Restaurant",
+    "vi": "Quán ăn"
+  },
+  "황가네순대국 (2층)": {
+    "en": "hwangganesundaegug (2cheung) (황가네순대국 (2층))",
+    "vi": "hwangganesundaegug (2cheung) (황가네순대국 (2층))"
+  },
+  "엉터리집 (2층)": {
+    "en": "eongteolijib (2cheung) (엉터리집 (2층))",
+    "vi": "eongteolijib (2cheung) (엉터리집 (2층))"
+  },
+  "봉화장여관 (2층)": {
+    "en": "bonghwajang-yeogwan (2cheung) (봉화장여관 (2층))",
+    "vi": "bonghwajang-yeogwan (2cheung) (봉화장여관 (2층))"
+  },
+  "금산약초": {
+    "en": "geumsan-yagcho (금산약초)",
+    "vi": "geumsan-yagcho (금산약초)"
+  },
+  "재덕정육점": {
+    "en": "jaedeogjeong-yugjeom (재덕정육점)",
+    "vi": "jaedeogjeong-yugjeom (재덕정육점)"
+  },
+  "정육": {
+    "en": "Meat",
+    "vi": "Thịt"
+  },
+  "신흥고추": {
+    "en": "sinheunggochu (신흥고추)",
+    "vi": "sinheunggochu (신흥고추)"
+  },
+  "서울건어물": {
+    "en": "seo-ulgeon-eomul (서울건어물)",
+    "vi": "seo-ulgeon-eomul (서울건어물)"
+  },
+  "수산": {
+    "en": "Seafood",
+    "vi": "Hải sản"
+  },
+  "전라도김치": {
+    "en": "jeonladogimchi (전라도김치)",
+    "vi": "jeonladogimchi (전라도김치)"
+  },
+  "고원문방구": {
+    "en": "go-wonmunbanggu (고원문방구)",
+    "vi": "go-wonmunbanggu (고원문방구)"
+  },
+  "잡화": {
+    "en": "General goods",
+    "vi": "Tạp hóa"
+  },
+  "불광돌쇠닭강정": {
+    "en": "bulgwangdolsoedalggangjeong (불광돌쇠닭강정)",
+    "vi": "bulgwangdolsoedalggangjeong (불광돌쇠닭강정)"
+  },
+  "늘푸른야채": {
+    "en": "neulpuleun-yachae (늘푸른야채)",
+    "vi": "neulpuleun-yachae (늘푸른야채)"
+  },
+  "청과": {
+    "en": "Fruit and vegetables",
+    "vi": "Rau củ quả"
+  },
+  "문창식품": {
+    "en": "munchangsigpum (문창식품)",
+    "vi": "munchangsigpum (문창식품)"
+  },
+  "대광사화장품": {
+    "en": "daegwangsahwajangpum (대광사화장품)",
+    "vi": "daegwangsahwajangpum (대광사화장품)"
+  },
+  "좋은축산마을": {
+    "en": "joh-eunchugsanma-eul (좋은축산마을)",
+    "vi": "joh-eunchugsanma-eul (좋은축산마을)"
+  },
+  "야채랑과일이랑": {
+    "en": "yachaelanggwa-il-ilang (야채랑과일이랑)",
+    "vi": "yachaelanggwa-il-ilang (야채랑과일이랑)"
+  },
+  "불광프라자 약국": {
+    "en": "bulgwangpeulaja yaggug (불광프라자 약국)",
+    "vi": "bulgwangpeulaja yaggug (불광프라자 약국)"
+  },
+  "칠공주 호떡&떡갈비": {
+    "en": "chilgongju ho-tteog&tteoggalbi (칠공주 호떡&떡갈비)",
+    "vi": "chilgongju ho-tteog&tteoggalbi (칠공주 호떡&떡갈비)"
+  },
+  "양지상회": {
+    "en": "yangjisanghoe (양지상회)",
+    "vi": "yangjisanghoe (양지상회)"
+  },
+  "곰순이네 한식뷔페": {
+    "en": "gomsun-ine hansigbwipe (곰순이네 한식뷔페)",
+    "vi": "gomsun-ine hansigbwipe (곰순이네 한식뷔페)"
+  },
+  "서울지짐이": {
+    "en": "seo-uljijim-i (서울지짐이)",
+    "vi": "seo-uljijim-i (서울지짐이)"
+  },
+  "유미네집": {
+    "en": "yuminejib (유미네집)",
+    "vi": "yuminejib (유미네집)"
+  },
+  "유명한튀김": {
+    "en": "yumyeonghantwigim (유명한튀김)",
+    "vi": "yumyeonghantwigim (유명한튀김)"
+  },
+  "보령수산": {
+    "en": "bolyeongsusan (보령수산)",
+    "vi": "bolyeongsusan (보령수산)"
+  },
+  "명지상회": {
+    "en": "myeongjisanghoe (명지상회)",
+    "vi": "myeongjisanghoe (명지상회)"
+  },
+  "야채과일의하루": {
+    "en": "yachaegwa-il-uihalu (야채과일의하루)",
+    "vi": "yachaegwa-il-uihalu (야채과일의하루)"
+  },
+  "광천상회": {
+    "en": "gwangcheonsanghoe (광천상회)",
+    "vi": "gwangcheonsanghoe (광천상회)"
+  },
+  "종로금거래소": {
+    "en": "jonglogeumgeolaeso (종로금거래소)",
+    "vi": "jonglogeumgeolaeso (종로금거래소)"
+  },
+  "씨크": {
+    "en": "ssikeu (씨크)",
+    "vi": "ssikeu (씨크)"
+  },
+  "옛날죽집": {
+    "en": "yesnaljugjib (옛날죽집)",
+    "vi": "yesnaljugjib (옛날죽집)"
+  },
+  "호남상회": {
+    "en": "honamsanghoe (호남상회)",
+    "vi": "honamsanghoe (호남상회)"
+  },
+  "대조축산": {
+    "en": "daejochugsan (대조축산)",
+    "vi": "daejochugsan (대조축산)"
+  },
+  "불광건어물": {
+    "en": "bulgwanggeon-eomul (불광건어물)",
+    "vi": "bulgwanggeon-eomul (불광건어물)"
+  },
+  "연성그릇": {
+    "en": "yeonseonggeuleus (연성그릇)",
+    "vi": "yeonseonggeuleus (연성그릇)"
+  },
+  "언니들의빈티지": {
+    "en": "eonnideul-uibintiji (언니들의빈티지)",
+    "vi": "eonnideul-uibintiji (언니들의빈티지)"
+  },
+  "시장 동측 통로": {
+    "en": "East aisle",
+    "vi": "Lối phía đông"
+  },
+  "행복가구 (3층 고객센터)": {
+    "en": "haengboggagu (3cheung gogaegsenteo) (행복가구 (3층 고객센터))",
+    "vi": "haengboggagu (3cheung gogaegsenteo) (행복가구 (3층 고객센터))"
+  },
+  "태성골뱅이": {
+    "en": "taeseonggolbaeng-i (태성골뱅이)",
+    "vi": "taeseonggolbaeng-i (태성골뱅이)"
+  },
+  "대영상회": {
+    "en": "dae-yeongsanghoe (대영상회)",
+    "vi": "dae-yeongsanghoe (대영상회)"
+  },
+  "대원닭": {
+    "en": "dae-wondalg (대원닭)",
+    "vi": "dae-wondalg (대원닭)"
+  },
+  "늘봄상회": {
+    "en": "neulbomsanghoe (늘봄상회)",
+    "vi": "neulbomsanghoe (늘봄상회)"
+  },
+  "통큰족발": {
+    "en": "tongkeunjogbal (통큰족발)",
+    "vi": "tongkeunjogbal (통큰족발)"
+  },
+  "부부축산": {
+    "en": "bubuchugsan (부부축산)",
+    "vi": "bubuchugsan (부부축산)"
+  },
+  "장터빈대떡": {
+    "en": "jangteobindae-tteog (장터빈대떡)",
+    "vi": "jangteobindae-tteog (장터빈대떡)"
+  },
+  "하림닭집": {
+    "en": "halimdalgjib (하림닭집)",
+    "vi": "halimdalgjib (하림닭집)"
+  },
+  "불광축산": {
+    "en": "bulgwangchugsan (불광축산)",
+    "vi": "bulgwangchugsan (불광축산)"
+  },
+  "시골식품": {
+    "en": "sigolsigpum (시골식품)",
+    "vi": "sigolsigpum (시골식품)"
+  },
+  "정민베이커리": {
+    "en": "jeongminbe-ikeoli (정민베이커리)",
+    "vi": "jeongminbe-ikeoli (정민베이커리)"
+  },
+  "소문난순대": {
+    "en": "somunnansundae (소문난순대)",
+    "vi": "somunnansundae (소문난순대)"
+  },
+  "어묵집": {
+    "en": "eomugjib (어묵집)",
+    "vi": "eomugjib (어묵집)"
+  },
+  "불광떡집": {
+    "en": "bulgwangtteogjib (불광떡집)",
+    "vi": "bulgwangtteogjib (불광떡집)"
+  },
+  "바로돈가스": {
+    "en": "balodongaseu (바로돈가스)",
+    "vi": "balodongaseu (바로돈가스)"
+  },
+  "야채마을": {
+    "en": "yachaema-eul (야채마을)",
+    "vi": "yachaema-eul (야채마을)"
+  },
+  "신광상회": {
+    "en": "singwangsanghoe (신광상회)",
+    "vi": "singwangsanghoe (신광상회)"
+  },
+  "윤다승식품": {
+    "en": "yundaseungsigpum (윤다승식품)",
+    "vi": "yundaseungsigpum (윤다승식품)"
+  },
+  "세계로반찬": {
+    "en": "segyelobanchan (세계로반찬)",
+    "vi": "segyelobanchan (세계로반찬)"
+  },
+  "고향상회": {
+    "en": "gohyangsanghoe (고향상회)",
+    "vi": "gohyangsanghoe (고향상회)"
+  },
+  "서울상회": {
+    "en": "seo-ulsanghoe (서울상회)",
+    "vi": "seo-ulsanghoe (서울상회)"
+  },
+  "불광해물": {
+    "en": "bulgwanghaemul (불광해물)",
+    "vi": "bulgwanghaemul (불광해물)"
+  },
+  "일산야채": {
+    "en": "ilsan-yachae (일산야채)",
+    "vi": "ilsan-yachae (일산야채)"
+  },
+  "부부상회": {
+    "en": "bubusanghoe (부부상회)",
+    "vi": "bubusanghoe (부부상회)"
+  },
+  "상추상회": {
+    "en": "sangchusanghoe (상추상회)",
+    "vi": "sangchusanghoe (상추상회)"
+  },
+  "금성상회": {
+    "en": "geumseongsanghoe (금성상회)",
+    "vi": "geumseongsanghoe (금성상회)"
+  },
+  "도시의바다": {
+    "en": "dosi-uibada (도시의바다)",
+    "vi": "dosi-uibada (도시의바다)"
+  },
+  "행복가구": {
+    "en": "haengboggagu (행복가구)",
+    "vi": "haengboggagu (행복가구)"
+  },
+  "대조상회": {
+    "en": "daejosanghoe (대조상회)",
+    "vi": "daejosanghoe (대조상회)"
+  },
+  "고흥야채": {
+    "en": "goheung-yachae (고흥야채)",
+    "vi": "goheung-yachae (고흥야채)"
+  },
+  "청주상회": {
+    "en": "cheongjusanghoe (청주상회)",
+    "vi": "cheongjusanghoe (청주상회)"
+  },
+  "낙원상회": {
+    "en": "nag-wonsanghoe (낙원상회)",
+    "vi": "nag-wonsanghoe (낙원상회)"
+  },
+  "제일상회": {
+    "en": "je-ilsanghoe (제일상회)",
+    "vi": "je-ilsanghoe (제일상회)"
+  },
+  "숙이네젓갈": {
+    "en": "sug-inejeosgal (숙이네젓갈)",
+    "vi": "sug-inejeosgal (숙이네젓갈)"
+  },
+  "옹진수산": {
+    "en": "ongjinsusan (옹진수산)",
+    "vi": "ongjinsusan (옹진수산)"
+  },
+  "정환상회": {
+    "en": "jeonghwansanghoe (정환상회)",
+    "vi": "jeonghwansanghoe (정환상회)"
+  },
+  "홍제상회": {
+    "en": "hongjesanghoe (홍제상회)",
+    "vi": "hongjesanghoe (홍제상회)"
+  },
+  "녹번나물집": {
+    "en": "nogbeonnamuljib (녹번나물집)",
+    "vi": "nogbeonnamuljib (녹번나물집)"
+  },
+  "달이네멍냥": {
+    "en": "dal-inemeongnyang (달이네멍냥)",
+    "vi": "dal-inemeongnyang (달이네멍냥)"
+  },
+  "엄마김치": {
+    "en": "eommagimchi (엄마김치)",
+    "vi": "eommagimchi (엄마김치)"
+  },
+  "신의주찹쌀순대": {
+    "en": "sin-uijuchab-ssalsundae (신의주찹쌀순대)",
+    "vi": "sin-uijuchab-ssalsundae (신의주찹쌀순대)"
+  },
+  "다온축산": {
+    "en": "da-onchugsan (다온축산)",
+    "vi": "da-onchugsan (다온축산)"
+  },
+  "오복과일야채": {
+    "en": "oboggwa-il-yachae (오복과일야채)",
+    "vi": "oboggwa-il-yachae (오복과일야채)"
+  },
+  "다희이불": {
+    "en": "dahui-ibul (다희이불)",
+    "vi": "dahui-ibul (다희이불)"
+  },
+  "약선흑염소": {
+    "en": "yagseonheug-yeomso (약선흑염소)",
+    "vi": "yagseonheug-yeomso (약선흑염소)"
+  },
+  "강화쌀상회": {
+    "en": "ganghwa-ssalsanghoe (강화쌀상회)",
+    "vi": "ganghwa-ssalsanghoe (강화쌀상회)"
+  },
+  "맥반석주전부리": {
+    "en": "maegbanseogjujeonbuli (맥반석주전부리)",
+    "vi": "maegbanseogjujeonbuli (맥반석주전부리)"
+  },
+  "시장 남측": {
+    "en": "South market",
+    "vi": "Phía nam chợ"
+  },
+  "축협한우마을": {
+    "en": "chughyeobhan-uma-eul (축협한우마을)",
+    "vi": "chughyeobhan-uma-eul (축협한우마을)"
+  },
+  "불광동족발": {
+    "en": "bulgwangdongjogbal (불광동족발)",
+    "vi": "bulgwangdongjogbal (불광동족발)"
+  },
+  "남도술상": {
+    "en": "namdosulsang (남도술상)",
+    "vi": "namdosulsang (남도술상)"
+  },
+  "왕십리곱창": {
+    "en": "wangsibligobchang (왕십리곱창)",
+    "vi": "wangsibligobchang (왕십리곱창)"
+  },
+  "해남건어물": {
+    "en": "haenamgeon-eomul (해남건어물)",
+    "vi": "haenamgeon-eomul (해남건어물)"
+  },
+  "일심상회": {
+    "en": "ilsimsanghoe (일심상회)",
+    "vi": "ilsimsanghoe (일심상회)"
+  },
+  "수산물직판장": {
+    "en": "susanmuljigpanjang (수산물직판장)",
+    "vi": "susanmuljigpanjang (수산물직판장)"
+  },
+  "바로굼빵터": {
+    "en": "balogumppangteo (바로굼빵터)",
+    "vi": "balogumppangteo (바로굼빵터)"
+  },
+  "종로복떡집": {
+    "en": "jonglobogtteogjib (종로복떡집)",
+    "vi": "jonglobogtteogjib (종로복떡집)"
+  },
+  "시골시장참기름": {
+    "en": "sigolsijangchamgileum (시골시장참기름)",
+    "vi": "sigolsijangchamgileum (시골시장참기름)"
+  },
+  "남도홍어": {
+    "en": "namdohong-eo (남도홍어)",
+    "vi": "namdohong-eo (남도홍어)"
+  },
+  "떡마을": {
+    "en": "tteogma-eul (떡마을)",
+    "vi": "tteogma-eul (떡마을)"
+  },
+  "우리농산물": {
+    "en": "ulinongsanmul (우리농산물)",
+    "vi": "ulinongsanmul (우리농산물)"
+  },
+  "정아네": {
+    "en": "jeong-ane (정아네)",
+    "vi": "jeong-ane (정아네)"
+  },
+  "골드축산": {
+    "en": "goldeuchugsan (골드축산)",
+    "vi": "goldeuchugsan (골드축산)"
+  },
+  "대명당": {
+    "en": "daemyeongdang (대명당)",
+    "vi": "daemyeongdang (대명당)"
+  },
+  "메모리": {
+    "en": "memoli (메모리)",
+    "vi": "memoli (메모리)"
+  },
+  "우리수선": {
+    "en": "ulisuseon (우리수선)",
+    "vi": "ulisuseon (우리수선)"
+  },
+  "꽉찬소곱창": {
+    "en": "kkwagchansogobchang (꽉찬소곱창)",
+    "vi": "kkwagchansogobchang (꽉찬소곱창)"
+  },
+  "고모집생선": {
+    "en": "gomojibsaengseon (고모집생선)",
+    "vi": "gomojibsaengseon (고모집생선)"
+  },
+  "은평청과물": {
+    "en": "eunpyeongcheonggwamul (은평청과물)",
+    "vi": "eunpyeongcheonggwamul (은평청과물)"
+  },
+  "소문난반찬": {
+    "en": "somunnanbanchan (소문난반찬)",
+    "vi": "somunnanbanchan (소문난반찬)"
+  },
+  "갤러리 명품 빈티지": {
+    "en": "gaelleoli myeongpum bintiji (갤러리 명품 빈티지)",
+    "vi": "gaelleoli myeongpum bintiji (갤러리 명품 빈티지)"
+  },
+  "계단집": {
+    "en": "gyedanjib (계단집)",
+    "vi": "gyedanjib (계단집)"
+  },
+  "행복통닭": {
+    "en": "haengbogtongdalg (행복통닭)",
+    "vi": "haengbogtongdalg (행복통닭)"
+  },
+  "봉화농산물": {
+    "en": "bonghwanongsanmul (봉화농산물)",
+    "vi": "bonghwanongsanmul (봉화농산물)"
+  },
+  "우리농산": {
+    "en": "ulinongsan (우리농산)",
+    "vi": "ulinongsan (우리농산)"
+  },
+  "현대육류백화점": {
+    "en": "hyeondae-yuglyubaeghwajeom (현대육류백화점)",
+    "vi": "hyeondae-yuglyubaeghwajeom (현대육류백화점)"
+  },
+  "도깨비칼국수": {
+    "en": "do-kkaebikalgugsu (도깨비칼국수)",
+    "vi": "do-kkaebikalgugsu (도깨비칼국수)"
+  },
+  "한성방앗간": {
+    "en": "hanseongbang-asgan (한성방앗간)",
+    "vi": "hanseongbang-asgan (한성방앗간)"
+  },
+  "축산물직거래도매센터": {
+    "en": "chugsanmuljiggeolaedomaesenteo (축산물직거래도매센터)",
+    "vi": "chugsanmuljiggeolaedomaesenteo (축산물직거래도매센터)"
+  },
+  "영미용실": {
+    "en": "yeongmi-yongsil (영미용실)",
+    "vi": "yeongmi-yongsil (영미용실)"
+  },
+  "꿉는남자": {
+    "en": "kkubneunnamja (꿉는남자)",
+    "vi": "kkubneunnamja (꿉는남자)"
+  },
+  "자연이준선물": {
+    "en": "ja-yeon-ijunseonmul (자연이준선물)",
+    "vi": "ja-yeon-ijunseonmul (자연이준선물)"
+  },
+  "대조골목집": {
+    "en": "daejogolmogjib (대조골목집)",
+    "vi": "daejogolmogjib (대조골목집)"
+  },
+  "대동고추": {
+    "en": "daedonggochu (대동고추)",
+    "vi": "daedonggochu (대동고추)"
+  },
+  "진영153수산": {
+    "en": "jin-yeong153susan (진영153수산)",
+    "vi": "jin-yeong153susan (진영153수산)"
+  },
+  "주변식당": {
+    "en": "Restaurants",
+    "vi": "Quán ăn"
+  },
+  "반찬가게": {
+    "en": "Side dish shops",
+    "vi": "Cửa hàng món ăn kèm"
+  },
+  "간식가게": {
+    "en": "Snack shops",
+    "vi": "Cửa hàng đồ ăn vặt"
+  },
+  "음식점": {
+    "en": "Restaurant",
+    "vi": "Quán ăn"
+  },
+  "반찬": {
+    "en": "Side dishes",
+    "vi": "Món ăn kèm"
+  },
+  "간식": {
+    "en": "Snacks",
+    "vi": "Đồ ăn vặt"
+  },
+  "호떡": {
+    "en": "Hotteok (sweet pancakes)",
+    "vi": "Hotteok (bánh rán ngọt)"
+  },
+  "분식가게": {
+    "en": "Korean snack restaurant",
+    "vi": "Quán ăn nhẹ Hàn Quốc"
+  },
+  "식당찾기": {
+    "en": "Find restaurants",
+    "vi": "Tìm quán ăn"
+  },
+  "닭강정": {
+    "en": "Sweet crispy fried chicken",
+    "vi": "Gà chiên giòn sốt ngọt"
+  },
+  "옛날통닭": {
+    "en": "Traditional whole fried chicken",
+    "vi": "Gà nguyên con chiên kiểu truyền thống"
+  },
+  "한식뷔페": {
+    "en": "Korean buffet",
+    "vi": "Buffet Hàn Quốc"
+  }
+}

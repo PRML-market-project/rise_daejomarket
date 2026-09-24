@@ -1,0 +1,4 @@
+// Keep test-worker classpaths ASCII on Windows (the checkout path contains Korean).
+allprojects {
+    layout.buildDirectory.set(new File(System.getProperty('java.io.tmpdir'), 'rise-kiosk-translation-tests'))
+}

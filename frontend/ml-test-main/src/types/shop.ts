@@ -18,5 +18,9 @@ export type Shop = {
 
   hours?: string;
   icon?: string;
+  description?: string;
+  searchKeywords?: string;
+  tags?: string[];
+  thumbnailUrl?: string;
 
 };

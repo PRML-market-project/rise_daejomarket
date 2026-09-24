@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +23,7 @@ public class KioskExperienceService {
     private static final Set<String> MODES = Set.of("DIRECTIONS", "PROMOTION");
     private final KioskExperienceRepository repository;
     private final ObjectMapper objectMapper;
+    private final KioskTranslationService translations;
 
     @Transactional
     public KioskExperienceResponse get() {
@@ -60,6 +62,7 @@ public class KioskExperienceService {
         }
         KioskExperience config = getOrCreate();
         config.setSearchTagsJson(write(safeTags));
+        translate(config);
         return toResponse(repository.save(config));
     }
 
@@ -67,7 +70,25 @@ public class KioskExperienceService {
     public KioskExperienceResponse updateShops(List<ManagedShopDto> shops) {
         KioskExperience config = getOrCreate();
         config.setShopsJson(write(shops == null ? List.of() : shops));
+        translate(config);
         return toResponse(repository.save(config));
+    }
+
+    @Transactional
+    public KioskExperienceResponse backfillTranslations() {
+        KioskExperience config = getOrCreate();
+        translate(config);
+        return toResponse(repository.save(config));
+    }
+
+    private Map<String, Map<String, String>> savedTranslations(KioskExperience config) {
+        return config.getTranslationsJson() == null || config.getTranslationsJson().isBlank()
+                ? Map.of() : read(config.getTranslationsJson(), new TypeReference<>() {});
+    }
+
+    private void translate(KioskExperience config) {
+        var sources = translations.sources(read(config.getShopsJson(), new TypeReference<>() {}), read(config.getSearchTagsJson(), new TypeReference<>() {}));
+        config.setTranslationsJson(write(translations.translate(sources, savedTranslations(config), read(config.getShopsJson(), new TypeReference<>() {}))));
     }
 
     private KioskExperience getOrCreate() {
@@ -75,11 +96,16 @@ public class KioskExperienceService {
     }
 
     private KioskExperienceResponse toResponse(KioskExperience config) {
+        List<ManagedShopDto> shops = read(config.getShopsJson(), new TypeReference<>() {});
+        List<SearchTagDto> tags = read(config.getSearchTagsJson(), new TypeReference<>() {});
+        var localized = translations.withSeeds(savedTranslations(config));
         return new KioskExperienceResponse(
                 config.getOperationMode(),
                 read(config.getPromotionsJson(), new TypeReference<>() {}),
-                read(config.getSearchTagsJson(), new TypeReference<>() {}),
-                read(config.getShopsJson(), new TypeReference<>() {})
+                tags,
+                shops,
+                localized,
+                translations.missing(translations.sources(shops, tags), localized).size()
         );
     }
 

@@ -14,7 +14,7 @@ public class VietnameseMenuCountTranslator {
 
     private static final Pattern KOREAN_PATTERN = Pattern.compile("[가-힣]");
 
-    private final AzureTranslatorService azureTranslatorService;
+    private final ArgosTranslatorService argosTranslatorService;
 
     public Optional<String> translate(String menuCount, String menuNameEn) {
         if (!StringUtils.hasText(menuCount)) {
@@ -35,7 +35,7 @@ public class VietnameseMenuCountTranslator {
         if (!KOREAN_PATTERN.matcher(translated).find()) {
             return Optional.of(translated);
         }
-        return azureTranslatorService.translateToVietnamese(menuCount);
+        return argosTranslatorService.translateToVietnamese(menuCount);
     }
 
     private boolean isFruit(String menuNameEn) {

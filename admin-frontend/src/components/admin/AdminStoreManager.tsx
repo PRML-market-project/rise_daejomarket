@@ -356,6 +356,8 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(4);
   const [nameError, setNameError] = useState("");
+  const [translations, setTranslations] = useState<Record<string, { en?: string; vi?: string }>>({});
+  const [translationPending, setTranslationPending] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
   const distanceMeters = getAdminRouteDistanceMeters(shopId);
@@ -364,6 +366,8 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
     let disposed = false;
     getKioskExperience().then((config) => {
       if (disposed) return;
+      setTranslations(config.translations ?? {});
+      setTranslationPending(config.pendingTranslations ?? 0);
       const managed = config.shops.find((shop) => shop.id === shopId);
       const shop = shops.find((item) => item.id === shopId);
       const fallback = shop?.category === "식당" ? "식당" : shop?.category === "서비스업" ? "서비스업" : shop?.category === "잡화" ? "식료품잡화" : shop?.category === "식품" ? "식품" : "정육청과수산";
@@ -397,7 +401,9 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
     try {
       const config = await getKioskExperience();
       const managed = { id: shopId, name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail.startsWith("/api/") ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
-      await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id), managed]);
+      const savedConfig = await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id), managed]);
+      setTranslations(savedConfig.translations ?? {});
+      setTranslationPending(savedConfig.pendingTranslations ?? 0);
       onSavedIcon(managed.id, managed.icon);
       setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false);
     } catch { setDialog("save-error"); }
@@ -425,6 +431,12 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
       <section className="flex flex-col gap-[8px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><strong className="text-[14px] leading-[20px]">썸네일 이미지</strong><div className="flex items-center gap-[16px]"><img src={thumbnail.startsWith("/api/") ? thumbnail : absoluteAssetUrl(thumbnail)} alt="현재 썸네일" className="h-[96px] w-[96px] rounded-[12px] object-cover" /><div className="flex flex-1 flex-col gap-[16px]"><span className="text-[14px] font-medium">가게_썸네일.jpg</span><div className="flex gap-[8px]"><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => fileRef.current?.click()}>이미지 교체</PillButton><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => { setThumbnail("/api/design-asset/thumbnail"); setSaved(false); }}>기본 이미지</PillButton></div></div><input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={chooseFile} /></div></section>
       <IconPicker open={iconOpen} selected={selectedIcon} onToggle={() => setIconOpen(!iconOpen)} onSelect={(index) => { setSelectedIcon(index); setIconOpen(false); setSaved(false); }} />
       <section className="flex flex-col gap-[8px]"><strong className="text-[14px] leading-[20px]">카드 미리보기</strong><div className="flex justify-center rounded-[24px] bg-[#ebebeb] px-[12px] py-[24px]"><div className="flex h-[120px] w-[426px] items-center gap-[17px] rounded-[23px] border border-[#ebebeb] bg-white px-[23px]"><img src={thumbnail.startsWith("/api/") ? thumbnail : absoluteAssetUrl(thumbnail)} alt="" className="h-[87px] w-[87px] rounded-[12px] object-cover" /><div className="min-w-0"><strong className="block truncate text-[26px] leading-[32px]">{form.name || "가게명"}</strong><div className="mt-[10px] flex gap-[3px]">{tags.map((tag, index) => <span key={`${index}-${tag}`} className="rounded-full bg-[#ebebeb] px-[9px] py-[3px] text-[13px] text-[#6f6f6f]">{tag}</span>)}</div><span className="mt-[6px] block text-[12px] text-[#a1a1a1]">현재 위치에서 {distanceMeters}m</span></div></div></div></section>
+    </div>
+    <div className="shrink-0 rounded-xl bg-[#f6f6f6] p-3 text-[13px] leading-5">
+      <strong>영어 · 베트남어 자동 번역</strong>
+      <p>EN: {translations[form.name.trim()]?.en || "저장 시 자동 번역"}</p>
+      <p>VI: {translations[form.name.trim()]?.vi || "저장 시 자동 번역"}</p>
+      <p className={translationPending ? "text-[#b3261e]" : "text-[#116543]"}>{translationPending ? `번역 대기 ${translationPending}개: 한국어는 저장되었습니다. Argos 번역 서버 실행 상태 확인 후 다시 저장하거나 서버를 재시작하세요.` : "이름·설명·검색어·태그를 번역하여 함께 저장합니다."}</p>
     </div>
     <div className="flex shrink-0 flex-col gap-[8px]"><p className={`text-[14px] font-medium leading-[17px] ${saved && !dirty ? "text-[#116543]" : "text-[#116543]"}`}>{saved && !dirty ? "모든 변경 내용이 저장되었습니다." : "저장하지 않은 변경 내용이 있습니다."}</p><div className="flex gap-[12px]"><PillButton kind="secondary" className="h-[56px] w-[144px]" onClick={() => { setForm(baseline); setNameError(""); setIconOpen(false); }}>변경 취소</PillButton><PillButton className="h-[56px] flex-1" onClick={save}>가게 정보 저장</PillButton></div></div>
   </section>;

@@ -1,3 +1,4 @@
+import { KioskLocaleContext, createTranslator, useKioskLocale } from "./i18n";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSearchTagIcon } from "@/data/search-tag-icons";
 import { getRouteDistanceForShop, MapView } from "@/components/market/MapView";
@@ -59,18 +60,17 @@ const shiftedKeyboardLayouts: Record<KeyboardLayout, string[][]> = {
 const languageLabels = { ko: "한국어", en: "English", vi: "Tiếng Việt" } as const;
 
 function Header({ language, onMap, onLanguage }: { language: Language; onMap: () => void; onLanguage: () => void }) {
+  const { t } = useKioskLocale();
   return (
     <header className="flex h-[120px] shrink-0 items-center justify-between border-b-2 border-[#ebebeb] px-[52px]">
-      <img src="/figma/daecho-logo.svg" alt="대조시장" className="h-[44px] w-[142px]" />
+      <img src="/figma/daecho-logo.svg" alt={t("대조시장")} className="h-[44px] w-[142px]" />
       <div className="flex gap-[16px]">
         <button
           type="button"
           onClick={onMap}
           className="flex h-[68px] items-center gap-[8px] rounded-full bg-[#ebebeb] px-[32px] text-[24px] font-medium text-[#19211c]"
         >
-          <img src="/figma/map.svg" alt="" className="h-[28px] w-[28px]" />
-          시장지도
-        </button>
+          <img src="/figma/map.svg" alt="" className="h-[28px] w-[28px]" />{t("시장지도")}</button>
         <button
           type="button"
           onClick={onLanguage}
@@ -109,6 +109,7 @@ function PrimaryButton({
 }
 
 function MethodTabs({ mode, onChange }: { mode: InputMode; onChange: (mode: InputMode) => void }) {
+  const { t } = useKioskLocale();
   const tabs: Array<[InputMode, string]> = [
     ["keyboard", "키보드로 검색"],
     ["handwriting", "손글씨로 검색"],
@@ -127,7 +128,7 @@ function MethodTabs({ mode, onChange }: { mode: InputMode; onChange: (mode: Inpu
           }`}
           style={mode === value ? { backgroundImage: GREEN } : undefined}
         >
-          {label}
+          {t(label)}
         </button>
       ))}
     </div>
@@ -135,6 +136,7 @@ function MethodTabs({ mode, onChange }: { mode: InputMode; onChange: (mode: Inpu
 }
 
 function SearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { t } = useKioskLocale();
   return (
     <label className="flex h-[120px] w-full items-center gap-[16px] rounded-full bg-[#ebebeb] px-[48px]">
       <img src="/figma/search.svg" alt="" className="h-[40px] w-[40px]" />
@@ -144,7 +146,7 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
         inputMode="search"
         autoComplete="off"
         autoCorrect="off"
-        placeholder="검색어를 입력하세요"
+        placeholder={t("검색어를 입력하세요")}
         className="min-w-0 flex-1 bg-transparent text-[40px] leading-[52px] text-[#19211c] outline-none placeholder:text-[#a1a1a1]"
       />
     </label>
@@ -152,6 +154,7 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
 }
 
 function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string) => void; configuredTags?: KioskExperience["searchTags"] }) {
+  const { t } = useKioskLocale();
   const defaults = [
     { id: 1, name: "주변식당", icon: "식당", keywords: "", visible: true },
     { id: 2, name: "반찬가게", icon: "식품", keywords: "", visible: true },
@@ -171,13 +174,13 @@ function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string)
         <button
           type="button"
           key={id}
-          onClick={() => onChoose(keywords || label)}
+          onClick={() => onChoose(t(keywords || label))}
           className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] text-[#19211c]"
         >
           <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full" style={{ backgroundColor: color }}>
             <img src={icon} alt="" style={{ width: size, height: size }} />
           </span>
-          {label}
+          {t(label)}
         </button>
       ))}
     </div>
@@ -185,12 +188,20 @@ function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string)
 }
 
 function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange: (value: string) => void; onSubmit: () => void }) {
-  const [layout, setLayout] = useState<KeyboardLayout>("ko");
-  const [alphaLayout, setAlphaLayout] = useState<Exclude<KeyboardLayout, "number">>("ko");
+  const { t, language } = useKioskLocale();
+  const [layout, setLayout] = useState<KeyboardLayout>(language === "ko" ? "ko" : "en");
+  const [alphaLayout, setAlphaLayout] = useState<Exclude<KeyboardLayout, "number">>(language === "ko" ? "ko" : "en");
   const [shifted, setShifted] = useState(false);
   const keyClass = "flex h-[104px] shrink-0 items-center justify-center whitespace-nowrap rounded-[12px] bg-[#f8fbf8] text-[36px] font-medium leading-[48px] text-[#19211c] shadow-[0_2px_0_rgba(0,0,0,.12)] active:translate-y-[2px] active:shadow-none";
   const rows = (shifted ? shiftedKeyboardLayouts : keyboardLayouts)[layout];
   const append = (key: string) => onChange(value + key);
+  const addVietnameseTone = (tone: string) => {
+    const letters = Array.from(value);
+    const last = letters.pop();
+    if (!last || !/[aeiouyăâêôơư]/i.test(last.normalize("NFD")[0])) return;
+    const base = last.normalize("NFD").replace(/[\u0300\u0301\u0303\u0309\u0323]/g, "");
+    onChange(letters.join("") + (base + tone).normalize("NFC"));
+  };
   const toggleLanguage = () => {
     const nextLayout = alphaLayout === "ko" ? "en" : "ko";
     setAlphaLayout(nextLayout);
@@ -201,26 +212,30 @@ function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange:
     setLayout((current) => current === "number" ? alphaLayout : "number");
     setShifted(false);
   };
-  const usesEnglishLabels = layout === "en" || (layout === "number" && alphaLayout === "en");
+
   const shiftLabel = layout === "ko" ? "쌍자음" : layout === "en" ? "Shift" : "기호";
 
   return (
-    <div className="flex h-[584px] w-full flex-col gap-[12px] rounded-[24px] bg-[#ebebeb] px-[24px] py-[48px]">
+    <div className="flex h-[584px] w-full flex-col gap-[12px] rounded-[24px] bg-[#ebebeb] px-[24px] py-[48px]" style={language === "vi" ? { paddingTop: 20, paddingBottom: 20 } : undefined}>
+      {language === "vi" && <div className="flex h-[44px] shrink-0 justify-center gap-2">
+        {["ă", "â", "ê", "ô", "ơ", "ư", "đ"].map(letter => <button type="button" key={letter} onClick={() => append(shifted ? letter.toUpperCase() : letter)} className="w-[64px] rounded-lg bg-[#f8fbf8] text-[28px]">{letter}</button>)}
+        {[["á", "\u0301"], ["à", "\u0300"], ["ả", "\u0309"], ["ã", "\u0303"], ["ạ", "\u0323"], ["a", ""]].map(([label, tone]) => <button type="button" key={label} aria-label={`Dấu ${label}`} onClick={() => addVietnameseTone(tone)} className="w-[52px] rounded-lg bg-[#d8e8df] text-[28px]">{label}</button>)}
+      </div>}
       {rows.slice(0, 2).map((row, index) => (
         <div key={index} className="flex justify-center gap-[8px]">
           {row.map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
         </div>
       ))}
       <div className="flex justify-center gap-[8px]">
-        <button type="button" aria-pressed={shifted} onClick={() => setShifted((current) => !current)} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px] ${shifted ? "bg-[#d8e8df] text-[#116543]" : ""}`}><span className="text-[24px]">⇧</span><span>{shiftLabel}</span></button>
+        <button type="button" aria-pressed={shifted} onClick={() => setShifted((current) => !current)} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px] ${shifted ? "bg-[#d8e8df] text-[#116543]" : ""}`}><span className="text-[24px]">⇧</span><span>{t(shiftLabel)}</span></button>
         {rows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
-        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>{usesEnglishLabels ? "Del" : "삭제"}</span></button>
+        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>{t("삭제")}</span></button>
       </div>
       <div className="flex justify-center gap-[8px]">
         <button type="button" aria-pressed={layout === "number"} onClick={toggleNumbers} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>{layout === "number" ? (alphaLayout === "ko" ? "가나다" : "ABC") : "123"}</button>
-        <button type="button" onClick={toggleLanguage} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>한/영</button>
-        <button type="button" onClick={() => append(" ")} className={`${keyClass} w-[456px] text-[24px] leading-[36px]`}>{usesEnglishLabels ? "Space" : "띄어쓰기"}</button>
-        <button type="button" onClick={onSubmit} className="h-[104px] w-[208px] shrink-0 whitespace-nowrap rounded-[12px] bg-[#363636] text-[28px] font-bold leading-[40px] text-white shadow-[0_2px_0_rgba(0,0,0,.12)]">{usesEnglishLabels ? "Confirm" : "확인"}</button>
+        <button type="button" onClick={toggleLanguage} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>{t("한/영")}</button>
+        <button type="button" onClick={() => append(" ")} className={`${keyClass} w-[456px] text-[24px] leading-[36px]`}>{t("띄어쓰기")}</button>
+        <button type="button" onClick={onSubmit} className="h-[104px] w-[208px] shrink-0 whitespace-nowrap rounded-[12px] bg-[#363636] text-[28px] font-bold leading-[40px] text-white shadow-[0_2px_0_rgba(0,0,0,.12)]">{t("확인")}</button>
       </div>
     </div>
   );
@@ -236,6 +251,7 @@ const HANDWRITING_WIDTH = 984;
 const HANDWRITING_HEIGHT = 780;
 
 function HandwritingPad({ language, recognized, onRecognized }: { language: Language; recognized: boolean; onRecognized: (text: string) => void }) {
+  const { t } = useKioskLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasInk, setHasInk] = useState(false);
   const strokesRef = useRef<InkStroke[]>([]);
@@ -353,12 +369,12 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
     <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] bg-[#ebebeb]">
       {!recognized && <img src="/figma/handwriting-guide.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full rounded-[28px] object-cover object-bottom opacity-15" />}
       {!hasInk && (
-        <p className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] ${recognized ? "text-[#a1a1a1]" : "text-[#0a3825]"}`}>검색할 내용을 손가락으로 적어주세요</p>
+        <p className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] ${recognized ? "text-[#a1a1a1]" : "text-[#0a3825]"}`}>{t("검색할 내용을 손가락으로 적어주세요")}</p>
       )}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 z-20 h-full w-full touch-none"
-        aria-label="손글씨 입력 영역"
+        aria-label={t("손글씨 입력 영역")}
         onPointerDown={(event) => {
           cancelPendingRecognition();
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -383,14 +399,15 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
 }
 
 function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state: VoiceState; transcript: string; onStart: () => void; onRetry: () => void; onKeyboard?: () => void }) {
+  const { t } = useKioskLocale();
   if (state === "error") {
     return (
       <div className="flex flex-1 flex-col items-center pt-[240px] text-center">
         <img src="/figma/voice-error.png" alt="" className="mb-[36px] h-[150px] w-[150px] object-contain" />
-        <h2 className="text-[56px] font-bold text-[#0a3825]">제대로 듣지 못했어요</h2>
-        <p className="mt-[12px] text-[32px] text-[#0a3825]">조금 더 가까이에서 천천히 말씀해주세요.</p>
-        <PrimaryButton onClick={onRetry} className="mt-[80px] w-full">다시 말하기</PrimaryButton>
-        <button type="button" onClick={onKeyboard} className="mt-[24px] h-[120px] w-full rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">키보드로 검색하기</button>
+        <h2 className="text-[56px] font-bold text-[#0a3825]">{t("제대로 듣지 못했어요")}</h2>
+        <p className="mt-[12px] text-[32px] text-[#0a3825]">{t("조금 더 가까이에서 천천히 말씀해주세요.")}</p>
+        <PrimaryButton onClick={onRetry} className="mt-[80px] w-full">{t("다시 말하기")}</PrimaryButton>
+        <button type="button" onClick={onKeyboard} className="mt-[24px] h-[120px] w-full rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">{t("키보드로 검색하기")}</button>
       </div>
     );
   }
@@ -401,7 +418,7 @@ function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state
         <img src="/figma/voice-confirm-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
         <div className="relative z-10 text-center text-white">
           <p className="text-[48px]">“{transcript}”</p>
-          <button type="button" onClick={onRetry} className="mt-[40px] rounded-full border-2 border-[#ebebeb] bg-white/30 px-[32px] py-[16px] text-[32px]">↻ 다시 말하기</button>
+          <button type="button" onClick={onRetry} className="mt-[40px] rounded-full border-2 border-[#ebebeb] bg-white/30 px-[32px] py-[16px] text-[32px]">{t("↻ 다시 말하기")}</button>
         </div>
       </div>
     );
@@ -415,10 +432,10 @@ function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state
         onClick={onStart}
         className={`flex h-[320px] w-[320px] items-center justify-center rounded-full ${active ? "bg-[#00af55] shadow-[0_0_100px_rgba(0,190,95,.55)]" : "bg-[#168259]"}`}
       >
-        <img src="/figma/mic.svg" alt="음성 입력" className="h-[84px] w-[84px]" />
+        <img src="/figma/mic.svg" alt={t("음성 입력")} className="h-[84px] w-[84px]" />
       </button>
       <p className="mt-[24px] text-[36px] font-medium leading-[48px] text-[#0a3825]">
-        {state === "idle" ? "원을 터치한 뒤 말씀해주세요" : state === "listening" ? "듣고 있어요..." : `“${transcript || "단팥빵을 사고..."}”`}
+        {state === "idle" ? t("원을 터치한 뒤 말씀해주세요") : state === "listening" ? t("듣고 있어요...") : `“${transcript || t("단팥빵을 사고...")}”`}
       </p>
     </div>
   );
@@ -437,6 +454,8 @@ export default function KioskSearchApp() {
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
   const [languageReturnScreen, setLanguageReturnScreen] = useState<Screen>("welcome");
   const [experience, setExperience] = useState<KioskExperience | null>(null);
+  const t = useMemo(() => createTranslator(language, experience?.translations), [language, experience?.translations]);
+  useEffect(() => { document.documentElement.lang = language; }, [language]);
   const updateExperience = useCallback((value: KioskExperience) => {
     setExperience((current) => JSON.stringify(current) === JSON.stringify(value) ? current : value);
   }, []);
@@ -458,22 +477,28 @@ export default function KioskSearchApp() {
     const managed = new Map((experience?.shops ?? []).map((shop) => [shop.id, shop]));
     return marketShops.map((shop) => {
       const override = managed.get(shop.id);
-      return override ? { ...shop, name: override.name, category: override.tags[0] || shop.category, searchKeywords: override.keywords, icon: override.icon } : shop;
+      return override ? { ...shop, name: override.name, category: override.tags?.[0] || shop.category, searchKeywords: override.keywords, description: override.description, tags: override.tags, thumbnailUrl: override.thumbnailUrl ? (/^https?:\/\//.test(override.thumbnailUrl) ? override.thumbnailUrl : `${(import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "")}${override.thumbnailUrl}`) : undefined, icon: override.icon } : shop;
     });
   }, [experience?.shops]);
 
   const resultShops = useMemo(() => {
-    const normalized = query.replace(/\s/g, "").toLowerCase();
-    if (["주변식당", "주변음식점", "음식점", "식당"].some((term) => normalized.includes(term))) {
+    const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f\s]/g, "").replace(/đ/gi, "d").toLowerCase();
+    const normalized = normalize(query);
+    if (["주변식당", "주변음식점", "음식점", "식당", "restaurant", "quán ăn", "nhà hàng"].some((term) => normalized.includes(normalize(term)))) {
       return effectiveShops.filter((shop) => shop.category === "식당").slice(0, 12);
     }
-    const category = normalized.includes("반찬") || normalized.includes("간식") ? "식품" : normalized;
-    return effectiveShops.filter((shop) =>
-      shop.name.replace(/\s/g, "").toLowerCase().includes(normalized)
-      || shop.category.replace(/\s/g, "").toLowerCase().includes(category)
-      || ("searchKeywords" in shop && String(shop.searchKeywords).replace(/\s/g, "").toLowerCase().includes(normalized))
-    ).slice(0, 12);
-  }, [effectiveShops, query]);
+    const terms = query.split(/[,，]/).map(normalize).filter(Boolean);
+    if (["반찬", "간식", "snack", "side dish", "đồ ăn vặt", "món ăn kèm"].some(term => normalized.includes(normalize(term)))) {
+      return effectiveShops.filter(shop => shop.category === "식품").slice(0, 12);
+    }
+    const en = createTranslator("en", experience?.translations);
+    const vi = createTranslator("vi", experience?.translations);
+    return effectiveShops.filter((shop) => {
+      const source = [shop.name, shop.nameEn, shop.nameVi, shop.category, shop.description, shop.searchKeywords, ...(shop.tags ?? [])].filter((value): value is string => Boolean(value));
+      const index = source.flatMap(text => [text, en(text), vi(text)]).map(normalize);
+      return terms.some(term => index.some(text => text.includes(term)));
+    }).slice(0, 12);
+  }, [effectiveShops, query, experience?.translations]);
 
   const selectedShop = useMemo(
     () => effectiveShops.find((shop) => shop.id === selectedShopId) ?? null,
@@ -539,7 +564,7 @@ export default function KioskSearchApp() {
       return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = "ko-KR";
+    recognition.lang = { ko: "ko-KR", en: "en-US", vi: "vi-VN" }[language];
     recognition.interimResults = true;
     recognition.onresult = (event: any) => {
       const text = Array.from(event.results).map((result: any) => result[0].transcript).join("");
@@ -592,10 +617,10 @@ export default function KioskSearchApp() {
         {screen === "welcome" && (
           <main className="relative flex h-[1800px] flex-col items-center overflow-hidden pt-[220px]">
             <div className="z-10 text-center text-[#0a3825]">
-              <h1 className="text-[64px] font-bold leading-[1.4]">가게를 찾고계신가요?<br />화면을 터치해보세요</h1>
-              <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px] text-[36px] font-medium">대조시장 길 찾기</PrimaryButton>
+              <h1 className="text-[64px] font-bold leading-[1.4]">{t("가게를 찾고계신가요?")}<br />{t("화면을 터치해보세요")}</h1>
+              <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px] text-[36px] font-medium">{t("대조시장 길 찾기")}</PrimaryButton>
             </div>
-            <img src="/figma/map-character.png" alt="지도를 들고 있는 대조시장 캐릭터" className="absolute bottom-[-20px] left-0 h-[1220px] w-full object-cover object-top" />
+            <img src="/figma/map-character.png" alt={t("지도를 들고 있는 대조시장 캐릭터")} className="absolute bottom-[-20px] left-0 h-[1220px] w-full object-cover object-top" />
           </main>
         )}
 
@@ -649,8 +674,8 @@ export default function KioskSearchApp() {
           <main className="flex h-[1800px] flex-col px-[48px] pb-[160px] pt-[56px]">
             {voiceState !== "error" && (
               <section className="shrink-0 text-[#0a3825]">
-                <h1 className="text-[80px] font-bold leading-[1.3]">{title[0]}<br />{title[1]}</h1>
-                <p className="mt-[16px] text-[36px] font-medium leading-[44px]">가게와 시장 정보를 쉽고 빠르게 찾아보세요.</p>
+                <h1 className="text-[80px] font-bold leading-[1.3]">{language === "ko" ? <>{title[0]}<br />{title[1]}</> : t(title.join(" "))}</h1>
+                <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{t("가게와 시장 정보를 쉽고 빠르게 찾아보세요.")}</p>
               </section>
             )}
 
@@ -670,8 +695,8 @@ export default function KioskSearchApp() {
                   <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
                     <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={() => setVoiceState("idle")} />
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
-                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
-                      <PrimaryButton disabled={voiceState !== "confirmed" || !query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
+                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
+                      <PrimaryButton disabled={voiceState !== "confirmed" || !query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                     </div>
                   </div>
                 ) : mode === "keyboard" ? (
@@ -679,10 +704,10 @@ export default function KioskSearchApp() {
                     <SearchField value={query} onChange={setQuery} />
                     <div className="mt-[24px]"><CategoryChips onChoose={setQuery} configuredTags={experience?.searchTags} /></div>
                     <div className="mt-auto">
-                      <TouchKeyboard value={query} onChange={setQuery} onSubmit={submit} />
+                      <TouchKeyboard key={language} value={query} onChange={setQuery} onSubmit={submit} />
                       <div className="mt-[40px] flex gap-[24px]">
-                        <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
-                        <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
+                        <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
+                        <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                       </div>
                     </div>
                   </div>
@@ -693,8 +718,8 @@ export default function KioskSearchApp() {
                       <HandwritingPad key={handwritingResetKey} language={language} recognized={Boolean(query.trim())} onRecognized={setQuery} />
                     </div>
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
-                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">지우기</button>
-                      <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">검색하기</PrimaryButton>
+                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
+                      <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                     </div>
                   </div>
                 )}
@@ -707,7 +732,7 @@ export default function KioskSearchApp() {
   );
 
   if (experience?.operationMode === "PROMOTION" && experience.promotions.length > 0) {
-    return <KioskPromotionPlayer contents={experience.promotions} />;
+    return <KioskLocaleContext.Provider value={{ language, t }}><KioskPromotionPlayer contents={experience.promotions} /></KioskLocaleContext.Provider>;
   }
-  return canvas;
+  return <KioskLocaleContext.Provider value={{ language, t }}>{canvas}</KioskLocaleContext.Provider>;
 }
