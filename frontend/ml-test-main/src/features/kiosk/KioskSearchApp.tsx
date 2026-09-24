@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getSearchTagIcon } from "@/data/search-tag-icons";
 import { getRouteDistanceForShop, MapView } from "@/components/market/MapView";
 import { figmaMapShops as marketShops } from "@/data/figma-map-shops";
 import {
@@ -152,22 +153,29 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
 
 function CategoryChips({ onChoose, configuredTags }: { onChoose: (value: string) => void; configuredTags?: KioskExperience["searchTags"] }) {
   const defaults = [
-    ["주변식당", "/figma/restaurant.svg", "#ff9500"],
-    ["반찬가게", "/figma/side-dish.svg", "#ff85ba"],
-    ["간식가게", "/figma/snack.svg", "#0062ff"],
+    { id: 1, name: "주변식당", icon: "식당", keywords: "", visible: true },
+    { id: 2, name: "반찬가게", icon: "식품", keywords: "", visible: true },
+    { id: 3, name: "간식가게", icon: "간식", keywords: "", visible: true },
   ];
-  const chips = configuredTags?.filter((tag) => tag.visible).slice(0, 3).map((tag, index) => [tag.name, tag.iconUrl ? `${(import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "")}${tag.iconUrl}` : defaults[index]?.[1] ?? "/figma/restaurant.svg", defaults[index]?.[2] ?? "#116543", tag.keywords]) ?? defaults;
+  // The API initializes searchTags to []; show the design defaults until tags
+  // are configured. Filter afterwards so explicitly hidden tags stay hidden.
+  const chips = (configuredTags?.length ? configuredTags : defaults).filter((tag) => tag.visible).slice(0, 3).map((tag) => {
+    const design = getSearchTagIcon(tag.icon);
+    const uploaded = "iconUrl" in tag ? tag.iconUrl as string | undefined : undefined;
+    const icon = uploaded ? (/^https?:\/\//.test(uploaded) ? uploaded : `${(import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "")}${uploaded}`) : `/search-icons/${design.asset}.svg`;
+    return { ...tag, src: icon, color: design.color, size: uploaded ? 28 : design.size };
+  });
   return (
     <div className="flex gap-[8px]">
-      {chips.map(([label, icon, color, keywords]) => (
+      {chips.map(({ id, name: label, src: icon, color, keywords, size }) => (
         <button
           type="button"
-          key={label}
+          key={id}
           onClick={() => onChoose(keywords || label)}
           className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] text-[#19211c]"
         >
           <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full" style={{ backgroundColor: color }}>
-            <img src={icon} alt="" className="h-[28px] w-[28px]" />
+            <img src={icon} alt="" style={{ width: size, height: size }} />
           </span>
           {label}
         </button>
@@ -609,7 +617,7 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
+            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
             <ResultsPanel
               shops={resultShops}
@@ -623,7 +631,7 @@ export default function KioskSearchApp() {
 
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute />
+            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute />
             <FloatingSearchBar value={query} onClick={() => setScreen("search")} />
             <DirectionsPanel shopName={selectedShop.name} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>

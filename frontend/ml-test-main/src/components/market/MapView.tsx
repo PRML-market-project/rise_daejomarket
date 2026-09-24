@@ -5,7 +5,7 @@ interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
 interface HitArea { x: number; y: number; width: number; height: number }
 interface RotatedIconCell extends IconCell { rotation: number; originX: number; originY: number }
-type MapViewProps = { shops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean };
+type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean };
 
 const MAP_WIDTH = 6807;
 const MAP_HEIGHT = 10577;
@@ -330,7 +330,7 @@ export function getRouteDistanceForShop(shop: Shop): number {
   return Math.max(1, Math.round(getRouteDistanceMeters(getRoutePointsForShop(shop))));
 }
 
-export function MapView({ shops = [], selectedShop = null, onSelectShop, showRoute = false }: MapViewProps) {
+export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraAnimationRef = useRef<number | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
@@ -451,6 +451,15 @@ export function MapView({ shops = [], selectedShop = null, onSelectShop, showRou
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name}이 선택된 대조시장 지도` : "대조시장 안내 지도"}>
       <style>{`@keyframes routeDashFlow{to{stroke-dashoffset:-104}}@keyframes routeArrowPulse{0%,100%{opacity:.25}45%{opacity:1}}.route-flow-dash{animation:routeDashFlow 1.1s linear infinite}.route-flow-arrow{animation:routeArrowPulse 1.15s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.route-flow-dash,.route-flow-arrow{animation:none}}`}</style>
       <image href="/images/daejomarket-map.svg" x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="none" pointerEvents="none" />
+      {iconShops.map((shop) => {
+        const cell = SPECIAL_ROTATED_ICON_CELLS.get(shop.id) ?? getShopIconCell(shop);
+        if (!cell) return null;
+        const rotated = SPECIAL_ROTATED_ICON_CELLS.get(shop.id);
+        return <g key={shop.id} pointerEvents="none" transform={rotated ? `rotate(${rotated.rotation} ${rotated.originX} ${rotated.originY})` : undefined}>
+          <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} rx="8" fill="#7a7a7a" />
+          <image href={getShopIconAsset(shop)} x={cell.x + cell.width / 2 - 17} y={cell.y + cell.height / 2 - 17} width="34" height="34" />
+        </g>;
+      })}
       {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${shop.name} 선택`} className="cursor-pointer outline-none" onPointerDown={(event) => event.stopPropagation()} onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{shop.name}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
       {showRoute && routeTarget && routePoints && <g pointerEvents="none">
         <polyline points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#19bf69" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" />
