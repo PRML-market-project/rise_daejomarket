@@ -23,6 +23,7 @@ from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
+from kiosk_search_context import build_search_prompt, load_kiosk_context
 
 
 # ==========================================
@@ -52,17 +53,6 @@ class Timer:
 # ==========================================
 # 1. 초기 설정 및 환경 변수
 # ==========================================
-DATA_DIR = Path(__file__).resolve().parent.parent / ".venv" / "data"
-MAP_FILE = DATA_DIR / "map_simple_list.json"
-FRONTEND_MAP_FILE = (
-    Path(__file__).resolve().parents[2]
-    / "frontend"
-    / "ml-test-main"
-    / "src"
-    / "data"
-    / "market-shops.ts"
-)
-
 BASE_DIR = Path(__file__).resolve().parent.parent / ".venv" / "data"
 BASE_DIR.mkdir(parents=True, exist_ok=True)
 # CHAT_HISTORY_DIR = './chat_history/'  # 대화 내역 저장 경로 불필요
@@ -224,27 +214,8 @@ def load_menu_db(admin_id):
 
 
 def load_map_simple_list():
-    if MAP_FILE.is_file():
-        with open(MAP_FILE, "r", encoding="utf-8") as f:
-            map_data = json.load(f)
-    elif FRONTEND_MAP_FILE.is_file():
-        source = FRONTEND_MAP_FILE.read_text(encoding="utf-8")
-        matches = re.findall(
-            r'\{\s*id:\s*"([^"]+)".*?name:\s*"([^"]+)"',
-            source,
-        )
-        map_data = [{"id": shop_id, "name": name} for shop_id, name in matches]
-        if not map_data:
-            raise ValueError(
-                f"프런트 지도 데이터에서 점포를 찾지 못했습니다: {FRONTEND_MAP_FILE}"
-            )
-    else:
-        raise FileNotFoundError(
-            "길찾기 지도 데이터가 없습니다. "
-            f"확인 경로: {MAP_FILE}, {FRONTEND_MAP_FILE}"
-        )
-
-    return ", ".join(f"{item['id']}:{item['name']}" for item in map_data)
+    shops, _ = load_kiosk_context(fetch_experience=False)
+    return ", ".join(f"{shop['id']}:{shop['name']}" for shop in shops)
 
 
 def jamo_distance(a, b):
@@ -363,9 +334,9 @@ def detect_intent(text):
     prompt = """
 다음 문장의 의도를 분석하여 숫자(1~4)만 반환하세요. 다른 말은 절대 하지 마세요.
 
-1. 가게/카테고리 요청: 특정 가게(점포)를 보여달라고 할 때. (ex: 키위 사려는데 어느 가게에서 살 수 있나요?)
+1. 가게/카테고리 요청: 특정 가게를 보여달라거나 업종·상품으로 가게를 추천/검색할 때. (ex: 키위 사려는데 어느 가게에서 살 수 있나요? 주변식당 찾아줘, Find a restaurant near me)
 2. 메뉴/주문 관련: 특정 메뉴의 가격을 묻거나, 메뉴 추천을 원할 때. (ex: 키위 사려는데 얼마인가요?)
-3. 위치/길찾기: 가게의 위치를 물을 때만
+3. 위치/길찾기: 이름이 지정된 가게의 위치나 길찾기를 물을 때만. '주변식당 찾아줘'처럼 업종 검색은 1번
 4. 총 가격 문의: 각 메뉴들을 샀을 때의 총 가격을 요청할 때
 
 입력:
@@ -414,6 +385,10 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
     이전 대화 내역은 반영하지 않음.
     """
 
+    if intent in (1, 3):
+        shops, tags = load_kiosk_context()
+        return generate_json_response(build_search_prompt(intent, text, language, shops, tags), text)
+
     system_prompt = "" # 초기화
 
     # ---------------------------
@@ -421,11 +396,11 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
     # ---------------------------
     if intent in [1, 2, 3, 4]:
         admin_json_path = BASE_DIR / f"{admin_id}.json"
-        if not os.path.exists(admin_json_path):
-            return {"error": "admin_id.json 파일 없음"}
-
-        with open(admin_json_path, 'r', encoding='utf-8') as f:
-            admin_data = json.load(f)
+        if admin_json_path.is_file():
+            with open(admin_json_path, 'r', encoding='utf-8') as f:
+                admin_data = json.load(f)
+        else:
+            admin_data = {"categories": []}
 
         menu_context = transform_categories(language, admin_data.get("categories", []))
 
@@ -554,6 +529,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
                소계 = 요청한 판매 단위 수 × menuPrice
             4. menuPrice에 요청 낱개 수를 직접 곱하지 마세요.
             5. 각 상품의 요청량, 판매 묶음 수, 묶음 가격, 소계를 검산한 뒤 모두 합산하세요.
+            6. 요청 상품 중 가격을 확인할 수 없는 것이 하나라도 있으면 전체 합계를 제시하지 말고 확인 불가 상품을 명시하세요.
 
             [계산 예시]
             - 그린키위가 6개 5000원일 때 12개 요청:
@@ -727,6 +703,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
           requested package count by menuPrice.
         - If a store is named, use menu data from that store only.
         - Verify package count, package price, each subtotal, and the final sum.
+        - If even one requested item has no confirmed price, do not present a partial total as the full total.
           Never multiply menuPrice directly by an individual-item quantity.
 
         [Menu Data]
@@ -773,7 +750,22 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
         }}
         """
 
-    # 공통 LLM 호출
+    if intent in (2, 4) and not menu_context:
+        result_intent = "get_menu" if intent == 2 else "get_total_price"
+        return json.dumps({
+            "user_message": text,
+            "chat_message": {
+                "vi": "Chưa có dữ liệu giá hoặc thực đơn được xác nhận. Vui lòng hỏi cửa hàng trực tiếp.",
+                "en": "Confirmed menu and price data is unavailable. Please check with the shop.",
+            }.get(language, "확인된 메뉴·가격 정보가 없습니다. 해당 가게에 직접 확인해 주세요."),
+            "result": {"status": "success", "intent": result_intent, "items": []},
+        }, ensure_ascii=False)
+
+    return generate_json_response(system_prompt, text)
+
+
+def generate_json_response(system_prompt, text):
+    """Generate the existing /gpt JSON envelope with the local model first."""
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": text}

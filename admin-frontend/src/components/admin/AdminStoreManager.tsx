@@ -171,9 +171,9 @@ function OperationPanel({ current, selected, onSelect, onApply }: { current: Ope
   );
 }
 
-function ShopList({ selectedId, onSelect }: { selectedId: string; onSelect: (name: string) => void }) {
+function ShopList({ selectedId, namesByShopId, onSelect }: { selectedId: string; namesByShopId: Record<string, string>; onSelect: (name: string) => void }) {
   const [search, setSearch] = useState("");
-  const filtered = shops.filter(({ name, number }) => `${name} ${number}`.includes(search));
+  const filtered = shops.filter(({ id, name, number }) => `${namesByShopId[id] || name} ${number}`.includes(search));
   return (
     <aside className="flex min-h-0 flex-col gap-[16px] overflow-hidden rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
       <div className="flex items-start gap-[12px]"><h2 className="flex-1 text-[20px] font-bold leading-[29px]">가게 목록</h2><span className="text-[12px] font-medium leading-[17px]">{shops.length}개</span></div>
@@ -185,7 +185,7 @@ function ShopList({ selectedId, onSelect }: { selectedId: string; onSelect: (nam
             <span className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] ${selected ? "bg-[#a1a1a1]" : "bg-[#ebebeb] text-[#116543]"}`}>
               {selected ? <img src="/api/design-asset/thumbnail" alt="" className="h-full w-full object-cover" /> : <Store size={24} />}
             </span>
-            <span className="min-w-0"><strong className="block truncate text-[16px] leading-[23px]">{name}</strong></span>
+            <span className="min-w-0"><strong className="block truncate text-[16px] leading-[23px]">{namesByShopId[id] || name}</strong></span>
           </button>;
         })}
       </div>
@@ -193,10 +193,11 @@ function ShopList({ selectedId, onSelect }: { selectedId: string; onSelect: (nam
   );
 }
 
-function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom: number; setZoom: (value: number) => void; selectedId: string; iconByShopId: Record<string, string>; onSelect: (name: string) => void }) {
+function MarketMap({ zoom, setZoom, selectedId, iconByShopId, namesByShopId, onSelect }: { zoom: number; setZoom: (value: number) => void; selectedId: string; iconByShopId: Record<string, string>; namesByShopId: Record<string, string>; onSelect: (name: string) => void }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapSize, setMapSize] = useState({ width: 852, height: 620 });
   const selectedShop = shops.find((shop) => shop.id === selectedId) ?? shops[8];
+  const selectedName = namesByShopId[selectedShop.id] || selectedShop.name;
   const defaultIconLabel = selectedShop.category === "식당" ? "식당"
     : selectedShop.category === "서비스업" ? "서비스업"
       : selectedShop.category === "잡화" ? "식료품잡화"
@@ -233,7 +234,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom
 
   const labelCenterX = selectedShop.x + selectedShop.width / 2;
   const labelCenterY = selectedShop.y + selectedShop.height / 2;
-  const labelWidth = Math.max(96, selectedShop.width + 32);
+  const labelWidth = Math.max(96, selectedShop.width + 32, selectedName.length * 28 + 32);
   const labelHeight = Math.max(58, selectedShop.height + 20);
   const labelX = labelCenterX - labelWidth / 2;
   const labelY = labelCenterY - labelHeight / 2;
@@ -285,7 +286,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom
     <section className="flex min-h-0 flex-col gap-[16px] rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
       <h2 className="flex items-center gap-[12px] text-[20px] font-bold leading-[29px]"><MapIcon size={20} />가게 지도</h2>
       <div ref={mapRef} className={`relative min-h-0 flex-1 touch-none select-none overflow-hidden rounded-[16px] bg-[#f1f2f1] ${isPanning ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
-        <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="h-full w-full" role="img" aria-label={`${selectedShop.name} 위치가 선택된 대조시장 가게 지도`}>
+        <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="h-full w-full" role="img" aria-label={`${selectedName} 위치가 선택된 대조시장 가게 지도`}>
           <image href="/images/daejomarket-map.svg" x="0" y="0" width="6807" height="10577" preserveAspectRatio="none" />
           {shops.map((shop) => {
             const cell = shop.iconCell;
@@ -303,7 +304,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom
                 key={shop.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`${shop.name} 선택`}
+                aria-label={`${namesByShopId[shop.id] || shop.name} 선택`}
                 data-shop-id={shop.id}
                 className="cursor-pointer outline-none"
                 onKeyDown={(event) => {
@@ -313,7 +314,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom
                   }
                 }}
               >
-                <title>{shop.name}</title>
+                <title>{namesByShopId[shop.id] || shop.name}</title>
                 <rect x={shop.x - 12} y={shop.y - 8} width={shop.width + 24} height={shop.height + 16} rx="8" fill="transparent" pointerEvents="all" />
                 {shop.iconCell && <rect x={shop.iconCell.x} y={shop.iconCell.y} width={shop.iconCell.width} height={shop.iconCell.height} rx="8" fill="transparent" pointerEvents="all" />}
               </g>
@@ -322,7 +323,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, onSelect }: { zoom
           <g className="pointer-events-none" aria-hidden="true">
             <path d={tailPath} fill="#12bf68" />
             <rect x={labelX} y={labelY} width={labelWidth} height={labelHeight} rx="16" fill="#12bf68" />
-            <text x={labelCenterX} y={labelCenterY} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="28" fontWeight="700" fontFamily="Pretendard, Arial, sans-serif">{selectedShop.name}</text>
+            <text x={labelCenterX} y={labelCenterY} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="28" fontWeight="700" fontFamily="Pretendard, Arial, sans-serif">{selectedName}</text>
             {selectedShop.iconCell && <><rect x={selectedShop.iconCell.x} y={selectedShop.iconCell.y} width={selectedShop.iconCell.width} height={selectedShop.iconCell.height} rx="8" fill="#08a957" /><g transform={`translate(${selectedShop.markerX - 16} ${selectedShop.markerY - 17})`} color="white"><SelectedMapIcon size={32} strokeWidth={2.4} /></g></>}
           </g>
         </svg>
@@ -351,7 +352,7 @@ function IconPicker({ open, selected, onToggle, onSelect }: { open: boolean; sel
   </section>;
 }
 
-function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail, onSavedIcon }: { shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void; onSavedIcon: (shopId: string, icon: string) => void }) {
+function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail, onSavedShop }: { shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void; onSavedShop: (shopId: string, name: string, icon: string) => void }) {
   const [tags, setTags] = useState(["닭강정", "옛날통닭", "포장"]);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(4);
@@ -368,8 +369,11 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
       if (disposed) return;
       setTranslations(config.translations ?? {});
       setTranslationPending(config.pendingTranslations ?? 0);
-      const managed = config.shops.find((shop) => shop.id === shopId);
       const shop = shops.find((item) => item.id === shopId);
+      const managed = config.shops.find((item) => item.id === shopId)
+        ?? (shops.filter((candidate) => candidate.name === shop?.name).length === 1
+          ? config.shops.find((item) => item.name === shop?.name && !shops.some((candidate) => candidate.id === item.id))
+          : undefined);
       const fallback = shop?.category === "식당" ? "식당" : shop?.category === "서비스업" ? "서비스업" : shop?.category === "잡화" ? "식료품잡화" : shop?.category === "식품" ? "식품" : "정육청과수산";
       const iconIndex = iconOptions.findIndex((option) => option.label === (managed?.icon || fallback));
       setSelectedIcon(iconIndex >= 0 ? iconIndex : 7);
@@ -401,10 +405,12 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
     try {
       const config = await getKioskExperience();
       const managed = { id: shopId, name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail.startsWith("/api/") ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
-      const savedConfig = await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id), managed]);
+      const originalName = shops.find((shop) => shop.id === shopId)?.name;
+      const uniqueOriginalName = shops.filter((shop) => shop.name === originalName).length === 1;
+      const savedConfig = await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id && !(uniqueOriginalName && shop.name === originalName && !shops.some((candidate) => candidate.id === shop.id))), managed]);
       setTranslations(savedConfig.translations ?? {});
       setTranslationPending(savedConfig.pendingTranslations ?? 0);
-      onSavedIcon(managed.id, managed.icon);
+      onSavedShop(managed.id, managed.name, managed.icon);
       setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false);
     } catch { setDialog("save-error"); }
   };
@@ -470,6 +476,7 @@ export default function AdminStoreManager() {
   const [activePage, setActivePage] = useState<"store" | "promotion" | "tags">("store");
   const [selectedShopId, setSelectedShopId] = useState("585:28772");
   const [iconByShopId, setIconByShopId] = useState<Record<string, string>>({});
+  const [namesByShopId, setNamesByShopId] = useState<Record<string, string>>({});
   const [pendingPage, setPendingPage] = useState<"store" | "promotion" | "tags">("promotion");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
 
@@ -489,7 +496,11 @@ export default function AdminStoreManager() {
     getKioskExperience().then((config) => {
       const mode: OperationMode = config.operationMode === "PROMOTION" ? "홍보" : "길찾기";
       setCurrentMode(mode); setSelectedMode(mode);
-      setIconByShopId(Object.fromEntries(config.shops.map((shop) => [shop.id, shop.icon])));
+      const canonicalId = (shop: typeof config.shops[number]) => shops.find((candidate) => candidate.id === shop.id)?.id
+        ?? (shops.filter((candidate) => candidate.name === shop.name).length === 1 ? shops.find((candidate) => candidate.name === shop.name)?.id : undefined)
+        ?? shop.id;
+      setIconByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.icon])));
+      setNamesByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.name])));
     }).catch(() => undefined);
   }, []);
 
@@ -507,7 +518,8 @@ export default function AdminStoreManager() {
     else setActivePage(page);
   };
   const selectShop = (id: string) => {
-    const name = shops.find((shop) => shop.id === id)?.name ?? "" ;
+    if (id === selectedShopId) return;
+    const name = namesByShopId[id] || shops.find((shop) => shop.id === id)?.name || "";
     const next = { name, description: "", keywords: name };
     setSelectedShopId(id);
     setForm(next);
@@ -538,7 +550,7 @@ export default function AdminStoreManager() {
       <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
       <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(selectedMode === "홍보" ? "PROMOTION" : "DIRECTIONS"); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
       <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
-        <ShopList selectedId={selectedShopId} onSelect={selectShop} /><MarketMap zoom={zoom} setZoom={setZoom} selectedId={selectedShopId} iconByShopId={iconByShopId} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedIcon={(shopId, icon) => setIconByShopId((current) => ({ ...current, [shopId]: icon }))} />
+        <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><MarketMap zoom={zoom} setZoom={setZoom} selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon) => { setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
       </div>
       </>}
     </div>

@@ -26,6 +26,12 @@ try {
   const mapDestination = path.resolve(adminRoot, "public/images");
   await mkdir(mapDestination, { recursive: true });
   await copyFile(path.join(iconsSource, "daejomarket-map.svg"), path.join(mapDestination, "daejomarket-map.svg"));
+  const designSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/figma");
+  const designDestination = path.resolve(adminRoot, "public/figma");
+  await mkdir(designDestination, { recursive: true });
+  for (const file of ["daecho-logo.svg", "search-result-food.png"]) {
+    await copyFile(path.join(designSource, file), path.join(designDestination, file));
+  }
   console.log("[map-data] Synced the kiosk shop map into the admin app.");
 } catch {
   // The production Docker context can contain only admin-frontend. In that

@@ -476,9 +476,13 @@ export default function KioskSearchApp() {
 
   const effectiveShops = useMemo(() => {
     const managed = new Map((experience?.shops ?? []).map((shop) => [shop.id, shop]));
+    const canonicalIds = new Set(marketShops.map((shop) => shop.id));
+    const legacyByName = new Map((experience?.shops ?? [])
+      .filter((shop) => !canonicalIds.has(shop.id) && marketShops.filter((candidate) => candidate.name === shop.name).length === 1)
+      .map((shop) => [shop.name, shop]));
     return marketShops.map((shop) => {
-      const override = managed.get(shop.id);
-      return override ? { ...shop, name: override.name, category: override.tags?.[0] || shop.category, searchKeywords: override.keywords, description: override.description, tags: override.tags, thumbnailUrl: override.thumbnailUrl ? (/^https?:\/\//.test(override.thumbnailUrl) ? override.thumbnailUrl : `${(import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "")}${override.thumbnailUrl}`) : undefined, icon: override.icon } : shop;
+      const override = managed.get(shop.id) ?? legacyByName.get(shop.name);
+      return override ? { ...shop, name: override.name, searchKeywords: override.keywords, description: override.description, tags: override.tags, thumbnailUrl: override.thumbnailUrl ? (/^https?:\/\//.test(override.thumbnailUrl) ? override.thumbnailUrl : `${(import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "")}${override.thumbnailUrl}`) : undefined, icon: override.icon } : shop;
     });
   }, [experience?.shops]);
 
