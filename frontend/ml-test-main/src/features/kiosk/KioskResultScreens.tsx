@@ -239,7 +239,7 @@ export function ResultsPanel({
 
   return (
     <section
-      className="absolute bottom-0 left-0 right-0 z-30 overflow-hidden rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
+      className="absolute bottom-0 left-0 right-0 z-30 overflow-hidden rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[64px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
       style={{ height: panelHeight, transform: `translateY(${panelOffset}px)`, transition: dragging ? "none" : "transform 320ms cubic-bezier(.22,1,.36,1)" }}
     >
       <button
@@ -252,7 +252,7 @@ export function ResultsPanel({
         onPointerCancel={() => { dragRef.current = null; setDragging(false); setPanelOffset(collapsed ? collapsedOffset : 0); }}
         className={`absolute inset-x-0 top-0 z-10 flex w-full touch-none flex-col items-center justify-center ${collapsed ? "h-[112px] gap-[12px]" : "h-[38px]"}`}
       ><span className="h-[10px] w-[120px] rounded-full bg-[#a1a1a1]" />{collapsed && <span className="text-[26px] font-medium text-[#116543]">{t("위로 밀어 검색 결과 보기")}</span>}</button>
-      <div className={collapsed ? "invisible" : undefined}>
+      <div className={`flex h-full flex-col ${collapsed ? "invisible" : ""}`}>
       <div className="flex items-center justify-between">
         <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: shops.length })}</h2>
         <div className="flex rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
@@ -270,11 +270,11 @@ export function ResultsPanel({
           >{t("거리순")}</button>
         </div>
       </div>
-      {answer && <p className="mt-[16px] max-h-[72px] overflow-hidden text-[26px] font-medium leading-[36px] text-[#116543]">{answer}</p>}
-      <div className={`${answer ? "mt-[24px]" : "mt-[40px]"} grid grid-cols-2 gap-[16px]`}>
+      {answer && <p className="mt-[16px] min-h-[108px] max-h-[200px] overflow-y-auto overscroll-contain whitespace-pre-line break-words pr-[8px] text-[26px] font-medium leading-[36px] text-[#116543]">{answer}</p>}
+      <div className={`${answer ? "mt-[24px]" : "mt-[40px]"} grid shrink-0 grid-cols-2 gap-[16px]`}>
         {visible.map(({ shop, distanceMeters }) => <ResultCard key={shop.id} shop={shop} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
       </div>
-      <div className="mt-[48px] flex items-center justify-center gap-[16px] text-[28px]">
+      <div className="mt-[32px] flex shrink-0 items-center justify-center gap-[16px] text-[28px]">
         {pageCount > 1 && (
           <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="h-[56px] w-[40px] text-[40px] disabled:text-[#c9c9c9]">‹</button>
         )}
@@ -292,7 +292,7 @@ export function ResultsPanel({
           <button type="button" disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} className="h-[56px] w-[40px] text-[40px] disabled:text-[#c9c9c9]">›</button>
         )}
       </div>
-      <div className="mt-[48px] flex gap-[24px]">
+      <div className="mt-auto flex shrink-0 gap-[24px] pt-[16px]">
         <button type="button" onClick={onSearchAgain} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("다시 검색하기")}</button>
         <button type="button" disabled={!selectedId} onClick={onDirections} className="h-[120px] flex-1 rounded-full text-[40px] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1]" style={selectedId ? { backgroundImage: GREEN, color: "white" } : undefined}>{t("길 찾기")}</button>
       </div>
