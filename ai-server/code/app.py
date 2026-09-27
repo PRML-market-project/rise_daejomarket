@@ -23,7 +23,7 @@ from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
-from kiosk_search_context import build_search_prompt, load_kiosk_context
+from kiosk_search_context import build_search_prompt, load_kiosk_context, select_shops
 
 
 # ==========================================
@@ -53,12 +53,6 @@ class Timer:
 # ==========================================
 # 1. 초기 설정 및 환경 변수
 # ==========================================
-BASE_DIR = Path(__file__).resolve().parent.parent / ".venv" / "data"
-BASE_DIR.mkdir(parents=True, exist_ok=True)
-# CHAT_HISTORY_DIR = './chat_history/'  # 대화 내역 저장 경로 불필요
-
-print("📂 DATA BASE_DIR =", BASE_DIR)
-
 load_dotenv()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,7 +110,7 @@ except Exception as e:
 app = Flask(__name__)
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://prmlfrontend.vercel.app", "http://localhost:5173"],
+        "origins": ["https://prmlfrontend.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "ngrok-skip-browser-warning", "cf-create-tunnel"]
     }
@@ -196,26 +190,12 @@ def detect_language(text):
         return "unknown"
 
 
-def load_menu_db(admin_id):
-    path = BASE_DIR / f"{admin_id}.json"
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"{path} 파일이 존재하지 않습니다.")
-
-    with open(path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    phrases = set()
-    for category in data.get("categories", []):
-        phrases.add(category["categoryName"])
-        for menu in category.get("menus", []):
-            phrases.add(menu["menuName"])
-
+def load_search_phrases():
+    shops, tags = load_kiosk_context()
+    phrases = {shop["name"] for shop in shops}
+    phrases.update(shop["category"] for shop in shops)
+    phrases.update(tag["name"] for tag in tags if tag.get("name"))
     return list(phrases)
-
-
-def load_map_simple_list():
-    shops, _ = load_kiosk_context(fetch_experience=False)
-    return ", ".join(f"{shop['id']}:{shop['name']}" for shop in shops)
 
 
 def jamo_distance(a, b):
@@ -244,10 +224,10 @@ def generate_ngrams(tokens, max_len=2):
 
 def replace_phrases(text, admin_id, threshold=2):
     try:
-        menus = load_menu_db(admin_id)
+        menus = load_search_phrases()
         menus += ["주문해줘", "추가해줘", "담아줘", "주문내역"]
     except Exception as e:
-        print(f"menu DB 로딩 중 오류 (replace_phrases): {e}")
+        print(f"kiosk search data loading error (replace_phrases): {e}")
         return text
 
     tokens = text.split()
@@ -279,52 +259,63 @@ def replace_phrases(text, admin_id, threshold=2):
     return ' '.join(tokens)
 
 
-def transform_categories(language, cat_list):
-    result = []
-    for cat in cat_list:
-        transformed_menus = []
-        for menu in cat.get('menus', []):
-            price = int(menu['menuPrice']) if isinstance(menu['menuPrice'], float) else menu['menuPrice']
-            count = menu.get('menuCount', '1개')
-
-            if language == 'ko':
-                # [id, name, price, count]
-                transformed_menus.append([menu['menuId'], menu['menuName'], price, count])
-            elif language == 'en':
-                transformed_menus.append([menu['menuId'], menu['menuNameEn'], price, count])
-            elif language == 'vi':
-                transformed_menus.append([
-                    menu['menuId'],
-                    menu.get('menuNameVi') or menu.get('menuNameEn') or menu['menuName'],
-                    price,
-                    count
-                ])
-            else:
-                transformed_menus.append([
-                    menu['menuId'],
-                    menu['menuName'],
-                    menu.get('menuNameEn'),
-                    menu.get('menuNameVi'),
-                    price,
-                    count
-                ])
-
-        # categoryType 추출 (없을 경우 빈 문자열)
-        category_type = cat.get('categoryType', '')
-
-        result.append({
-            "categoryId": cat['categoryId'],
-            "categoryName": cat['categoryName'],
-            "categoryNameEn": cat['categoryNameEn'],
-            "categoryNameVi": cat.get('categoryNameVi') or cat.get('categoryNameEn') or cat['categoryName'],
-            "categoryType": category_type,  # ★ 추가됨
-            "menus": transformed_menus
-        })
-    return result
-
 # ==========================================
 # 3. 핵심 로직: 인텐트 분류 및 처리
 # ==========================================
+
+def answer_from_current_kiosk_data(intent, text, language):
+    """Return the kiosk's JSON contract using only current map/admin shop data."""
+    shops, tags = load_kiosk_context()
+    candidates = select_shops(text, shops, tags)
+    raw = generate_json_response(build_search_prompt(intent, text, language, shops, tags), text)
+    try:
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        answer = json.loads(match.group() if match else raw)
+    except (TypeError, ValueError):
+        return raw
+    if not isinstance(answer, dict) or "error" in answer:
+        return raw
+
+    candidate_by_id = {shop["id"]: shop for shop in candidates}
+    result = answer.get("result") if isinstance(answer.get("result"), dict) else {}
+    generated_items = result.get("items") if isinstance(result.get("items"), list) else []
+    selected = []
+    for item in generated_items:
+        shop = candidate_by_id.get(item.get("target_id")) if isinstance(item, dict) else None
+        if shop and shop["id"] not in {entry["target_id"] for entry in selected}:
+            selected.append({"target_id": shop["id"], "target_name": shop["name"]})
+    selected = selected[:5]
+
+    # Explicitly named shops stay selectable even when a price is not registered.
+    compact_query = re.sub(r"\s+", "", text).lower()
+    named = [shop for shop in candidates if re.sub(r"\s+", "", shop["name"]).lower() in compact_query]
+    if named and (intent in (2, 4) or not selected):
+        selected = [{"target_id": shop["id"], "target_name": shop["name"]} for shop in named[:5]]
+
+    message = answer.get("chat_message") if isinstance(answer.get("chat_message"), str) else ""
+    selected_shops = [candidate_by_id[item["target_id"]] for item in selected]
+    price_pattern = r"(?:₩\s*\d|\d[\d,]*\s*(?:원|₩|krw|vnd|동))"
+    has_verified_prices = bool(selected_shops) and all(
+        re.search(price_pattern, shop.get("description") or "", re.IGNORECASE)
+        for shop in selected_shops
+    )
+    price_question = intent == 4 or bool(re.search(price_pattern, text, re.IGNORECASE)) or any(
+        word in text.lower() for word in ("가격", "얼마", "합계", "총액", "price", "cost", "how much", "giá", "bao nhiêu")
+    )
+    if not has_verified_prices and (price_question or re.search(price_pattern, message, re.IGNORECASE)):
+        name = ", ".join(shop["name"] for shop in selected_shops)
+        message = {
+            "vi": f"Chưa có giá được xác nhận trong dữ liệu hiện tại{(' của ' + name) if name else ''}. Vui lòng hỏi trực tiếp cửa hàng.",
+            "en": f"No verified price is registered in the current data{(' for ' + name) if name else ''}. Please check with the shop.",
+        }.get(language, f"{name + '의 ' if name else ''}현재 등록된 가격 정보가 없어 금액을 확인할 수 없습니다. 가게에 직접 확인해 주세요.")
+
+    result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
+    return json.dumps({
+        "user_message": text,
+        "chat_message": message,
+        "result": {"status": "success", "intent": result_intent, "items": selected},
+    }, ensure_ascii=False)
+
 
 # [변경] chat_history 인자 제거 및 관련 로직 삭제
 def detect_intent(text):
@@ -378,390 +369,9 @@ def detect_intent(text):
     return 4
 
 
-# [변경] chat_history 인자 제거 및 관련 로직 삭제
 def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
-    """
-    분류된 인텐트에 따라 적절한 데이터와 프롬프트를 구성하여 GPT 호출
-    이전 대화 내역은 반영하지 않음.
-    """
-
-    if intent in (1, 3):
-        shops, tags = load_kiosk_context()
-        return generate_json_response(build_search_prompt(intent, text, language, shops, tags), text)
-
-    system_prompt = "" # 초기화
-
-    # ---------------------------
-    # Intent 1, 2, 3, 4 처리
-    # ---------------------------
-    if intent in [1, 2, 3, 4]:
-        admin_json_path = BASE_DIR / f"{admin_id}.json"
-        if admin_json_path.is_file():
-            with open(admin_json_path, 'r', encoding='utf-8') as f:
-                admin_data = json.load(f)
-        else:
-            admin_data = {"categories": []}
-
-        menu_context = transform_categories(language, admin_data.get("categories", []))
-
-        # =====================================================================
-        # Language Branch
-        # =====================================================================
-        if language == "ko":
-
-            # ================================================================
-            # Intent 1: 가게(Category) 탐색
-            # ================================================================
-            if intent == 1:
-                system_prompt = f"""
-        당신은 시장 길잡이 AI입니다.
-        사용자의 목적에 맞는 '가게(Category)'를 찾아주세요.
-
-        [지침]
-        1. 사용자가 찾는 메뉴를 [메뉴 데이터]에서 검색하세요.
-        2. 여러 가게에서 팔고 있다면 `chat_message`에 가게명을 모두 나열하세요.
-        3. `result.items` 배열에 **해당 메뉴를 판매하는 모든 가게의 정보**를 담으세요.
-        4. **중요: items[0]은 반드시 가격/판매단위(menuCount)가 최저인 가게여야 합니다.**
-
-        [메뉴 데이터]
-        {json.dumps(menu_context, ensure_ascii=False)}
-
-        JSON 출력 예시:
-        {{
-          "user_message": "{text}",
-          "chat_message": "키위는 'A농산', 'B청과', 'C유통'에서 판매 중입니다. 가장 저렴한 곳은 'B청과'입니다.",
-          "result": {{
-            "status": "success",
-            "intent": "get_store",
-            "items": [
-              {{ "category_id": 10, "category_type": "청과", "menu_id": null }},
-              {{ "category_id": 12, "category_type": "청과", "menu_id": null }},
-              {{ "category_id": 15, "category_type": "청과", "menu_id": null }}
-            ]
-          }}
-        }}
-        """
-
-            # ================================================================
-            # Intent 2: 메뉴(Menu) 상세 조회
-            # ================================================================
-            elif intent == 2:
-                system_prompt = f"""
-        당신은 시장 키오스크 판매원 AI입니다.
-        특정 '메뉴(Menu)'의 상세 정보를 처리하세요.
-
-        [지침]
-        1. 사용자가 찾는 메뉴를 [메뉴 데이터]에서 검색하세요.
-        2. 여러 가게에서 팔고 있다면 `chat_message`에 **가게명, 판매단위(menuCount), 가격**을 정확히 나열하세요.
-        3. **중요: menuCount 값을 임의 변경하지 마세요.**
-        4. `result`에는 **가격/판매단위(menuCount)가 최저인 상품의 menu_id와 category_id**를 담으세요.
-
-        [메뉴 데이터 구조]
-        - 형식: [menuId, menuName, menuPrice, menuCount]
-        - 예: [8, "수박", 16000, "1통"]
-
-        [메뉴 데이터]
-        {json.dumps(menu_context, ensure_ascii=False)}
-
-        JSON 출력 예시:[menuName]
-        {{
-          "user_message": "{text}",
-          "chat_message": "[menuName]는 [categoryName]에서 [menuCount] [menuPrice]원, [categoryName]에서 [menuCount] [menuPrice]원입니다. 개당 가격 기준으로 가장 저렴한 'A가게' 화면입니다.",
-          "result": {{
-            "status": "success",
-            "intent": "get_menu",
-            "items": [
-              {{ "menu_id": <최저가 메뉴ID>, "category_type": <카테고리 타입>, "category_id": <가게ID> }}
-            ]
-          }}
-        }}
-        """
-
-            # ================================================================
-            # Intent 3: 위치 / 지도
-            # ================================================================
-            elif intent == 3:
-                map_context_str = load_map_simple_list()
-
-                system_prompt = f"""
-        당신은 시장 안내 도우미입니다.
-        사용자가 찾는 가게의 위치(ID)를 알려주세요.
-        가게 이름이 정확하지 않아도 가장 유사한 가게를 찾으세요.
-
-        [가게 목록 (ID:이름)]
-        {map_context_str}
-
-        오직 JSON만 출력하세요.
-        {{
-          "user_message": "{text}",
-          "chat_message": null,
-          "result": {{
-            "status": "success",
-            "intent": "get_location",
-            "items": [
-              {{ "target_id": "<ID>" }}
-            ]
-          }}
-        }}
-        """
-
-
-            # ================================================================
-            # Intent 4: 가격 계산
-            # ================================================================
-            elif intent == 4:
-                system_prompt = f"""
-            당신은 시장 가격 계산 도우미입니다. 사용자가 요청한 여러 상품의 총 가격을 정확하게 계산하여 안내하세요.
-
-            [메뉴 데이터의 가격 의미 - 반드시 준수]
-            - menuPrice는 낱개 가격이 아니라 menuCount에 적힌 **판매 묶음 1개의 가격**입니다.
-            - 예: [14, "그린키위", 5000, "6개"]는 키위 1개가 5000원이 아니라
-              **키위 6개 묶음이 5000원**이라는 뜻입니다.
-            - 예: [11, "샤인머스켓", 20000, "1박스 (3송이)"]는
-              **1박스가 20000원**이라는 뜻입니다.
-
-            [계산 지침]
-            1. 사용자가 가게명을 지정하면 반드시 그 가게의 메뉴 데이터만 사용하세요.
-            2. 사용자가 낱개 수량을 요청하면:
-               필요한 판매 묶음 수 = ceil(요청 낱개 수 / menuCount의 낱개 수)
-               소계 = 필요한 판매 묶음 수 × menuPrice
-            3. 사용자가 박스/바구니/통/송이처럼 menuCount의 판매 단위로 요청하면:
-               소계 = 요청한 판매 단위 수 × menuPrice
-            4. menuPrice에 요청 낱개 수를 직접 곱하지 마세요.
-            5. 각 상품의 요청량, 판매 묶음 수, 묶음 가격, 소계를 검산한 뒤 모두 합산하세요.
-            6. 요청 상품 중 가격을 확인할 수 없는 것이 하나라도 있으면 전체 합계를 제시하지 말고 확인 불가 상품을 명시하세요.
-
-            [계산 예시]
-            - 그린키위가 6개 5000원일 때 12개 요청:
-              ceil(12 / 6) = 2묶음, 2 × 5000 = 10000원
-            - 샤인머스켓이 1박스 20000원일 때 1박스 요청:
-              1 × 20000 = 20000원
-            - 위 두 상품의 합계: 10000 + 20000 = 30000원
-
-            [출력 지침]
-            오직 JSON만 출력하세요.
-
-
-            [메뉴 데이터]
-            {json.dumps(menu_context, ensure_ascii=False)}
-
-            [메뉴 데이터 구조]
-            - 형식: [menuId, menuName, menuPrice, menuCount]
-
-            JSON 출력 예시:
-            {{
-              "user_message": "{text}",
-              "chat_message": "<상품1> <요청량> (<판매 묶음 수>묶음 × <묶음 가격>원) <소계>원, <상품2> ..., 총 <합계>원입니다.",
-              "result": {{
-                "status": "success",
-                "intent": "get_total_price",
-                "items": [
-                  {{
-                    "menu_name": "<상품명>",
-                    "requested_quantity": "<요청량>",
-                    "package_count": <판매 묶음 수>,
-                    "package_unit": "<menuCount>",
-                    "package_price": <menuPrice>,
-                    "subtotal": <소계>
-                  }}
-                ]
-              }}
-            }}
-            """
-
-            # ================================================================
-            # Intent 5 (Else): 잡담 / 기타
-            # ================================================================
-            else:
-                system_prompt = f"""
-        당신은 친절한 키오스크 챗봇입니다.
-        잡담, 인사, 기타 문의에 짧고 친절하게 응답하세요.
-
-        오직 JSON만 출력하세요.
-        {{
-          "user_message": "{text}",
-          "chat_message": "<응답>",
-          "result": {{
-            "status": "success",
-            "intent": "chitchat",
-            "items": []
-          }}
-        }}
-        """
-
-
-        # =====================================================================
-        # English / Vietnamese
-        # =====================================================================
-        else:
-            response_language = "Vietnamese" if language == "vi" else "English"
-
-            # ================================================================
-            # Intent 1: Category request
-            # ================================================================
-            if intent == 1:
-                system_prompt = f"""
-        You are a kiosk assistant. Respond in {response_language}.
-        Current Intent: Request to view a specific category/store.
-
-        [Menu Data]
-        {json.dumps(menu_context, ensure_ascii=False)}
-
-        Response MUST be JSON:
-        {{
-          "user_message": "{text}",
-          "chat_message": "<{response_language} response confirming navigation>",
-          "result": {{
-            "status": "success",
-            "intent": "get_store",
-            "items": [
-              {{
-                "category_id": <int or null>,
-                "menu_id": null,
-                "quantity": null,
-                "state": null
-              }}
-            ]
-          }}
-        }}
-        """
-
-            # ================================================================
-            # Intent 2: Menu request
-            # ================================================================
-            elif intent == 2:
-                system_prompt = f"""
-        You are a kiosk assistant. Respond in {response_language}.
-        Current Intent: Request for a specific menu item or order.
-
-        [Menu Data]
-        {json.dumps(menu_context, ensure_ascii=False)}
-
-        Response MUST be JSON:
-        {{
-          "user_message": "{text}",
-          "chat_message": "<{response_language} response regarding the menu>",
-          "result": {{
-            "status": "success",
-            "intent": "get_menu",
-            "items": [
-              {{
-                "menu_id": <int or null>,
-                "category_id": <int or null>,
-                "quantity": <int>,
-                "state": "<add/remove>"
-              }}
-            ]
-          }}
-        }}
-        """
-
-            # ================================================================
-            # Intent 3: Location
-            # ================================================================
-            elif intent == 3:
-                map_context_str = load_map_simple_list()
-
-                system_prompt = f"""
-        You are a market guide. Respond in {response_language}.
-        Find the store ID that best matches the user's query.
-
-        [Store List (ID:Name)]
-        {map_context_str}
-
-        Response MUST be JSON:
-        {{
-          "user_message": "{text}",
-          "chat_message": "<{response_language} response>",
-          "result": {{
-            "status": "success",
-            "intent": "get_location",
-            "items": [
-              {{
-                "target_id": "<ID>",
-                "target_name": "<Store Name>"
-              }}
-            ]
-          }}
-        }}
-        """
-
-            # ================================================================
-            # Intent 4: Total price
-            # ================================================================
-            elif intent == 4:
-                system_prompt = f"""
-        You are a kiosk price assistant. Respond in {response_language}.
-
-        IMPORTANT PRICE RULE:
-        - menuPrice is the price of ONE SALES PACKAGE described by menuCount.
-          It is NOT the price of one individual item.
-        - Example: [14, "Green kiwi", 5000, "6 items"] means six kiwis cost
-          5000 total. Twelve kiwis require ceil(12 / 6) = 2 packages and cost
-          2 × 5000 = 10000.
-        - If the user requests boxes/baskets/whole packages, multiply the
-          requested package count by menuPrice.
-        - If a store is named, use menu data from that store only.
-        - Verify package count, package price, each subtotal, and the final sum.
-        - If even one requested item has no confirmed price, do not present a partial total as the full total.
-          Never multiply menuPrice directly by an individual-item quantity.
-
-        [Menu Data]
-        {json.dumps(menu_context, ensure_ascii=False)}
-
-        Response MUST be JSON:
-        {{
-          "user_message": "{text}",
-          "chat_message": "<{response_language} response with the calculated total>",
-          "result": {{
-            "status": "success",
-            "intent": "get_total_price",
-            "items": [
-              {{
-                "menu_name": "<menu name>",
-                "requested_quantity": "<requested quantity>",
-                "package_count": <number of sales packages>,
-                "package_unit": "<menuCount>",
-                "package_price": <menuPrice>,
-                "subtotal": <subtotal>
-              }}
-            ]
-          }}
-        }}
-        """
-
-            # ================================================================
-            # Chitchat / Else
-            # ================================================================
-            else:
-                system_prompt = f"""
-        You are a friendly kiosk chatbot. Respond in {response_language}.
-        Respond briefly and politely to casual conversation.
-
-        Response MUST be JSON:
-        {{
-          "user_message": "{text}",
-          "chat_message": "<response>",
-          "result": {{
-            "status": "success",
-            "intent": "chitchat",
-            "items": []
-          }}
-        }}
-        """
-
-    if intent in (2, 4) and not menu_context:
-        result_intent = "get_menu" if intent == 2 else "get_total_price"
-        return json.dumps({
-            "user_message": text,
-            "chat_message": {
-                "vi": "Chưa có dữ liệu giá hoặc thực đơn được xác nhận. Vui lòng hỏi cửa hàng trực tiếp.",
-                "en": "Confirmed menu and price data is unavailable. Please check with the shop.",
-            }.get(language, "확인된 메뉴·가격 정보가 없습니다. 해당 가게에 직접 확인해 주세요."),
-            "result": {"status": "success", "intent": result_intent, "items": []},
-        }, ensure_ascii=False)
-
-    return generate_json_response(system_prompt, text)
+    """Preserve the 1-4 intent contract while answering from the current kiosk data."""
+    return answer_from_current_kiosk_data(intent, text, language)
 
 
 def generate_json_response(system_prompt, text):
@@ -1046,9 +656,9 @@ def gpt():
 
 @app.route('/upload_jsons', methods=['POST'])
 def upload_jsons():
+    """Retain the legacy endpoint without storing obsolete menu/price payloads."""
     try:
         files = request.files.getlist('files')
-        print(f"받은 파일 수: {len(files)}")
         results = []
 
         for file in files:
@@ -1062,18 +672,7 @@ def upload_jsons():
             if not admin_id:
                 return jsonify({"error": f"admin_id not found in file {file.filename}"}), 400
 
-            categories = json_data.get('categories', [])
-            filtered_categories = [
-                category for category in categories
-                if category.get('categoryName') != '전체' and category.get('categoryNameEn') != 'All'
-            ]
-            json_data['categories'] = filtered_categories
-
-            save_path = BASE_DIR / f"{admin_id}.json"
-            with open(save_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=2)
-
-            results.append({"admin_id": admin_id, "status": "saved"})
+            results.append({"admin_id": admin_id, "status": "ignored_legacy_payload"})
 
         return jsonify({"results": results})
 

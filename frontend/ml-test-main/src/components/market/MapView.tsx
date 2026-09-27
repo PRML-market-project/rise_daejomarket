@@ -5,7 +5,7 @@ interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
 interface HitArea { x: number; y: number; width: number; height: number }
 interface RotatedIconCell extends IconCell { rotation: number; originX: number; originY: number }
-type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean };
+type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean; selectedViewportY?: number };
 
 const MAP_WIDTH = 6807;
 const MAP_HEIGHT = 10577;
@@ -17,7 +17,7 @@ const CROSSWALK_WEST_X = 5060;
 const CROSSWALK_EAST_X = 5540;
 const EAST_SIDE_AISLE_X = 5540;
 const CROSSWALK_SHOP_IDS = new Set(["585:28795", "585:28796", "585:28797"]);
-const MARKET_BOUNDS = { minX: 1400, maxX: 6200, minY: 1350, maxY: 10050 };
+const MARKET_BOUNDS = { minX: 1400, maxX: 6200, minY: 1350, maxY: 10450 };
 const INITIAL_CENTER: Point = { x: 4950, y: 4300 };
 const MIN_LABEL_PT = 15;
 const MAX_LABEL_PT = 32;
@@ -330,7 +330,7 @@ export function getRouteDistanceForShop(shop: Shop): number {
   return Math.max(1, Math.round(getRouteDistanceMeters(getRoutePointsForShop(shop))));
 }
 
-export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false }: MapViewProps) {
+export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false, selectedViewportY = 0.5 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraAnimationRef = useRef<number | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
@@ -374,7 +374,8 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     cancelCameraAnimation();
 
     if (!showRoute || !routePoints || containerSize.width <= 1 || containerSize.height <= 1) {
-      setCenter(clampCenter({ x: selectedMarker.x - 120, y: selectedMarker.y }));
+      const initialMapScale = INITIAL_LABEL_PT * CSS_PIXELS_PER_POINT / SOURCE_LABEL_HEIGHT;
+      setCenter(clampCenter({ x: selectedMarker.x - 120, y: selectedMarker.y + (0.5 - selectedViewportY) * containerSize.height / initialMapScale }));
       setLabelPt(INITIAL_LABEL_PT);
       return;
     }
@@ -409,7 +410,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     cameraAnimationRef.current = requestAnimationFrame(animateCamera);
 
     return cancelCameraAnimation;
-  }, [cancelCameraAnimation, containerSize.height, containerSize.width, routePoints, selectedMarker, showRoute]);
+  }, [cancelCameraAnimation, containerSize.height, containerSize.width, routePoints, selectedMarker, selectedViewportY, showRoute]);
 
   const changeZoom = useCallback((nextLabelPt: number) => {
     cancelCameraAnimation();

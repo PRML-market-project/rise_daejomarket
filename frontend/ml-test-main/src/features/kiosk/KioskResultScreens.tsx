@@ -1,5 +1,5 @@
 import { useKioskLocale } from "./i18n";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { getRouteDistanceForShop } from "@/components/market/MapView";
 import type { Shop } from "@/types/shop";
 
@@ -25,7 +25,7 @@ export function FloatingSearchBar({ value, onClick }: { value?: string; onClick:
   );
 }
 
-export type StatusKind = "processing" | "empty" | "connection";
+export type StatusKind = "processing" | "empty" | "connection" | "answer";
 
 const statusCopy: Record<StatusKind, { image: string; title: string; body: string }> = {
   processing: {
@@ -43,16 +43,23 @@ const statusCopy: Record<StatusKind, { image: string; title: string; body: strin
     title: "연결이 잠시 끊겼어요",
     body: "입력한 내용을 유지하고 있어요. 잠시 후 다시 시도해주세요.",
   },
+  answer: {
+    image: "/figma/searching.png",
+    title: "검색 결과를 안내해 드릴게요",
+    body: "",
+  },
 };
 
 export function SearchStatusScreen({
   kind,
   query,
+  message,
   onBack,
   onRetry,
 }: {
   kind: StatusKind;
   query: string;
+  message?: string;
   onBack: () => void;
   onRetry: () => void;
 }) {
@@ -62,9 +69,9 @@ export function SearchStatusScreen({
     <main className="flex h-[1800px] flex-col items-center px-[48px] pb-[160px] pt-[320px] text-center text-[#0a3825]">
       <img src={copy.image} alt="" className="h-[200px] w-[200px] object-contain" />
       <h1 className="mt-[16px] text-[64px] font-bold leading-[1.4]">{t(copy.title)}</h1>
-      <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{t(copy.body)}</p>
+      <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{message && (kind === "empty" || kind === "answer") ? message : t(copy.body)}</p>
 
-      {kind === "empty" && (
+      {(kind === "empty" || kind === "answer") && (
         <div className="mt-[80px] w-full">
           <div className="flex h-[120px] items-center gap-[16px] rounded-full bg-[#ebebeb] px-[48px] text-left text-[40px] text-[#19211c]">
             <img src="/figma/search.svg" alt="" className="h-[40px] w-[40px]" />
@@ -166,12 +173,14 @@ function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; 
 
 export function ResultsPanel({
   shops,
+  answer,
   selectedId,
   onSelect,
   onSearchAgain,
   onDirections,
 }: {
   shops: Shop[];
+  answer?: string;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onSearchAgain: () => void;
@@ -181,6 +190,33 @@ export function ResultsPanel({
   const pageSize = 6;
   const [sortMode, setSortMode] = useState<"relevance" | "distance">("relevance");
   const [page, setPage] = useState(1);
+  const panelHeight = answer ? 1180 : 1112;
+  const collapsedOffset = panelHeight - 112;
+  const [panelOffset, setPanelOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{ startY: number; startOffset: number; scale: number } | null>(null);
+  const collapsed = panelOffset === collapsedOffset;
+  const onHandleDown = (event: PointerEvent<HTMLButtonElement>) => {
+    const panel = event.currentTarget.closest("section");
+    const scale = panel ? panel.getBoundingClientRect().height / panelHeight : 1;
+    dragRef.current = { startY: event.clientY, startOffset: panelOffset, scale };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragging(true);
+  };
+  const onHandleMove = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    setPanelOffset(Math.min(collapsedOffset, Math.max(0, drag.startOffset + (event.clientY - drag.startY) / drag.scale)));
+  };
+  const onHandleUp = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const delta = (event.clientY - drag.startY) / drag.scale;
+    setPanelOffset(Math.abs(delta) < 20 ? (drag.startOffset ? 0 : collapsedOffset) : (delta > 0 ? collapsedOffset : 0));
+    dragRef.current = null;
+    setDragging(false);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   const orderedResults = useMemo(() => {
     const results = shops.map((shop, relevanceIndex) => ({
       shop,
@@ -202,7 +238,21 @@ export function ResultsPanel({
   }, [shops, sortMode]);
 
   return (
-    <section className="absolute bottom-0 left-0 right-0 z-30 h-[1112px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
+    <section
+      className="absolute bottom-0 left-0 right-0 z-30 overflow-hidden rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
+      style={{ height: panelHeight, transform: `translateY(${panelOffset}px)`, transition: dragging ? "none" : "transform 320ms cubic-bezier(.22,1,.36,1)" }}
+    >
+      <button
+        type="button"
+        aria-label={t(collapsed ? "검색 결과 펼치기" : "검색 결과 접고 지도 보기")}
+        aria-expanded={!collapsed}
+        onPointerDown={onHandleDown}
+        onPointerMove={onHandleMove}
+        onPointerUp={onHandleUp}
+        onPointerCancel={() => { dragRef.current = null; setDragging(false); setPanelOffset(collapsed ? collapsedOffset : 0); }}
+        className={`absolute inset-x-0 top-0 z-10 flex w-full touch-none flex-col items-center justify-center ${collapsed ? "h-[112px] gap-[12px]" : "h-[38px]"}`}
+      ><span className="h-[10px] w-[120px] rounded-full bg-[#a1a1a1]" />{collapsed && <span className="text-[26px] font-medium text-[#116543]">{t("위로 밀어 검색 결과 보기")}</span>}</button>
+      <div className={collapsed ? "invisible" : undefined}>
       <div className="flex items-center justify-between">
         <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: shops.length })}</h2>
         <div className="flex rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
@@ -220,7 +270,8 @@ export function ResultsPanel({
           >{t("거리순")}</button>
         </div>
       </div>
-      <div className="mt-[40px] grid grid-cols-2 gap-[16px]">
+      {answer && <p className="mt-[16px] max-h-[72px] overflow-hidden text-[26px] font-medium leading-[36px] text-[#116543]">{answer}</p>}
+      <div className={`${answer ? "mt-[24px]" : "mt-[40px]"} grid grid-cols-2 gap-[16px]`}>
         {visible.map(({ shop, distanceMeters }) => <ResultCard key={shop.id} shop={shop} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
       </div>
       <div className="mt-[48px] flex items-center justify-center gap-[16px] text-[28px]">
@@ -244,6 +295,7 @@ export function ResultsPanel({
       <div className="mt-[48px] flex gap-[24px]">
         <button type="button" onClick={onSearchAgain} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("다시 검색하기")}</button>
         <button type="button" disabled={!selectedId} onClick={onDirections} className="h-[120px] flex-1 rounded-full text-[40px] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1]" style={selectedId ? { backgroundImage: GREEN, color: "white" } : undefined}>{t("길 찾기")}</button>
+      </div>
       </div>
     </section>
   );

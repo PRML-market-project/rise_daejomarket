@@ -12,10 +12,11 @@ import {
   SearchStatusScreen,
 } from "./KioskResultScreens";
 import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
+import { searchKioskWithAi } from "./kioskAiSearch";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
-type Screen = "welcome" | "search" | "processing" | "results" | "directions" | "map" | "no-results" | "error" | "language";
+type Screen = "welcome" | "search" | "processing" | "results" | "directions" | "map" | "no-results" | "answer" | "error" | "language";
 type Language = "ko" | "en" | "vi";
 
 const DESIGN_WIDTH = 1080;
@@ -452,6 +453,8 @@ export default function KioskSearchApp() {
   const [transcript, setTranscript] = useState("");
   const [handwritingResetKey, setHandwritingResetKey] = useState(0);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [aiShopIds, setAiShopIds] = useState<string[]>([]);
+  const [aiAnswer, setAiAnswer] = useState("");
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
   const [languageReturnScreen, setLanguageReturnScreen] = useState<Screen>("welcome");
   const [experience, setExperience] = useState<KioskExperience | null>(null);
@@ -486,14 +489,13 @@ export default function KioskSearchApp() {
     });
   }, [experience?.shops]);
 
-  const resultShops = useMemo(() => {
+  const tagResultShops = useMemo(() => {
     const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f\s]/g, "").replace(/đ/gi, "d").toLowerCase();
-    if (tagSearch) {
+    if (!tagSearch) return [];
       const terms = tagSearch.keywords.split(/[,，]/).map((term) => normalize(term.trim())).filter(Boolean);
       const categoryGroups: Record<string, string[]> = {
         정육청과수산: ["정육", "청과", "수산"],
         음식점: ["식당"], 주변식당: ["식당"], 식당찾기: ["식당"],
-        반찬: ["식품"], 간식: ["식품"],
       };
       return effectiveShops.filter((shop, index) => {
         const categories = [shop.category, marketShops[index]?.category, ...(shop.tags ?? [])].map(normalize);
@@ -503,23 +505,13 @@ export default function KioskSearchApp() {
           return categoryTerms.some((category) => categories.includes(category)) || source.some((text) => text.includes(term));
         });
       }).slice(0, 12);
-    }
-    const normalized = normalize(query);
-    if (["주변식당", "주변음식점", "음식점", "식당", "restaurant", "quán ăn", "nhà hàng"].some((term) => normalized.includes(normalize(term)))) {
-      return effectiveShops.filter((shop) => shop.category === "식당").slice(0, 12);
-    }
-    const terms = query.split(/[,，]/).map(normalize).filter(Boolean);
-    if (["반찬", "간식", "snack", "side dish", "đồ ăn vặt", "món ăn kèm"].some(term => normalized.includes(normalize(term)))) {
-      return effectiveShops.filter(shop => shop.category === "식품").slice(0, 12);
-    }
-    const en = createTranslator("en", experience?.translations);
-    const vi = createTranslator("vi", experience?.translations);
-    return effectiveShops.filter((shop) => {
-      const source = [shop.name, shop.nameEn, shop.nameVi, shop.category, shop.description, shop.searchKeywords, ...(shop.tags ?? [])].filter((value): value is string => Boolean(value));
-      const index = source.flatMap(text => [text, en(text), vi(text)]).map(normalize);
-      return terms.some(term => index.some(text => text.includes(term)));
-    }).slice(0, 12);
-  }, [effectiveShops, query, tagSearch, experience?.translations]);
+  }, [effectiveShops, tagSearch]);
+
+  const resultShops = useMemo(() => {
+    if (tagSearch) return tagResultShops;
+    const byId = new Map(effectiveShops.map((shop) => [shop.id, shop]));
+    return aiShopIds.flatMap((id) => { const shop = byId.get(id); return shop ? [shop] : []; });
+  }, [aiShopIds, effectiveShops, tagResultShops, tagSearch]);
 
   const selectedShop = useMemo(
     () => effectiveShops.find((shop) => shop.id === selectedShopId) ?? null,
@@ -534,6 +526,8 @@ export default function KioskSearchApp() {
     setTranscript("");
     setVoiceState("idle");
     setSelectedShopId(null);
+    setAiShopIds([]);
+    setAiAnswer("");
   }, []);
 
   useEffect(() => {
@@ -562,12 +556,26 @@ export default function KioskSearchApp() {
 
   useEffect(() => {
     if (screen !== "processing") return;
-    const timeoutId = window.setTimeout(() => {
-      if (!tagSearch && /연결|오류/.test(query)) setScreen("error");
-      else setScreen(resultShops.length ? "results" : "no-results");
-    }, 900);
-    return () => window.clearTimeout(timeoutId);
-  }, [query, tagSearch, resultShops.length, screen]);
+    if (tagSearch) {
+      setScreen(tagResultShops.length ? "results" : "no-results");
+      return;
+    }
+    const controller = new AbortController();
+    let active = true;
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
+    searchKioskWithAi(query, language, controller.signal).then((answer) => {
+      if (!active || controller.signal.aborted) return;
+      const knownIds = new Set(marketShops.map((shop) => shop.id));
+      const ids = answer.shopIds.filter((id) => knownIds.has(id));
+      setAiShopIds(ids);
+      setAiAnswer(answer.message);
+      setScreen(ids.length ? "results" : answer.intent === "get_menu" || answer.intent === "get_total_price" ? "answer" : "no-results");
+    }).catch(() => {
+      if (active && (!controller.signal.aborted || timedOut)) setScreen("error");
+    }).finally(() => window.clearTimeout(timeoutId));
+    return () => { active = false; window.clearTimeout(timeoutId); controller.abort(); };
+  }, [language, query, screen, tagResultShops.length, tagSearch]);
 
   const title = useMemo(() => {
     if (mode === "handwriting") return ["가게 정보를", "손가락으로 적어주세요."];
@@ -603,6 +611,8 @@ export default function KioskSearchApp() {
     if (!query.trim()) return;
     setTagSearch(null);
     setSelectedShopId(null);
+    setAiShopIds([]);
+    setAiAnswer("");
     setScreen("processing");
   };
 
@@ -610,6 +620,8 @@ export default function KioskSearchApp() {
     setQuery("");
     setTagSearch(tag);
     setSelectedShopId(null);
+    setAiShopIds([]);
+    setAiAnswer("");
     setScreen("processing");
   };
 
@@ -672,15 +684,17 @@ export default function KioskSearchApp() {
         )}
 
         {screen === "processing" && <SearchStatusScreen kind="processing" query={tagSearch ? t(tagSearch.name) : query} onBack={openSearch} onRetry={tagSearch ? () => searchTag(tagSearch) : submit} />}
-        {screen === "no-results" && <SearchStatusScreen kind="empty" query={tagSearch ? t(tagSearch.name) : query} onBack={openSearch} onRetry={tagSearch ? () => searchTag(tagSearch) : submit} />}
+        {screen === "no-results" && <SearchStatusScreen kind="empty" query={tagSearch ? t(tagSearch.name) : query} message={aiAnswer} onBack={openSearch} onRetry={tagSearch ? () => searchTag(tagSearch) : submit} />}
+        {screen === "answer" && <SearchStatusScreen kind="answer" query={query} message={aiAnswer} onBack={openSearch} onRetry={submit} />}
         {screen === "error" && <SearchStatusScreen kind="connection" query={query} onBack={openSearch} onRetry={submit} />}
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} />
+            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} selectedViewportY={0.3} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <ResultsPanel
               shops={resultShops}
+              answer={tagSearch ? "" : aiAnswer}
               selectedId={selectedShopId}
               onSelect={setSelectedShopId}
               onSearchAgain={openSearch}

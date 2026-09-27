@@ -24,9 +24,11 @@ Write-Host ""
 $Command
 "@
 
+    $windowStyle = if ($autoStopSeconds -gt 0) { "Hidden" } else { "Normal" }
     return Start-Process powershell.exe `
         -WorkingDirectory $WorkingDirectory `
         -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $windowCommand) `
+        -WindowStyle $windowStyle `
         -PassThru
 }
 
@@ -94,6 +96,7 @@ $services = @(
         Path = "backend"
         Command = "& .\gradlew.bat bootRun"
         Url = "http://localhost:8080"
+        ReadyUrl = "http://127.0.0.1:8080/api/kiosk-experience"
     },
     @{
         Name = "ai-server"
@@ -114,12 +117,14 @@ $services = @(
         Path = "frontend\ml-test-main"
         Command = "npm.cmd run dev"
         Url = "http://localhost:5173"
+        ReadyUrl = "http://127.0.0.1:5173"
     },
     @{
         Name = "admin-frontend"
         Path = "admin-frontend"
         Command = "npm.cmd run dev"
         Url = "http://localhost:3000"
+        ReadyUrl = "http://127.0.0.1:3000"
     }
 )
 
@@ -134,7 +139,8 @@ try {
         }
 
         if ($service.ReadyUrl -and (Test-ServiceReady -Url $service.ReadyUrl)) {
-            throw "$($service.Name) is already running at $($service.ReadyUrl). Stop it before starting dev:local."
+            Write-Host "$($service.Name) is already running: $($service.ReadyUrl) (reusing it)"
+            continue
         }
 
         $process = Start-NamedWindow `

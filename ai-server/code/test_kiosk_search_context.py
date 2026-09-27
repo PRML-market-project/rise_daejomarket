@@ -23,6 +23,11 @@ class KioskSearchContextTests(unittest.TestCase):
     def test_unknown_shop_has_no_match(self):
         self.assertEqual(select_shops("없는가게 어디야?", self.shops, []), [])
 
+    def test_side_dish_query_does_not_expand_to_all_food_shops(self):
+        matched = select_shops("반찬가게", self.shops, [{"name": "반찬가게", "keywords": "반찬"}])
+        self.assertTrue(matched)
+        self.assertTrue(all("반찬" in shop["name"] for shop in matched))
+
     def test_admin_keywords_and_tag_terms(self):
         shops = [dict(shop) for shop in self.shops]
         shops[0]["keywords"] = "수제쿠키, 디저트"

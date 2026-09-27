@@ -62,9 +62,10 @@ def load_kiosk_context(fetch_experience=True):
 def select_shops(question, shops, tags, limit=18):
     query = _normalize(question)
     words = [_normalize(word) for word in re.split(r"[\s,，?!]+", question) if len(_normalize(word)) > 1]
+    words += [term for term in ("반찬", "간식") if term in query]
     category_aliases = {
         "식당": ("식당", "음식점", "주변식당", "맛집", "restaurant", "quán ăn", "nhà hàng"),
-        "식품": ("식품", "반찬", "간식", "snack", "side dish"),
+        "식품": ("식품",),
         "청과": ("청과", "과일", "키위", "사과", "채소", "야채", "fruit"),
         "정육": ("정육", "고기", "육류", "meat"),
         "수산": ("수산", "생선", "해산물", "seafood"),
@@ -103,6 +104,9 @@ def select_shops(question, shops, tags, limit=18):
         if score:
             ranked.append((-score, position, shop))
     ranked.sort(key=lambda entry: (entry[0], entry[1]))
+    exact_names = [shop for _, _, shop in ranked if _normalize(shop["name"]) in query]
+    if exact_names:
+        return exact_names[:limit]
     return [shop for _, _, shop in ranked[:limit]]
 
 
@@ -112,7 +116,7 @@ def build_search_prompt(intent, question, language, shops, tags):
     public_fields = ("id", "name", "category", "section", "description", "keywords", "tags")
     compact = [{key: shop[key] for key in public_fields if shop.get(key)} for shop in candidates]
     tag_context = [{key: tag[key] for key in ("name", "keywords") if tag.get(key)} for tag in tags]
-    result_intent = "get_store" if intent == 1 else "get_location"
+    result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
     return f"""You are the Daejo Market kiosk guide. Answer in {response_language}; keep shop names in Korean.
 The user's intent has already been classified. Do not change the intent: {result_intent}.
 Use ONLY the supplied kiosk map and admin data. A category or keyword means a search match,
@@ -121,8 +125,13 @@ If a product is mentioned only through a category match, explicitly say its sell
 offer those shops as places to ask, never say the product can be bought there.
 Search keywords are private indexing data; do not display them to the user.
 Never invent prices, opening hours, floor numbers, travel distances, routes, or inventory.
+For menu/price/total-price questions, the old ordering menu is NOT available. Only the current admin
+description may prove a price and its selling unit. If it does not, say the price or total cannot be
+verified from current data; do not repeat remembered prices or calculate a total.
+Even when a price is unavailable, include a matching shop's map ID in items so the kiosk can show it.
 If no candidate supports the request, explain what is unknown and return an empty items array.
 For a broad category request, recommend at most five relevant shops and identify them as category matches.
+If a name, description, or admin keyword directly matches, call it a search match, not a category match.
 For a named shop, prefer an exact name match and use its map ID. If names are ambiguous, say so.
 For location requests, give the map section and return target_id; the frontend draws the actual route.
 Configured search tags use comma-separated OR terms, like the frontend search.
