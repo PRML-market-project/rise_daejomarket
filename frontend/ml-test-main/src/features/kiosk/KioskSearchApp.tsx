@@ -475,7 +475,8 @@ export default function KioskSearchApp() {
     let controller = load();
     const refresh = () => { controller.abort(); controller = load(); };
     const unsubscribe = subscribeToKioskExperience((value) => { if (!disposed) updateExperience(value); }, refresh);
-    const timer = window.setInterval(refresh, 30_000);
+    const quickTunnel = new URL(import.meta.env.VITE_API_URL ?? "http://localhost:8080").hostname.endsWith(".trycloudflare.com");
+    const timer = window.setInterval(refresh, quickTunnel ? 5_000 : 30_000);
     return () => { disposed = true; controller.abort(); unsubscribe(); window.clearInterval(timer); };
   }, [updateExperience]);
 
