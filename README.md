@@ -49,10 +49,11 @@ Same command:
 npm.cmd run dev:local
 ```
 
-This opens 4 PowerShell windows:
+This starts the local services, including the Windows handwriting recognizer on port 17832:
 
 - backend: http://localhost:8080
 - ai-server: http://localhost:8000
+- handwriting-server: http://localhost:17832
 - frontend: http://localhost:5173
 - admin-frontend: http://localhost:3000
 
@@ -71,10 +72,11 @@ Use this when the Vercel-deployed frontend needs to call your local backend and 
 npm.cmd run dev:server
 ```
 
-This opens 4 visible PowerShell windows:
+This opens 5 visible PowerShell windows:
 
 - backend
 - ai-server
+- handwriting-server
 - frontend
 - admin-frontend
 
@@ -109,6 +111,10 @@ VITE_GPT_API_URL=https://def.trycloudflare.com
 ```
 
 After changing Vercel environment variables, redeploy the Vercel project.
+Handwriting search uses `VITE_API_URL` too: the backend forwards `/api/handwriting/recognize`
+to the Windows handwriting server at `http://127.0.0.1:17832`. No separate
+handwriting tunnel or Vercel variable is needed. If the backend and recognizer
+run on different machines, set `HANDWRITING_SERVICE_URL` on the backend.
 
 ## AI Server Environment Variables
 
@@ -148,9 +154,9 @@ Runs Vercel test mode (`run-server.ps1`).
 
 Each service is attached to its own PowerShell window.
 
-To stop local mode, close the 4 visible windows.
+To stop local mode, press Ctrl+C in the launcher window; it stops the services it started.
 
-To stop Vercel test mode, close the 4 visible windows. Hidden Cloudflare tunnel processes usually exit with the script session, but if ports or tunnel logs remain busy, close old PowerShell/cloudflared processes before running again.
+To stop Vercel test mode, close the 5 visible windows. Hidden Cloudflare tunnel processes usually exit with the script session, but if ports or tunnel logs remain busy, close old PowerShell/cloudflared processes before running again.
 
 ## Notes
 

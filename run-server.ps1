@@ -116,6 +116,13 @@ Start-ServiceWindow `
 Start-Sleep -Milliseconds 500
 
 Start-ServiceWindow `
+    -Name "handwriting-server" `
+    -Path "handwriting-server" `
+    -Command "dotnet run --configuration Release"
+
+Start-Sleep -Milliseconds 500
+
+Start-ServiceWindow `
     -Name "frontend" `
     -Path "frontend\ml-test-main" `
     -Command "npm.cmd run dev"
@@ -132,9 +139,10 @@ if ($cloudflared) {
     Start-CloudflareTunnel -Name "ai-server" -Url "http://localhost:8000" -LogPath $aiServerLog
 }
 
-Write-Host "Started server mode with 4 windows."
+Write-Host "Started server mode with 5 windows."
 Write-Host "backend:        http://localhost:8080"
 Write-Host "ai-server:      http://localhost:8000"
+Write-Host "handwriting:    http://localhost:17832"
 Write-Host "frontend:       http://localhost:5173"
 Write-Host "admin-frontend: http://localhost:3000"
 

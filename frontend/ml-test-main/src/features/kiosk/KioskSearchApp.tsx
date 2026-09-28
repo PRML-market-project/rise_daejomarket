@@ -246,7 +246,7 @@ type InkPoint = { x: number; y: number; t: number; pressure: number };
 type InkStroke = { points: InkPoint[] };
 type RecognitionResponse = { candidates?: string[]; detail?: string; error?: string };
 
-const HANDWRITING_API_URL = import.meta.env.VITE_HANDWRITING_API_URL ?? "http://127.0.0.1:17832";
+const HANDWRITING_API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
 const HANDWRITING_IDLE_MS = 1500;
 const HANDWRITING_WIDTH = 984;
 const HANDWRITING_HEIGHT = 780;
@@ -303,7 +303,7 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
     requestControllerRef.current = controller;
 
     try {
-      const response = await fetch(`${HANDWRITING_API_URL}/recognize`, {
+      const response = await fetch(`${HANDWRITING_API_URL}/api/handwriting/recognize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ strokes: strokesRef.current, language }),

@@ -117,7 +117,7 @@ $services = @(
         Path = "frontend\ml-test-main"
         Command = "npm.cmd run dev"
         Url = "http://localhost:5173"
-        ReadyUrl = "http://127.0.0.1:5173"
+        ReadyUrl = "http://localhost:5173"
     },
     @{
         Name = "admin-frontend"
