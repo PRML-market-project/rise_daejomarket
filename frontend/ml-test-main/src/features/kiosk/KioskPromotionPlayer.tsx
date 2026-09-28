@@ -49,6 +49,8 @@ export async function fetchKioskExperience(signal?: AbortSignal): Promise<KioskE
 }
 
 export function subscribeToKioskExperience(onExperience: (experience: KioskExperience) => void) {
+  // Quick Tunnels do not support SSE; KioskSearchApp still refreshes with regular requests.
+  if (new URL(API_BASE).hostname.endsWith(".trycloudflare.com")) return () => {};
   const events = new EventSource(`${API_BASE}/api/kiosk-experience/events`);
   const receive = (event: MessageEvent<string>) => {
     try { onExperience(JSON.parse(event.data) as KioskExperience); }

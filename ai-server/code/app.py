@@ -108,9 +108,16 @@ except Exception as e:
 
 # 🔥 Flask 앱 초기화
 app = Flask(__name__)
+CORS_ORIGINS = [
+    "https://rise-daejomarket.vercel.app",
+    "https://prmlfrontend.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    *(origin.strip().rstrip("/") for origin in os.getenv("AI_CORS_ORIGINS", "").split(",") if origin.strip()),
+]
 CORS(app, resources={
     r"/*": {
-        "origins": ["https://prmlfrontend.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173"],
+        "origins": CORS_ORIGINS,
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "ngrok-skip-browser-warning", "cf-create-tunnel"]
     }
