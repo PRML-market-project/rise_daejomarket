@@ -13,6 +13,7 @@ import {
 } from "./KioskResultScreens";
 import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
 import { searchKioskWithAi } from "./kioskAiSearch";
+import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
@@ -195,7 +196,7 @@ function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange:
   const [shifted, setShifted] = useState(false);
   const keyClass = "flex h-[104px] shrink-0 items-center justify-center whitespace-nowrap rounded-[12px] bg-[#f8fbf8] text-[36px] font-medium leading-[48px] text-[#19211c] shadow-[0_2px_0_rgba(0,0,0,.12)] active:translate-y-[2px] active:shadow-none";
   const rows = (shifted ? shiftedKeyboardLayouts : keyboardLayouts)[layout];
-  const append = (key: string) => onChange(value + key);
+  const append = (key: string) => onChange(layout === "ko" ? appendHangulKey(value, key) : value + key);
   const addVietnameseTone = (tone: string) => {
     const letters = Array.from(value);
     const last = letters.pop();
@@ -230,7 +231,7 @@ function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange:
       <div className="flex justify-center gap-[8px]">
         <button type="button" aria-pressed={shifted} onClick={() => setShifted((current) => !current)} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px] ${shifted ? "bg-[#d8e8df] text-[#116543]" : ""}`}><span className="text-[24px]">⇧</span><span>{t(shiftLabel)}</span></button>
         {rows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
-        <button type="button" onClick={() => onChange(value.slice(0, -1))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>{t("삭제")}</span></button>
+        <button type="button" onClick={() => onChange(deleteLastKeyboardCharacter(value))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>{t("삭제")}</span></button>
       </div>
       <div className="flex justify-center gap-[8px]">
         <button type="button" aria-pressed={layout === "number"} onClick={toggleNumbers} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>{layout === "number" ? (alphaLayout === "ko" ? "가나다" : "ABC") : "123"}</button>
@@ -472,8 +473,9 @@ export default function KioskSearchApp() {
       return controller;
     };
     let controller = load();
-    const unsubscribe = subscribeToKioskExperience((value) => { if (!disposed) updateExperience(value); });
-    const timer = window.setInterval(() => { controller.abort(); controller = load(); }, 30_000);
+    const refresh = () => { controller.abort(); controller = load(); };
+    const unsubscribe = subscribeToKioskExperience((value) => { if (!disposed) updateExperience(value); }, refresh);
+    const timer = window.setInterval(refresh, 30_000);
     return () => { disposed = true; controller.abort(); unsubscribe(); window.clearInterval(timer); };
   }, [updateExperience]);
 

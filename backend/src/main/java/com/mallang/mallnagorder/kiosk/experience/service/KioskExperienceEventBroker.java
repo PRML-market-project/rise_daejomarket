@@ -12,6 +12,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class KioskExperienceEventBroker {
     private static final long CONNECTION_TIMEOUT_MS = 30L * 60L * 1000L;
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+    private final KioskExperienceWebSocketHandler webSocketHandler;
+
+    public KioskExperienceEventBroker(KioskExperienceWebSocketHandler webSocketHandler) {
+        this.webSocketHandler = webSocketHandler;
+    }
 
     public SseEmitter subscribe(KioskExperienceResponse initialValue) {
         SseEmitter emitter = new SseEmitter(CONNECTION_TIMEOUT_MS);
@@ -25,6 +30,7 @@ public class KioskExperienceEventBroker {
 
     public void publish(KioskExperienceResponse value) {
         emitters.forEach(emitter -> send(emitter, value));
+        webSocketHandler.publish();
     }
 
     private void send(SseEmitter emitter, KioskExperienceResponse value) {

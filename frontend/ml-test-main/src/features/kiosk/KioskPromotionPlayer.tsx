@@ -48,9 +48,29 @@ export async function fetchKioskExperience(signal?: AbortSignal): Promise<KioskE
   return response.json() as Promise<KioskExperience>;
 }
 
-export function subscribeToKioskExperience(onExperience: (experience: KioskExperience) => void) {
-  // Quick Tunnels do not support SSE; KioskSearchApp still refreshes with regular requests.
-  if (new URL(API_BASE).hostname.endsWith(".trycloudflare.com")) return () => {};
+export function subscribeToKioskExperience(onExperience: (experience: KioskExperience) => void, onSignal: () => void) {
+  // Quick Tunnels do not support SSE, but they can carry WebSocket change signals.
+  if (new URL(API_BASE).hostname.endsWith(".trycloudflare.com")) {
+    const url = new URL(`${API_BASE}/api/kiosk-experience/live`);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+    let closed = false;
+    const connect = () => {
+      socket = new WebSocket(url);
+      socket.onmessage = onSignal;
+      socket.onerror = () => socket?.close();
+      socket.onclose = () => {
+        if (!closed) reconnectTimer = window.setTimeout(connect, 2_000);
+      };
+    };
+    connect();
+    return () => {
+      closed = true;
+      if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+      socket?.close();
+    };
+  }
   const events = new EventSource(`${API_BASE}/api/kiosk-experience/events`);
   const receive = (event: MessageEvent<string>) => {
     try { onExperience(JSON.parse(event.data) as KioskExperience); }
