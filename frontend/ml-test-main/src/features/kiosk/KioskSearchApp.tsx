@@ -369,7 +369,7 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] bg-[#ebebeb]">
-      {!recognized && <img src="/figma/handwriting-guide.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full rounded-[28px] object-cover object-bottom opacity-15" />}
+      {!recognized && <img src="/figma/handwriting-guide.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full rounded-[28px] object-cover object-bottom opacity-30" />}
       {!hasInk && (
         <p className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] ${recognized ? "text-[#a1a1a1]" : "text-[#0a3825]"}`}>{t("검색할 내용을 손가락으로 적어주세요")}</p>
       )}

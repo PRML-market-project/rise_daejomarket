@@ -72,13 +72,15 @@ const specialIconCells = new Map<string, FigmaMapIconCell>([
   ["585:28879", { x: 2274, y: 9094, width: 95, height: 52 }],
   ["585:28795", { x: 5649, y: 6027, width: 52, height: 119 }],
   ["585:28796", { x: 5649, y: 6154, width: 52, height: 119 }],
-  ["585:28797", { x: 5754, y: 6555, width: 52, height: 119 }],
+  ["585:28797", { x: 5693, y: 6554.57, width: 52, height: 119 }],
 ]);
 
 const shops: PositionedShop[] = figmaMapShops.map((shop) => {
   const specialCell = specialIconCells.get(shop.id);
   if (specialCell) {
-    return { ...shop, markerX: specialCell.x + specialCell.width / 2, markerY: specialCell.y + specialCell.height / 2, iconCell: specialCell };
+    return shop.id === "585:28797"
+      ? { ...shop, iconCell: specialCell }
+      : { ...shop, markerX: specialCell.x + specialCell.width / 2, markerY: specialCell.y + specialCell.height / 2, iconCell: specialCell };
   }
   const cells = shop.section === "시장 동측 통로" ? rightMapIconCells : shop.section === "시장 서측 통로" ? leftMapIconCells : [];
   const nearest = cells.reduce<FigmaMapIconCell | null>((best, cell) => !best || Math.abs(cell.y + cell.height / 2 - shop.markerY) < Math.abs(best.y + best.height / 2 - shop.markerY) ? cell : best, null);
@@ -294,8 +296,8 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, namesByShopId, onS
             const fallback = shop.category === "식당" ? "식당" : shop.category === "서비스업" ? "서비스업" : shop.category === "잡화" ? "식료품잡화" : shop.category === "식품" ? "식품" : "정육청과수산";
             const Icon = iconOptions.find((option) => option.label === (iconByShopId[shop.id] || fallback))?.Icon ?? iconOptions[7].Icon;
             return <g key={shop.id} pointerEvents="none">
-              <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} rx="8" fill="#7a7a7a" />
-              <g transform={`translate(${cell.x + cell.width / 2 - 17} ${cell.y + cell.height / 2 - 17})`}><Icon size={34} /></g>
+              <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} rx="8" fill="#7a7a7a" transform={shop.id === "585:28797" ? "rotate(-30.7263 5693 6554.57)" : undefined} />
+              <g transform={`translate(${shop.markerX - 17} ${shop.markerY - 17})`}><Icon size={34} /></g>
             </g>;
           })}
           {shops.map((shop) => {
@@ -316,7 +318,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, namesByShopId, onS
               >
                 <title>{namesByShopId[shop.id] || shop.name}</title>
                 <rect x={shop.x - 12} y={shop.y - 8} width={shop.width + 24} height={shop.height + 16} rx="8" fill="transparent" pointerEvents="all" />
-                {shop.iconCell && <rect x={shop.iconCell.x} y={shop.iconCell.y} width={shop.iconCell.width} height={shop.iconCell.height} rx="8" fill="transparent" pointerEvents="all" />}
+                {shop.iconCell && <rect x={shop.iconCell.x} y={shop.iconCell.y} width={shop.iconCell.width} height={shop.iconCell.height} rx="8" fill="transparent" pointerEvents="all" transform={shop.id === "585:28797" ? "rotate(-30.7263 5693 6554.57)" : undefined} />}
               </g>
             );
           })}
@@ -324,7 +326,7 @@ function MarketMap({ zoom, setZoom, selectedId, iconByShopId, namesByShopId, onS
             <path d={tailPath} fill="#12bf68" />
             <rect x={labelX} y={labelY} width={labelWidth} height={labelHeight} rx="16" fill="#12bf68" />
             <text x={labelCenterX} y={labelCenterY} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="28" fontWeight="700" fontFamily="Pretendard, Arial, sans-serif">{selectedName}</text>
-            {selectedShop.iconCell && <><rect x={selectedShop.iconCell.x} y={selectedShop.iconCell.y} width={selectedShop.iconCell.width} height={selectedShop.iconCell.height} rx="8" fill="#08a957" /><g transform={`translate(${selectedShop.markerX - 16} ${selectedShop.markerY - 17})`} color="white"><SelectedMapIcon size={32} strokeWidth={2.4} /></g></>}
+            {selectedShop.iconCell && <><rect x={selectedShop.iconCell.x} y={selectedShop.iconCell.y} width={selectedShop.iconCell.width} height={selectedShop.iconCell.height} rx="8" fill="#08a957" transform={selectedShop.id === "585:28797" ? "rotate(-30.7263 5693 6554.57)" : undefined} /><g transform={`translate(${selectedShop.markerX - 16} ${selectedShop.markerY - 17})`} color="white"><SelectedMapIcon size={32} strokeWidth={2.4} /></g></>}
           </g>
         </svg>
         <div className="absolute left-[16px] top-[16px] flex gap-[8px]" onPointerDown={(event) => event.stopPropagation()}>

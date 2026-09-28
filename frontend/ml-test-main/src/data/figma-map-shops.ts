@@ -41,7 +41,7 @@ export const figmaMapShops: Shop[] = [
   { id: "585:28794", number: "Figma 585:28794", name: "연성그릇", category: "잡화", section: "시장 서측 통로", x: 4705, y: 6021, width: 106, height: 38, guideX: 4852, guideY: 6040 },
   { id: "585:28795", number: "Figma 585:28795", name: "언니들의빈티지", category: "잡화", section: "시장 동측 통로", x: 5716, y: 6068, width: 184, height: 38, guideX: 5675, guideY: 6086.5 },
   { id: "585:28796", number: "Figma 585:28796", name: "행복가구 (3층 고객센터)", category: "잡화", section: "시장 동측 통로", x: 5716, y: 6195, width: 286, height: 38, guideX: 5675, guideY: 6213.5 },
-  { id: "585:28797", number: "Figma 585:28797", name: "태성골뱅이", category: "수산", section: "시장 동측 통로", x: 5794, y: 6561, width: 132, height: 38, guideX: 5745.75, guideY: 6619 },
+  { id: "585:28797", number: "Figma 585:28797", name: "태성골뱅이", category: "수산", section: "시장 동측 통로", x: 5794, y: 6561, width: 132, height: 38, guideX: 5745.75, guideY: 6592.43 },
   { id: "585:28798", number: "Figma 585:28798", name: "대영상회", category: "식품", section: "시장 서측 통로", x: 4705, y: 6112, width: 106, height: 38, guideX: 4852, guideY: 6131 },
   { id: "585:28799", number: "Figma 585:28799", name: "대원닭", category: "정육", section: "시장 서측 통로", x: 4731, y: 6194, width: 80, height: 38, guideX: 4852, guideY: 6213 },
   { id: "585:28800", number: "Figma 585:28800", name: "늘봄상회", category: "식품", section: "시장 서측 통로", x: 4705, y: 6274, width: 106, height: 38, guideX: 4852, guideY: 6293 },

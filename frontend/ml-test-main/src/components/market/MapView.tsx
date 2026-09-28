@@ -25,6 +25,8 @@ const INITIAL_LABEL_PT = 18;
 const DIRECTIONS_PANEL_HEIGHT = 520;
 const CSS_PIXELS_PER_POINT = 4 / 3;
 const SOURCE_LABEL_HEIGHT = 38;
+const ROUTE_ARROW_PATH = "M -11 -9 L 7 0 L -11 9 Z";
+const ROUTE_ARROW_SPACING = 100;
 
 // Distance calibration from the two measured shop-to-shop distances supplied
 // for this map. The axes are calibrated separately because the source drawing
@@ -118,12 +120,12 @@ const CATEGORY_ICON_ASSETS: Record<string, string> = {
 
 const SPECIAL_HIT_AREAS = new Map<string, HitArea[]>([
   ["585:28880", [{ x: 4526, y: 7798, width: 110, height: 74 }]],
-  ["585:28797", [{ x: 5693, y: 6554.57, width: 105.5, height: 128.86 }]],
+  ["585:28797", [{ x: 5693, y: 6528, width: 105.5, height: 128.86 }]],
 ]);
 
 const SPECIAL_ROTATED_ICON_CELLS = new Map<string, RotatedIconCell>([
   ["585:28880", { x: 4538.68, y: 7798, width: 95, height: 52, rotation: 12.9848, originX: 4538.68, originY: 7798 }],
-  ["585:28797", { x: 5753.81, y: 6554.57, width: 52, height: 119, rotation: 30.73, originX: 5753.81, originY: 6554.57 }],
+  ["585:28797", { x: 5693, y: 6554.57, width: 52, height: 119, rotation: -30.7263, originX: 5693, originY: 6554.57 }],
 ]);
 
 // The exported Figma map is not laid out on a regular grid. These are the
@@ -154,14 +156,14 @@ function getRouteDistanceMeters(points: Point[]): number {
 
 function getRouteArrows(points: Point[]) {
   const arrows: Array<Point & { rotation: number }> = [];
-  const spacing = 120;
+  const spacing = ROUTE_ARROW_SPACING;
   points.slice(1).forEach((point, index) => {
     const previous = points[index];
     const deltaX = point.x - previous.x;
     const deltaY = point.y - previous.y;
     const length = Math.hypot(deltaX, deltaY);
     if (length < spacing) return;
-    const rotation = Math.atan2(deltaY, deltaX) * 180 / Math.PI + 90;
+    const rotation = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
     for (let distance = spacing; distance < length - 30; distance += spacing) {
       arrows.push({
         x: previous.x + deltaX * distance / length,
@@ -223,33 +225,84 @@ function getShopNameLines(shop: Shop): string[] {
 
 function getShopLabelBubble(shop: Shop, marker: Point, name = shop.name) {
   const lines = getShopNameLines({ ...shop, name });
-  const centerX = shop.x + shop.width / 2;
-  const centerY = shop.y + shop.height / 2;
-  // `shop.width` is the measured text bound from the source SVG. Using it as
-  // the single source of truth keeps long east-side labels aligned instead of
-  // letting a character-count estimate expand back over the shop icon.
-  const width = Math.max(96, shop.width + 32, name === shop.name ? 0 : Math.max(...lines.map(line => line.length)) * 17 + 32);
+  const labelCenterX = shop.x + shop.width / 2;
+  const labelCenterY = shop.y + shop.height / 2;
+  // Keep the source SVG width, but allow enough room for names changed in admin.
+  const textWidth = Math.max(...lines.map(line => Array.from(line).reduce((sum, character) =>
+    sum + (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(character) ? 29 : character === " " ? 10 : 17), 0)));
+  const width = Math.max(96, shop.width + 32, textWidth + 40);
   const height = Math.max(58, lines.length * 38 + 20);
-  const x = centerX - width / 2;
-  const y = centerY - height / 2;
-  const deltaX = marker.x - centerX;
-  const deltaY = marker.y - centerY;
+  if (shop.id === "585:28797") {
+    // The tilted Taeseong icon reaches the source label's left edge. Keep the
+    // bubble on the printed lettering and point into the icon's upper corner.
+    const x = shop.x - 4;
+    const y = shop.y - 10;
+    const tailY = y + height / 2;
+    return {
+      x, y, width, height,
+      centerX: x + width / 2,
+      centerY: y + height / 2,
+      lines,
+      tailPath: `M ${x + 3} ${tailY - 9} L ${x - 22} ${tailY} L ${x + 3} ${tailY + 9} Z`,
+    };
+  }
+  const deltaX = marker.x - labelCenterX;
+  const deltaY = marker.y - labelCenterY;
   const tailLength = 16;
   const tailHalfWidth = 9;
+  const tailInset = 16 + tailHalfWidth + 2;
+  const iconCell = getShopIconCell(shop);
+  const rotatedIcon = SPECIAL_ROTATED_ICON_CELLS.get(shop.id);
+  const rotation = (rotatedIcon?.rotation ?? 0) * Math.PI / 180;
+  const iconHalfWidth = rotatedIcon
+    ? (Math.abs(rotatedIcon.width * Math.cos(rotation)) + Math.abs(rotatedIcon.height * Math.sin(rotation))) / 2
+    : (iconCell?.width ?? 34) / 2;
+  const iconHalfHeight = rotatedIcon
+    ? (Math.abs(rotatedIcon.width * Math.sin(rotation)) + Math.abs(rotatedIcon.height * Math.cos(rotation))) / 2
+    : (iconCell?.height ?? 34) / 2;
+  // The source SVG has different label-to-icon gaps for each shop. Keep the
+  // bubble over its original lettering while letting the pointer meet the icon.
+  const maxIconGap = tailLength - 4;
+  let x = labelCenterX - width / 2;
+  let y = labelCenterY - height / 2;
   let tailPath: string;
 
-  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+  // Reserve space between the bubble and the icon so the tip always remains
+  // visible and points toward the selected shop, even for long names.
+  const sideTail = Math.abs(deltaX) / (width / 2 + iconHalfWidth)
+    > Math.abs(deltaY) / (height / 2 + iconHalfHeight);
+  if (sideTail) {
+    const originalLabelGap = deltaX >= 0
+      ? marker.x - iconHalfWidth - (shop.x + shop.width)
+      : shop.x - (marker.x + iconHalfWidth);
+    const iconGap = clamp(originalLabelGap, 3, maxIconGap);
+    x = deltaX >= 0
+      ? Math.min(x, marker.x - iconHalfWidth - iconGap - width)
+      : Math.max(x, marker.x + iconHalfWidth + iconGap);
+    y = clamp(y, marker.y - height + tailInset, marker.y - tailInset);
     const edgeX = deltaX >= 0 ? x + width : x;
     const tipX = edgeX + Math.sign(deltaX || 1) * tailLength;
-    const tailY = clamp(marker.y, y + 16, y + height - 16);
-    tailPath = `M ${edgeX} ${tailY - tailHalfWidth} L ${tipX} ${tailY} L ${edgeX} ${tailY + tailHalfWidth} Z`;
+    const baseX = edgeX - Math.sign(deltaX || 1) * 3;
+    const tailY = clamp(marker.y, y + tailInset, y + height - tailInset);
+    tailPath = `M ${baseX} ${tailY - tailHalfWidth} L ${tipX} ${tailY} L ${baseX} ${tailY + tailHalfWidth} Z`;
   } else {
+    const originalLabelGap = deltaY >= 0
+      ? marker.y - iconHalfHeight - (shop.y + shop.height)
+      : shop.y - (marker.y + iconHalfHeight);
+    const iconGap = clamp(originalLabelGap, 3, maxIconGap);
+    y = deltaY >= 0
+      ? Math.min(y, marker.y - iconHalfHeight - iconGap - height)
+      : Math.max(y, marker.y + iconHalfHeight + iconGap);
+    x = clamp(x, marker.x - width + tailInset, marker.x - tailInset);
     const edgeY = deltaY >= 0 ? y + height : y;
     const tipY = edgeY + Math.sign(deltaY || 1) * tailLength;
-    const tailX = clamp(marker.x, x + 16, x + width - 16);
-    tailPath = `M ${tailX - tailHalfWidth} ${edgeY} L ${tailX} ${tipY} L ${tailX + tailHalfWidth} ${edgeY} Z`;
+    const baseY = edgeY - Math.sign(deltaY || 1) * 3;
+    const tailX = clamp(marker.x, x + tailInset, x + width - tailInset);
+    tailPath = `M ${tailX - tailHalfWidth} ${baseY} L ${tailX} ${tipY} L ${tailX + tailHalfWidth} ${baseY} Z`;
   }
 
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
   return { x, y, width, height, centerX, centerY, lines, tailPath };
 }
 
@@ -442,30 +495,46 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const selectedLabelBubble = selectedShop && selectedMarker ? getShopLabelBubble(selectedShop, selectedMarker) : null;
   const selectedIconAsset = selectedShop ? getShopIconAsset(selectedShop) : undefined;
   const selectedRotatedIcon = selectedShop ? SPECIAL_ROTATED_ICON_CELLS.get(selectedShop.id) : undefined;
+  const selectedRotatedIconElement = selectedRotatedIcon && selectedIconAsset
+    ? selectedShop?.id === "585:28797" && selectedMarker
+      ? <g><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#09a956" transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`} /><image href={selectedIconAsset} x={selectedMarker.x - 17} y={selectedMarker.y - 17} width="34" height="34" /></g>
+      : <g transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`}><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#09a956" /><image href={selectedIconAsset} x={selectedRotatedIcon.x + selectedRotatedIcon.width / 2 - 17} y={selectedRotatedIcon.y + selectedRotatedIcon.height / 2 - 17} width="34" height="34" /></g>
+    : null;
   const routeTarget = routePoints?.[routePoints.length - 1] ?? null;
   const routeArrows = routePoints ? getRouteArrows(routePoints) : [];
+  const routeMotionPath = routePoints ? `M ${routePoints.map(point => `${point.x} ${point.y}`).join(" L ")}` : "";
+  const routeLength = routePoints?.slice(1).reduce((sum, point, index) =>
+    sum + Math.hypot(point.x - routePoints[index].x, point.y - routePoints[index].y), 0) ?? 0;
+  const arrowDuration = clamp(routeLength / 260, 4, 32);
+  const movingArrowCount = clamp(Math.ceil(routeLength / ROUTE_ARROW_SPACING), 2, 48);
   const routeDistance = selectedShop && routePoints ? getRouteDistanceForShop(selectedShop) : 0;
   const routeDistanceLabel = `${routeDistance}m`;
   const routeDistanceWidth = Math.max(132, routeDistanceLabel.length * 28 + 36);
 
   return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name} · 대조시장 안내 지도` : "대조시장 안내 지도"}>
-      <style>{`@keyframes routeDashFlow{to{stroke-dashoffset:-104}}@keyframes routeArrowPulse{0%,100%{opacity:.25}45%{opacity:1}}.route-flow-dash{animation:routeDashFlow 1.1s linear infinite}.route-flow-arrow{animation:routeArrowPulse 1.15s ease-in-out infinite}@media (prefers-reduced-motion:reduce){.route-flow-dash,.route-flow-arrow{animation:none}}`}</style>
+      <style>{`.route-static-arrow{display:none}@media (prefers-reduced-motion:reduce){.route-moving-arrow{display:none}.route-static-arrow{display:block}}`}</style>
       <image href="/images/daejomarket-map.svg" x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="none" pointerEvents="none" />
       {iconShops.map((shop) => {
         const cell = SPECIAL_ROTATED_ICON_CELLS.get(shop.id) ?? getShopIconCell(shop);
         if (!cell) return null;
         const rotated = SPECIAL_ROTATED_ICON_CELLS.get(shop.id);
+        if (shop.id === "585:28797" && rotated) {
+          const marker = getShopMapMarker(shop);
+          return <g key={shop.id} pointerEvents="none"><rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} rx="8" fill="#7a7a7a" transform={`rotate(${rotated.rotation} ${rotated.originX} ${rotated.originY})`} /><image href={getShopIconAsset(shop)} x={marker.x - 17} y={marker.y - 17} width="34" height="34" /></g>;
+        }
         return <g key={shop.id} pointerEvents="none" transform={rotated ? `rotate(${rotated.rotation} ${rotated.originX} ${rotated.originY})` : undefined}>
           <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} rx="8" fill="#7a7a7a" />
           <image href={getShopIconAsset(shop)} x={cell.x + cell.width / 2 - 17} y={cell.y + cell.height / 2 - 17} width="34" height="34" />
         </g>;
       })}
       {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${shop.name} · 선택`} className="cursor-pointer outline-none" onPointerDown={(event) => event.stopPropagation()} onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{shop.name}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
-      {showRoute && routeTarget && routePoints && <g pointerEvents="none">
+      {showRoute && routeTarget && routePoints && <g key={selectedShop?.id} pointerEvents="none">
         <polyline points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#19bf69" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline className="route-flow-dash" points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#d8f5e7" strokeWidth="5" strokeDasharray="18 34" strokeLinecap="round" strokeLinejoin="round" />
-        {routeArrows.map((arrow, index) => <path className="route-flow-arrow" style={{ animationDelay: `${-(index % 12) * 0.075}s` }} key={`${index}-${arrow.x}-${arrow.y}`} d={`M ${arrow.x - 9} ${arrow.y + 11} L ${arrow.x} ${arrow.y - 7} L ${arrow.x + 9} ${arrow.y + 11} Z`} fill="#d8f5e7" transform={`rotate(${arrow.rotation} ${arrow.x} ${arrow.y})`} />)}
+        {Array.from({ length: movingArrowCount }, (_, index) => <path key={index} className="route-moving-arrow" d={ROUTE_ARROW_PATH} fill="#d8f5e7">
+          <animateMotion path={routeMotionPath} dur={`${arrowDuration}s`} begin={`${-index * arrowDuration / movingArrowCount}s`} repeatCount="indefinite" rotate="auto" />
+        </path>)}
+        {routeArrows.map((arrow, index) => <path key={`${index}-${arrow.x}-${arrow.y}`} className="route-static-arrow" d={ROUTE_ARROW_PATH} fill="#d8f5e7" transform={`translate(${arrow.x} ${arrow.y}) rotate(${arrow.rotation})`} />)}
         <circle cx={routeTarget.x} cy={routeTarget.y} r="38" fill="#b7ead0" /><circle cx={routeTarget.x} cy={routeTarget.y} r="24" fill="#19bf69" />
         <rect x={routeTarget.x + 68} y={routeTarget.y - 35} width={routeDistanceWidth} height="70" rx="14" fill="#19bf69" /><text x={routeTarget.x + 68 + routeDistanceWidth / 2} y={routeTarget.y + 12} textAnchor="middle" fill="white" fontSize="38" fontWeight="700">{routeDistanceLabel}</text>
         <circle cx={ROUTE_ORIGIN.x} cy={ROUTE_ORIGIN.y} r="38" fill="#b7ead0" /><circle cx={ROUTE_ORIGIN.x} cy={ROUTE_ORIGIN.y} r="24" fill="#19bf69" />
@@ -479,7 +548,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
           ))}
         </text>
         {selectedIconCell && selectedIconAsset && <><rect x={selectedIconCell.x} y={selectedIconCell.y} width={selectedIconCell.width} height={selectedIconCell.height} rx="8" fill="#09a956" /><image href={selectedIconAsset} x={selectedMarker.x - 17} y={selectedMarker.y - 17} width="34" height="34" /></>}
-        {selectedRotatedIcon && selectedIconAsset && <g transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`}><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#09a956" /><image href={selectedIconAsset} x={selectedRotatedIcon.x + selectedRotatedIcon.width / 2 - 17} y={selectedRotatedIcon.y + selectedRotatedIcon.height / 2 - 17} width="34" height="34" /></g>}
+        {selectedRotatedIconElement}
       </g>}
     </svg>
     <div className="absolute right-5 top-[210px] z-20 flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-lg backdrop-blur" onPointerDown={(event) => event.stopPropagation()}>
