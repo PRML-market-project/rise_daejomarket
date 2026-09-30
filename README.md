@@ -49,13 +49,24 @@ Same command:
 npm.cmd run dev:local
 ```
 
-This starts the local services, including the Windows handwriting recognizer on port 17832:
+`dev:local` keeps one visible PowerShell window. It starts the native Windows Ink
+recognizer behind the backend API and the local llama.cpp model behind the AI
+server in hidden child processes; their output is saved in `.local-service-logs/`.
+Keep the launcher window open, and press Ctrl+C there to stop the services it started.
+
+The local endpoints are:
 
 - backend: http://localhost:8080
 - ai-server: http://localhost:8000
 - handwriting-server: http://localhost:17832
 - frontend: http://localhost:5173
 - admin-frontend: http://localhost:3000
+- admin through the kiosk origin: http://localhost:5173/dashboard
+
+The kiosk's top-left logo opens the admin page in a new tab after 10 consecutive
+clicks (no more than 1.5 seconds between clicks). Admin authentication still applies.
+For a separately deployed admin site, set `VITE_ADMIN_URL` on the kiosk frontend
+to its full dashboard URL.
 
 For local frontend development, set `frontend/ml-test-main/.env` like this:
 

@@ -2,33 +2,30 @@ $ErrorActionPreference = "Stop"
 $env:PYTHONIOENCODING = "utf-8"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$logDir = Join-Path $root ".local-service-logs"
+$runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 $autoStopSeconds = if ($env:DEV_LOCAL_AUTO_STOP_SECONDS) {
     [int] $env:DEV_LOCAL_AUTO_STOP_SECONDS
 } else {
     0
 }
 
-function Start-NamedWindow {
+function Start-HiddenService {
     param(
         [string] $Name,
         [string] $WorkingDirectory,
-        [string] $Command
+        [string] $Command,
+        [string] $LogPath,
+        [string] $ErrorLogPath
     )
 
-    $title = "rise-daejomarket - $Name"
-    $windowCommand = @"
-`$Host.UI.RawUI.WindowTitle = "$title"
-Write-Host "Starting $Name"
-Write-Host "Working directory: $WorkingDirectory"
-Write-Host ""
-$Command
-"@
-
-    $windowStyle = if ($autoStopSeconds -gt 0) { "Hidden" } else { "Normal" }
     return Start-Process powershell.exe `
         -WorkingDirectory $WorkingDirectory `
-        -ArgumentList @("-NoExit", "-ExecutionPolicy", "Bypass", "-Command", $windowCommand) `
-        -WindowStyle $windowStyle `
+        -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $Command) `
+        -RedirectStandardOutput $LogPath `
+        -RedirectStandardError $ErrorLogPath `
+        -WindowStyle Hidden `
         -PassThru
 }
 
@@ -47,6 +44,9 @@ function Wait-ServiceReady {
     param(
         [string] $Name,
         [string] $Url,
+        [System.Diagnostics.Process] $Process,
+        [string] $LogPath,
+        [string] $ErrorLogPath,
         [int] $TimeoutSeconds = 180
     )
 
@@ -56,10 +56,19 @@ function Wait-ServiceReady {
             Write-Host "$Name is ready: $Url"
             return
         }
+        if ($Process.HasExited) {
+            break
+        }
         Start-Sleep -Milliseconds 500
     }
 
-    throw "$Name did not become ready within $TimeoutSeconds seconds. Check its service window."
+    if (Test-Path -LiteralPath $LogPath) {
+        Get-Content -LiteralPath $LogPath -Tail 25 | ForEach-Object { Write-Host $_ }
+    }
+    if (Test-Path -LiteralPath $ErrorLogPath) {
+        Get-Content -LiteralPath $ErrorLogPath -Tail 25 | ForEach-Object { Write-Host $_ }
+    }
+    throw "$Name did not become ready. Check $LogPath and $ErrorLogPath."
 }
 
 function Stop-ServiceTree {
@@ -122,9 +131,9 @@ $services = @(
     @{
         Name = "admin-frontend"
         Path = "admin-frontend"
-        Command = "npm.cmd run dev"
+        Command = "npm.cmd run dev -- --port 3000"
         Url = "http://localhost:3000"
-        ReadyUrl = "http://127.0.0.1:3000"
+        ReadyUrl = "http://127.0.0.1:3000/login"
     }
 )
 
@@ -143,10 +152,15 @@ try {
             continue
         }
 
-        $process = Start-NamedWindow `
+        $logPath = Join-Path $logDir "$runStamp-$($service.Name).log"
+        $errorLogPath = Join-Path $logDir "$runStamp-$($service.Name).error.log"
+        Write-Host "Starting $($service.Name) in the background (log: $logPath)"
+        $process = Start-HiddenService `
             -Name $service.Name `
             -WorkingDirectory $workdir `
-            -Command $service.Command
+            -Command $service.Command `
+            -LogPath $logPath `
+            -ErrorLogPath $errorLogPath
 
         $startedServices += [pscustomobject]@{
             Name = $service.Name
@@ -156,7 +170,10 @@ try {
         if ($service.ReadyUrl) {
             Wait-ServiceReady `
                 -Name $service.Name `
-                -Url $service.ReadyUrl
+                -Url $service.ReadyUrl `
+                -Process $process `
+                -LogPath $logPath `
+                -ErrorLogPath $errorLogPath
         }
 
         Start-Sleep -Milliseconds 500
@@ -171,6 +188,8 @@ try {
     Write-Host "handwriting:    http://localhost:17832"
     Write-Host "frontend:       http://localhost:5173"
     Write-Host "admin-frontend: http://localhost:3000"
+    Write-Host "admin (shared frontend URL): http://localhost:5173/dashboard"
+    Write-Host "Service logs:   $logDir"
     Write-Host ""
     Write-Host "Press Ctrl+C to stop every service started by dev:local."
 

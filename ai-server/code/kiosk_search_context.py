@@ -117,7 +117,14 @@ def build_search_prompt(intent, question, language, shops, tags):
     compact = [{key: shop[key] for key in public_fields if shop.get(key)} for shop in candidates]
     tag_context = [{key: tag[key] for key in ("name", "keywords") if tag.get(key)} for tag in tags]
     result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
-    return f"""You are the Daejo Market kiosk guide. Answer in {response_language}; keep shop names in Korean.
+    return f"""You are the Daejo Market kiosk guide.
+The response language for this question is {response_language}. Write the entire chat_message in
+{response_language}: English questions get English answers, Vietnamese questions get Vietnamese
+answers, and Korean questions get Korean answers. For short or mixed-language questions, use the
+selected kiosk language supplied as the response language.
+Translate all explanatory text, including uncertainty and price-unavailable messages, into the
+response language. Keep proper shop names in Korean exactly as supplied; never translate them.
+Keep JSON keys, intent values, status, and map IDs exactly as specified below.
 The user's intent has already been classified. Do not change the intent: {result_intent}.
 Use ONLY the supplied kiosk map and admin data. A category or keyword means a search match,
 NOT proof that a product is sold or in stock. Descriptions are the only evidence for detailed offerings.

@@ -7,6 +7,12 @@ import { fileURLToPath, URL } from 'node:url';
 export default defineConfig({
   server: {
     allowedHosts: ['.trycloudflare.com'],
+    proxy: {
+      '/dashboard': { target: 'http://127.0.0.1:3000', changeOrigin: true, ws: true },
+      '/login': { target: 'http://127.0.0.1:3000', changeOrigin: true, ws: true },
+      '/_next': { target: 'http://127.0.0.1:3000', changeOrigin: true, ws: true },
+      '/api/design-asset': { target: 'http://127.0.0.1:3000', changeOrigin: true },
+    },
   },
   base: '/', // Vercel root에 배포
   build: {

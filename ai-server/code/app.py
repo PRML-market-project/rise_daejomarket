@@ -197,6 +197,19 @@ def detect_language(text):
         return "unknown"
 
 
+def response_language_for_question(text, selected_language):
+    """Prefer a clear question language; use the kiosk selection for ambiguous input."""
+    fallback = selected_language if selected_language in ("ko", "en", "vi") else "ko"
+    latin_words = re.findall(r"[A-Za-zÀ-ỹ]+", text)
+    if len(latin_words) >= 2:
+        detected = detect_language(text)
+        if detected in ("en", "vi"):
+            return detected
+    if len(re.findall(r"[가-힣]", text)) >= 4 and len(latin_words) < 2:
+        return "ko"
+    return fallback
+
+
 def load_search_phrases():
     shops, tags = load_kiosk_context()
     phrases = {shop["name"] for shop in shops}
@@ -596,8 +609,7 @@ def gpt():
         kiosk_id = int(data['kiosk_id'])
         admin_id = int(data['admin_id'])
 
-        requested_language = data.get('language')
-        language = requested_language if requested_language in ('ko', 'en', 'vi') else detect_language(text)
+        language = response_language_for_question(text, data.get('language'))
         timer.mark("language_detected")
 
         print(

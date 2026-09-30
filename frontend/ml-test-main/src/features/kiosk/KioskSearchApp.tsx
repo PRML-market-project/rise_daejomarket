@@ -63,9 +63,19 @@ const languageLabels = { ko: "한국어", en: "English", vi: "Tiếng Việt" } 
 
 function Header({ language, onMap, onLanguage }: { language: Language; onMap: () => void; onLanguage: () => void }) {
   const { t } = useKioskLocale();
+  const logoTaps = useRef({ count: 0, lastAt: 0 });
+  const openAdminAfterTenTaps = () => {
+    const now = Date.now();
+    logoTaps.current.count = now - logoTaps.current.lastAt <= 1500 ? logoTaps.current.count + 1 : 1;
+    logoTaps.current.lastAt = now;
+    if (logoTaps.current.count === 10) {
+      logoTaps.current.count = 0;
+      window.open(import.meta.env.VITE_ADMIN_URL?.trim() || `${window.location.origin}/dashboard`, "_blank", "noopener,noreferrer");
+    }
+  };
   return (
     <header className="flex h-[120px] shrink-0 items-center justify-between border-b-2 border-[#ebebeb] px-[52px]">
-      <img src="/figma/daecho-logo.svg" alt={t("대조시장")} className="h-[44px] w-[142px]" />
+      <button type="button" onClick={openAdminAfterTenTaps} aria-label={t("대조시장")} className="shrink-0 touch-manipulation"><img src="/figma/daecho-logo.svg" alt="" className="block h-[44px] w-[142px]" /></button>
       <div className="flex gap-[16px]">
         <button
           type="button"
