@@ -23,6 +23,9 @@ const copy: Record<string, [string, string]> = {
   "키보드로 검색": ["Keyboard", "Bàn phím"],
   "손글씨로 검색": ["Handwriting", "Viết tay"],
   "음성으로 검색": ["Voice", "Giọng nói"],
+  "음성 검색": ["Voice", "Giọng nói"],
+  "손글씨 검색": ["Handwriting", "Viết tay"],
+  "키보드 검색": ["Keyboard", "Bàn phím"],
   "주변식당": ["Restaurants", "Quán ăn"],
   "반찬가게": ["Side dishes", "Món ăn kèm"],
   "간식가게": ["Snacks", "Đồ ăn vặt"],
@@ -90,7 +93,12 @@ const copy: Record<string, [string, string]> = {
   "대조시장 홍보 콘텐츠": ["Daejo Market promotions", "Nội dung quảng bá chợ Daejo"],
   "{count}개의 가게를 찾았어요": ["Found {count} shops", "Tìm thấy {count} cửa hàng"],
   "현재 위치에서 {distance}m": ["{distance} m from here", "Cách đây {distance} m"],
+  "안내 닫기": ["Dismiss guidance", "Đóng hướng dẫn"],
+  "다음": ["Next", "Tiếp theo"],
   "{name}으로 이동하는 길을 알려드릴게요": ["Directions to {name}", "Chỉ đường đến {name}"],
+  "“{name}”까지": ["To “{name}”", "Đến “{name}”"],
+  "지도 경로를 따라": ["Follow the map route for", "Theo tuyến đường trên bản đồ"],
+  "이동하세요": ["to reach the shop", "để đến cửa hàng"],
 };
 
 export function createTranslator(language: Language, translations: Translations = {}) {

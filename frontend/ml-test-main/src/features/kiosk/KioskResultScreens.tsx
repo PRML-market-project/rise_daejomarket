@@ -146,29 +146,47 @@ export function LanguageSelectionScreen({
 
 function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; distanceMeters: number; selected: boolean; onSelect: () => void }) {
   const { t } = useKioskLocale();
-  const hasPhoto = shop.category === "식당" && shop.id !== "21";
   const tags = shop.tags?.length ? shop.tags : shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onSelect}
-      className={`flex h-[164px] min-w-0 flex-1 items-center gap-[24px] rounded-[32px] border-2 px-[28px] py-[16px] text-left ${selected ? "border-[#116543] bg-[#e8f2ee]" : "border-[#ebebeb] bg-white"}`}
+      className={`flex h-[164px] min-w-0 items-center gap-[24px] rounded-[32px] border-2 px-[32px] py-[16px] text-left shadow-[0_0_8px_rgba(0,0,0,0.2)] ${selected ? "border-[#116543] bg-[#e8f2ee]" : "border-[#a1a1a1] bg-white"}`}
     >
-      {shop.thumbnailUrl || hasPhoto ? (
-        <img src={shop.thumbnailUrl || "/figma/search-result-food.png"} alt="" className="h-[120px] w-[120px] shrink-0 rounded-[16px] object-cover" />
+      {shop.thumbnailUrl ? (
+        <img src={shop.thumbnailUrl} alt="" className="h-[120px] w-[120px] shrink-0 rounded-[16px] object-cover" />
       ) : (
-        <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-[16px] bg-[#ebebeb] text-center text-[24px] font-bold leading-[28px] text-[#c9c9c9]">{t("대조시장")}</div>
+        <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-[16px] bg-[#ebebeb]"><img src="/figma/results/shop-placeholder.svg" alt="" /></div>
       )}
       <div className="min-w-0">
-        <strong className="block truncate text-[34px] font-bold leading-[44px] text-[#19211c]">{t(shop.name)}</strong>
-        {shop.description && <span className="mt-1 block truncate text-[16px] leading-[22px] text-[#6f6f6f]" title={t(shop.description)}>{t(shop.description)}</span>}
-        <div className="mt-[4px] flex gap-[4px] overflow-hidden">
-          {tags.slice(0, 3).map((tag, index) => <span key={`${tag}-${index}`} className={`shrink-0 rounded-[16px] px-[12px] py-[2px] text-[16px] leading-[24px] ${selected ? "bg-[#b9ead2] text-[#116543]" : "bg-[#ebebeb] text-[#6f6f6f]"}`}>{t(tag)}</span>)}
+        <strong className="block truncate text-[36px] font-bold leading-[44px] text-[#19211c]" title={t(shop.name)}>{t(shop.name)}</strong>
+        <div className="mt-[16px] flex gap-[4px] overflow-hidden">
+          {tags.slice(0, 3).map((tag, index) => <span key={`${tag}-${index}`} className={`shrink-0 rounded-[16px] px-[12px] py-[4px] text-[18px] font-medium leading-[28px] ${selected ? "bg-[#b9ead2] text-[#116543]" : "bg-[#ebebeb] text-[#6f6f6f]"}`}>{t(tag)}</span>)}
         </div>
-        <span className="mt-[4px] block text-[16px] leading-[20px] text-[#a1a1a1]">{t("현재 위치에서 {distance}m", { distance: distanceMeters })}</span>
+        <span className="mt-[8px] block text-[16px] font-medium leading-[28px] text-[#a1a1a1]">{t("현재 위치에서 {distance}m", { distance: distanceMeters })}</span>
       </div>
     </button>
   );
+}
+
+function ResultAnswer({ answer, onDismiss }: { answer: string; onDismiss: () => void }) {
+  const { t } = useKioskLocale();
+  return <div className="absolute left-[-2px] top-[-144px] flex h-[120px] w-[920px] items-center gap-[10px] pl-[32px]">
+    <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-full bg-[#363636]">
+      <div className="relative h-[90px] w-[90px] shadow-[4px_4px_32px_rgba(0,0,0,0.4)]">
+        <img src="/figma/results/mascot-base.png" alt="" className="absolute inset-0 h-[90px] w-[90px] object-cover" />
+        <img src="/figma/results/mascot-overlay.png" alt="" className="absolute inset-0 h-[90px] w-[90px] object-cover" />
+      </div>
+    </div>
+    <div className="flex items-center">
+      <span aria-hidden="true" className="relative mr-[-12px] flex h-[22.627px] w-[22.627px] shrink-0 items-center justify-center"><img src="/figma/results/bubble-tail.svg" alt="" className="rotate-45" /></span>
+      <div className="relative flex w-[540px] items-start gap-[12px] rounded-[24px] bg-[#363636] py-[16px] pl-[24px] pr-[16px]">
+        <p role="status" className="max-h-[84px] min-w-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-line break-words text-[20px] font-medium leading-[28px] text-white">{answer}</p>
+        <button type="button" onClick={onDismiss} aria-label={t("안내 닫기")} className="relative shrink-0 after:absolute after:inset-[-10px]"><img src="/figma/results/close.svg" alt="" /></button>
+      </div>
+    </div>
+  </div>;
 }
 
 export function ResultsPanel({
@@ -190,7 +208,9 @@ export function ResultsPanel({
   const pageSize = 6;
   const [sortMode, setSortMode] = useState<"relevance" | "distance">("relevance");
   const [page, setPage] = useState(1);
-  const panelHeight = answer ? 1180 : 1112;
+  const [answerDismissed, setAnswerDismissed] = useState(false);
+  useEffect(() => { setAnswerDismissed(false); }, [answer]);
+  const panelHeight = 1128;
   const collapsedOffset = panelHeight - 112;
   const [panelOffset, setPanelOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -239,9 +259,10 @@ export function ResultsPanel({
 
   return (
     <section
-      className="absolute bottom-0 left-0 right-0 z-30 overflow-hidden rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[64px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
+      className="absolute bottom-0 left-0 right-0 z-30 rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
       style={{ height: panelHeight, transform: `translateY(${panelOffset}px)`, transition: dragging ? "none" : "transform 320ms cubic-bezier(.22,1,.36,1)" }}
     >
+      {!collapsed && answer && !answerDismissed && <ResultAnswer answer={answer} onDismiss={() => setAnswerDismissed(true)} />}
       <button
         type="button"
         aria-label={t(collapsed ? "검색 결과 펼치기" : "검색 결과 접고 지도 보기")}
@@ -253,31 +274,28 @@ export function ResultsPanel({
         className={`absolute inset-x-0 top-0 z-10 flex w-full touch-none flex-col items-center justify-center ${collapsed ? "h-[112px] gap-[12px]" : "h-[38px]"}`}
       ><span className="h-[10px] w-[120px] rounded-full bg-[#a1a1a1]" />{collapsed && <span className="text-[26px] font-medium text-[#116543]">{t("위로 밀어 검색 결과 보기")}</span>}</button>
       <div className={`flex h-full flex-col ${collapsed ? "invisible" : ""}`}>
-      <div className="flex items-center justify-between">
+      <div className="flex h-[72px] shrink-0 items-center justify-between">
         <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: shops.length })}</h2>
-        <div className="flex rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
+        <div className="flex gap-[8px] rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
           <button
             type="button"
             aria-pressed={sortMode === "relevance"}
             onClick={() => setSortMode("relevance")}
-            className={`w-[180px] rounded-full py-[8px] ${sortMode === "relevance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
+            className={`w-[180px] rounded-full py-[8px] leading-[40px] ${sortMode === "relevance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
           >{t("정확도순")}</button>
           <button
             type="button"
             aria-pressed={sortMode === "distance"}
             onClick={() => setSortMode("distance")}
-            className={`w-[180px] rounded-full py-[8px] ${sortMode === "distance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
+            className={`w-[180px] rounded-full py-[8px] leading-[40px] ${sortMode === "distance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
           >{t("거리순")}</button>
         </div>
       </div>
-      {answer && <p className="mt-[16px] min-h-[108px] max-h-[200px] overflow-y-auto overscroll-contain whitespace-pre-line break-words pr-[8px] text-[26px] font-medium leading-[36px] text-[#116543]">{answer}</p>}
-      <div className={`${answer ? "mt-[24px]" : "mt-[40px]"} grid shrink-0 grid-cols-2 gap-[16px]`}>
+      <div className="mt-[56px] grid h-[524px] shrink-0 auto-rows-[164px] grid-cols-2 content-start gap-[16px]">
         {visible.map(({ shop, distanceMeters }) => <ResultCard key={shop.id} shop={shop} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
       </div>
-      <div className="mt-[32px] flex shrink-0 items-center justify-center gap-[16px] text-[28px]">
-        {pageCount > 1 && (
-          <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="h-[56px] w-[40px] text-[40px] disabled:text-[#c9c9c9]">‹</button>
-        )}
+      <div className="mt-[48px] flex h-[56px] shrink-0 items-center justify-center gap-[16px] text-[28px]">
+          <button type="button" aria-label={t("이전")} disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/previous.svg" alt="" className="rotate-180" /></button>
         {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
           <button
             type="button"
@@ -288,11 +306,9 @@ export function ResultsPanel({
             {pageNumber}
           </button>
         ))}
-        {pageCount > 1 && (
-          <button type="button" disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} className="h-[56px] w-[40px] text-[40px] disabled:text-[#c9c9c9]">›</button>
-        )}
+          <button type="button" aria-label={t("다음")} disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/next.svg" alt="" /></button>
       </div>
-      <div className="mt-auto flex shrink-0 gap-[24px] pt-[16px]">
+      <div className="mx-[-2px] mt-[48px] flex shrink-0 gap-[24px]">
         <button type="button" onClick={onSearchAgain} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("다시 검색하기")}</button>
         <button type="button" disabled={!selectedId} onClick={onDirections} className="h-[120px] flex-1 rounded-full text-[40px] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1]" style={selectedId ? { backgroundImage: GREEN, color: "white" } : undefined}>{t("길 찾기")}</button>
       </div>
@@ -304,14 +320,21 @@ export function ResultsPanel({
 export function DirectionsPanel({ shopName, distanceMeters, onBack, onHome }: { shopName: string; distanceMeters: number; onBack: () => void; onHome: () => void }) {
   const { t } = useKioskLocale();
   return (
-    <section className="absolute bottom-0 left-0 right-0 z-30 h-[492px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
-      <div className="flex items-center justify-between">
-        <h2 className="max-w-[650px] text-[36px] font-bold leading-[52px]">{t("{name}으로 이동하는 길을 알려드릴게요", { name: t(shopName) })}</h2>
-        <p className="text-[48px] font-bold text-[#19211c]"><strong className="text-[80px] text-[#116543]">{distanceMeters}</strong> m {t("이동")}</p>
+    <section className="absolute bottom-0 left-0 right-0 z-30 flex h-[604px] flex-col justify-end rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
+      <div className="flex h-[400px] shrink-0 flex-col justify-between">
+      <div className="flex min-h-[120px] items-center gap-[32px]">
+        <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-full bg-[#116543]">
+          <img src="/figma/results/directions-map.png" alt="" className="h-[100px] w-[100px] object-cover shadow-[4px_4px_24px_rgba(0,0,0,0.25)]" />
+        </div>
+        <h2 className="min-w-0 text-[40px] font-bold leading-[52px] text-[#19211c]">
+          <span className="block break-words">{t("“{name}”까지", { name: t(shopName) })}</span>
+          <span className="block">{t("지도 경로를 따라")} <strong className="text-[#22a36b] underline decoration-[4px]">{distanceMeters}m</strong> {t("이동하세요")}</span>
+        </h2>
       </div>
-      <div className="mt-[48px] flex gap-[24px]">
+      <div className="mx-[-2px] flex gap-[24px]">
         <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("이전")}</button>
         <button type="button" onClick={onHome} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>{t("처음으로")}</button>
+      </div>
       </div>
     </section>
   );

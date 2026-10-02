@@ -14,6 +14,7 @@ import {
 import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
 import { searchKioskWithAi } from "./kioskAiSearch";
 import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
+import { CompatibleMotion, DesignMotion, VoiceMotionButton } from "./DesignMotion";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
@@ -123,23 +124,30 @@ function PrimaryButton({
 function MethodTabs({ mode, onChange }: { mode: InputMode; onChange: (mode: InputMode) => void }) {
   const { t } = useKioskLocale();
   const tabs: Array<[InputMode, string]> = [
-    ["keyboard", "키보드로 검색"],
-    ["handwriting", "손글씨로 검색"],
-    ["voice", "음성으로 검색"],
+    ["voice", "음성 검색"],
+    ["handwriting", "손글씨 검색"],
+    ["keyboard", "키보드 검색"],
   ];
 
   return (
-    <div className="flex h-[120px] w-full gap-[8px] rounded-full bg-[#ebebeb] p-[8px]">
+    <div className="flex h-[128px] w-full shrink-0 items-start justify-between rounded-[101px] bg-[#ebebeb] p-[12px]">
       {tabs.map(([value, label]) => (
         <button
           key={value}
           type="button"
+          aria-pressed={mode === value}
           onClick={() => onChange(value)}
-          className={`flex-1 whitespace-nowrap rounded-full text-[36px] font-medium leading-[48px] ${
+          className={`flex h-[104px] w-[310px] shrink-0 items-center justify-center gap-[16px] whitespace-nowrap rounded-full p-[32px] text-[36px] font-medium leading-[48px] ${
             mode === value ? "text-white" : "text-[#a1a1a1]"
           }`}
-          style={mode === value ? { backgroundImage: GREEN } : undefined}
+          style={{
+            backgroundColor: "white",
+            backgroundImage: mode === value ? "linear-gradient(98.238deg, #289064 0%, #116543 71.65%)" : undefined,
+            boxShadow: "5px 5px 8px rgba(0,0,0,0.15), inset 0 -4px 8px rgba(0,0,0,0.25)",
+          }}
         >
+          <img src={`/figma/search-methods/${value}.svg`} alt="" className="shrink-0"
+            style={{ filter: mode === value ? "brightness(0) invert(1)" : "brightness(0) invert(0.631373)" }} />
           {t(label)}
         </button>
       ))}
@@ -379,7 +387,7 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] bg-[#ebebeb]">
-      {!recognized && <img src="/figma/handwriting-guide.png" alt="" className="pointer-events-none absolute inset-0 h-full w-full rounded-[28px] object-cover object-bottom opacity-30" />}
+      {!recognized && !hasInk && <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ opacity: 0.15 }}><CompatibleMotion name="handwriting" loopDelayMs={3000} /></div>}
       {!hasInk && (
         <p className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] ${recognized ? "text-[#a1a1a1]" : "text-[#0a3825]"}`}>{t("검색할 내용을 손가락으로 적어주세요")}</p>
       )}
@@ -439,13 +447,7 @@ function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state
   const active = state === "listening" || state === "recognizing";
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-      <button
-        type="button"
-        onClick={onStart}
-        className={`flex h-[320px] w-[320px] items-center justify-center rounded-full ${active ? "bg-[#00af55] shadow-[0_0_100px_rgba(0,190,95,.55)]" : "bg-[#168259]"}`}
-      >
-        <img src="/figma/mic.svg" alt={t("음성 입력")} className="h-[84px] w-[84px]" />
-      </button>
+      <VoiceMotionButton active={active} onStart={onStart} label={t("음성 입력")} />
       <p className="mt-[24px] text-[36px] font-medium leading-[48px] text-[#0a3825]">
         {state === "idle" ? t("원을 터치한 뒤 말씀해주세요") : state === "listening" ? t("듣고 있어요...") : `“${transcript || t("단팥빵을 사고...")}”`}
       </p>
@@ -457,7 +459,7 @@ export default function KioskSearchApp() {
   const [language, setLanguage] = useState<Language>("ko");
   const [scale, setScale] = useState(1);
   const [screen, setScreen] = useState<Screen>("welcome");
-  const [mode, setMode] = useState<InputMode>("keyboard");
+  const [mode, setMode] = useState<InputMode>("voice");
   const [query, setQuery] = useState("");
   const [tagSearch, setTagSearch] = useState<{ name: string; keywords: string } | null>(null);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
@@ -533,7 +535,7 @@ export default function KioskSearchApp() {
 
   const returnToWelcome = useCallback(() => {
     setScreen("welcome");
-    setMode("keyboard");
+    setMode("voice");
     setQuery("");
     setTagSearch(null);
     setTranscript("");
@@ -675,12 +677,12 @@ export default function KioskSearchApp() {
         )}
 
         {screen === "welcome" && (
-          <main className="relative flex h-[1800px] flex-col items-center overflow-hidden pt-[220px]">
+          <main className="relative isolate flex h-[1800px] flex-col items-center overflow-hidden bg-[#f8fbf8] pt-[220px]">
             <div className="z-10 text-center text-[#0a3825]">
               <h1 className="text-[64px] font-bold leading-[1.4]">{t("가게를 찾고계신가요?")}<br />{t("화면을 터치해보세요")}</h1>
               <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px] text-[36px] font-medium">{t("대조시장 길 찾기")}</PrimaryButton>
             </div>
-            <img src="/figma/map-character.png" alt={t("지도를 들고 있는 대조시장 캐릭터")} className="absolute bottom-[-20px] left-0 h-[1220px] w-full object-cover object-top" />
+            <DesignMotion name="welcome" className="absolute bottom-0 left-0 h-[1920px] w-full mix-blend-darken" />
           </main>
         )}
 
