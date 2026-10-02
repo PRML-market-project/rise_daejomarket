@@ -1,5 +1,5 @@
 import { useKioskLocale } from "./i18n";
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getRouteDistanceForShop } from "@/components/market/MapView";
 import type { Shop } from "@/types/shop";
 
@@ -66,7 +66,7 @@ export function SearchStatusScreen({
   const { t } = useKioskLocale();
   const copy = statusCopy[kind];
   return (
-    <main className="flex h-[1800px] flex-col items-center px-[48px] pb-[160px] pt-[320px] text-center text-[#0a3825]">
+    <main className={`flex h-[1800px] flex-col items-center px-[48px] pb-[160px] pt-[320px] text-center text-[#0a3825] ${kind === "connection" ? "font-['Kiosk_Result_Noto',sans-serif]" : ""}`}>
       <img src={copy.image} alt="" className="h-[200px] w-[200px] object-contain" />
       <h1 className="mt-[16px] text-[64px] font-bold leading-[1.4]">{t(copy.title)}</h1>
       <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{message && (kind === "empty" || kind === "answer") ? message : t(copy.body)}</p>
@@ -88,9 +88,9 @@ export function SearchStatusScreen({
 
       {kind === "connection" && (
         <div className="mt-[80px] flex w-full gap-[24px]">
-          <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">{t("이전으로")}</button>
-          <button type="button" onClick={onRetry} className="flex h-[120px] flex-1 items-center justify-center gap-[20px] rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>
-            <span className="text-[44px]">↻</span>{t("다시 시도")}</button>
+          <button type="button" onClick={onBack} className="flex h-[120px] w-[320px] shrink-0 items-center justify-center rounded-full bg-[#ebebeb] p-[24px] text-[40px] font-normal leading-[52px] text-[#19211c]">{t("이전으로")}</button>
+          <button type="button" onClick={onRetry} className="flex h-[120px] flex-1 items-center justify-center gap-[24px] rounded-full p-[24px] text-[40px] font-normal leading-[52px] text-white" style={{ backgroundImage: "linear-gradient(102.376deg, #289064 0%, #116543 74.487%)" }}>
+            <img src="/figma/refresh-ccw.svg" alt="" className="shrink-0" />{t("다시 시도")}</button>
         </div>
       )}
     </main>
@@ -152,7 +152,7 @@ function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; 
       type="button"
       aria-pressed={selected}
       onClick={onSelect}
-      className={`flex h-[164px] min-w-0 items-center gap-[24px] rounded-[32px] border-2 px-[32px] py-[16px] text-left shadow-[0_0_8px_rgba(0,0,0,0.2)] ${selected ? "border-[#116543] bg-[#e8f2ee]" : "border-[#a1a1a1] bg-white"}`}
+      className={`flex h-[164px] min-w-0 items-center gap-[24px] rounded-[32px] border-2 px-[32px] py-[16px] font-['Kiosk_Result_Noto',sans-serif] text-left tracking-normal shadow-[0_0_8px_rgba(0,0,0,0.2)] ${selected ? "border-[#116543] bg-[#e8f2ee]" : "border-[#a1a1a1] bg-white"}`}
     >
       {shop.thumbnailUrl ? (
         <img src={shop.thumbnailUrl} alt="" className="h-[120px] w-[120px] shrink-0 rounded-[16px] object-cover" />
@@ -211,32 +211,6 @@ export function ResultsPanel({
   const [answerDismissed, setAnswerDismissed] = useState(false);
   useEffect(() => { setAnswerDismissed(false); }, [answer]);
   const panelHeight = 1128;
-  const collapsedOffset = panelHeight - 112;
-  const [panelOffset, setPanelOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const dragRef = useRef<{ startY: number; startOffset: number; scale: number } | null>(null);
-  const collapsed = panelOffset === collapsedOffset;
-  const onHandleDown = (event: PointerEvent<HTMLButtonElement>) => {
-    const panel = event.currentTarget.closest("section");
-    const scale = panel ? panel.getBoundingClientRect().height / panelHeight : 1;
-    dragRef.current = { startY: event.clientY, startOffset: panelOffset, scale };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
-  };
-  const onHandleMove = (event: PointerEvent<HTMLButtonElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    setPanelOffset(Math.min(collapsedOffset, Math.max(0, drag.startOffset + (event.clientY - drag.startY) / drag.scale)));
-  };
-  const onHandleUp = (event: PointerEvent<HTMLButtonElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const delta = (event.clientY - drag.startY) / drag.scale;
-    setPanelOffset(Math.abs(delta) < 20 ? (drag.startOffset ? 0 : collapsedOffset) : (delta > 0 ? collapsedOffset : 0));
-    dragRef.current = null;
-    setDragging(false);
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  };
   const orderedResults = useMemo(() => {
     const results = shops.map((shop, relevanceIndex) => ({
       shop,
@@ -260,20 +234,10 @@ export function ResultsPanel({
   return (
     <section
       className="absolute bottom-0 left-0 right-0 z-30 rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
-      style={{ height: panelHeight, transform: `translateY(${panelOffset}px)`, transition: dragging ? "none" : "transform 320ms cubic-bezier(.22,1,.36,1)" }}
+      style={{ height: panelHeight }}
     >
-      {!collapsed && answer && !answerDismissed && <ResultAnswer answer={answer} onDismiss={() => setAnswerDismissed(true)} />}
-      <button
-        type="button"
-        aria-label={t(collapsed ? "검색 결과 펼치기" : "검색 결과 접고 지도 보기")}
-        aria-expanded={!collapsed}
-        onPointerDown={onHandleDown}
-        onPointerMove={onHandleMove}
-        onPointerUp={onHandleUp}
-        onPointerCancel={() => { dragRef.current = null; setDragging(false); setPanelOffset(collapsed ? collapsedOffset : 0); }}
-        className={`absolute inset-x-0 top-0 z-10 flex w-full touch-none flex-col items-center justify-center ${collapsed ? "h-[112px] gap-[12px]" : "h-[38px]"}`}
-      ><span className="h-[10px] w-[120px] rounded-full bg-[#a1a1a1]" />{collapsed && <span className="text-[26px] font-medium text-[#116543]">{t("위로 밀어 검색 결과 보기")}</span>}</button>
-      <div className={`flex h-full flex-col ${collapsed ? "invisible" : ""}`}>
+      {answer && !answerDismissed && <ResultAnswer answer={answer} onDismiss={() => setAnswerDismissed(true)} />}
+      <div className="flex h-full flex-col">
       <div className="flex h-[72px] shrink-0 items-center justify-between">
         <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: shops.length })}</h2>
         <div className="flex gap-[8px] rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
@@ -294,14 +258,15 @@ export function ResultsPanel({
       <div className="mt-[56px] grid h-[524px] shrink-0 auto-rows-[164px] grid-cols-2 content-start gap-[16px]">
         {visible.map(({ shop, distanceMeters }) => <ResultCard key={shop.id} shop={shop} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
       </div>
-      <div className="mt-[48px] flex h-[56px] shrink-0 items-center justify-center gap-[16px] text-[28px]">
+      <div className="mt-[48px] flex h-[56px] shrink-0 items-center justify-center gap-[16px] font-['Kiosk_Result_Inter',sans-serif] text-[28px] font-medium leading-[22px] tracking-normal">
           <button type="button" aria-label={t("이전")} disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/previous.svg" alt="" className="rotate-180" /></button>
         {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
           <button
             type="button"
             key={pageNumber}
             onClick={() => setPage(pageNumber)}
-            className={`h-[56px] w-[56px] rounded-[8px] ${pageNumber === page ? "bg-[#116543] text-white" : "bg-[#ebebeb] text-[#a1a1a1]"}`}
+            aria-current={pageNumber === page ? "page" : undefined}
+            className={`flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[8px] ${pageNumber === page ? "bg-[#116543] text-white" : "bg-[#ebebeb] text-[#a1a1a1]"}`}
           >
             {pageNumber}
           </button>

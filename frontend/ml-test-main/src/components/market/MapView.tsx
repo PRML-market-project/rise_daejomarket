@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Shop } from "@/types/shop";
+import { useKioskLocale } from "@/features/kiosk/i18n";
 
 interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
 interface HitArea { x: number; y: number; width: number; height: number }
 interface RotatedIconCell extends IconCell { rotation: number; originX: number; originY: number }
-type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean; selectedViewportY?: number };
+type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean; selectedViewportY?: number; bottomOverlayHeight?: number };
 
 const MAP_WIDTH = 6807;
 const MAP_HEIGHT = 10577;
@@ -22,7 +23,6 @@ const INITIAL_CENTER: Point = { x: 4950, y: 4300 };
 const MIN_LABEL_PT = 15;
 const MAX_LABEL_PT = 32;
 const INITIAL_LABEL_PT = 18;
-const DIRECTIONS_PANEL_HEIGHT = 520;
 const CSS_PIXELS_PER_POINT = 4 / 3;
 const SOURCE_LABEL_HEIGHT = 38;
 const ROUTE_ARROW_PATH = "M -11 -9 L 7 0 L -11 9 Z";
@@ -384,7 +384,8 @@ export function getRouteDistanceForShop(shop: Shop): number {
   return Math.max(1, Math.round(getRouteDistanceMeters(getRoutePointsForShop(shop))));
 }
 
-export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false, selectedViewportY = 0.5 }: MapViewProps) {
+export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false, selectedViewportY = 0.5, bottomOverlayHeight = 0 }: MapViewProps) {
+  const { t } = useKioskLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const cameraAnimationRef = useRef<number | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
@@ -439,7 +440,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       return sum + Math.hypot(point.x - previous.x, point.y - previous.y);
     }, 0);
     const duration = clamp(2200 + routeLength * 0.45, 2600, 6200);
-    const panelOffsetY = DIRECTIONS_PANEL_HEIGHT / (2 * mapScaleRef.current);
+    const panelOffsetY = bottomOverlayHeight * containerSize.height / (containerRef.current?.clientHeight || containerSize.height) / (2 * mapScaleRef.current);
     const cameraCenterFor = (point: Point) => clampCenter({ x: point.x, y: point.y + panelOffsetY });
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -464,7 +465,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     cameraAnimationRef.current = requestAnimationFrame(animateCamera);
 
     return cancelCameraAnimation;
-  }, [cancelCameraAnimation, containerSize.height, containerSize.width, routePoints, selectedMarker, selectedViewportY, showRoute]);
+  }, [bottomOverlayHeight, cancelCameraAnimation, containerSize.height, containerSize.width, routePoints, selectedMarker, selectedViewportY, showRoute]);
 
   const changeZoom = useCallback((nextLabelPt: number) => {
     cancelCameraAnimation();
@@ -538,7 +539,6 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
         {routeArrows.map((arrow, index) => <path key={`${index}-${arrow.x}-${arrow.y}`} className="route-static-arrow" d={ROUTE_ARROW_PATH} fill="#d8f5e7" transform={`translate(${arrow.x} ${arrow.y}) rotate(${arrow.rotation})`} />)}
         <circle cx={routeTarget.x} cy={routeTarget.y} r="38" fill="#b7ead0" /><circle cx={routeTarget.x} cy={routeTarget.y} r="24" fill="#19bf69" />
         <rect x={routeTarget.x + 68} y={routeTarget.y - 35} width={routeDistanceWidth} height="70" rx="14" fill="#19bf69" /><text x={routeTarget.x + 68 + routeDistanceWidth / 2} y={routeTarget.y + 12} textAnchor="middle" fill="white" fontSize="38" fontWeight="700">{routeDistanceLabel}</text>
-        <circle cx={ROUTE_ORIGIN.x} cy={ROUTE_ORIGIN.y} r="38" fill="#b7ead0" /><circle cx={ROUTE_ORIGIN.x} cy={ROUTE_ORIGIN.y} r="24" fill="#19bf69" />
       </g>}
       {selectedShop && selectedMarker && selectedLabelBubble && <g pointerEvents="none">
         <path d={selectedLabelBubble.tailPath} fill="#19bf69" />
@@ -552,8 +552,13 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
         {selectedRotatedIconElement}
       </g>}
     </svg>
-    <div className="absolute right-5 top-[210px] z-20 flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-lg backdrop-blur" onPointerDown={(event) => event.stopPropagation()}>
-      <button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label="지도 확대" onClick={() => changeZoom(labelPt * 1.2)}>+</button><div className="h-px bg-black/10" /><button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label="지도 축소" onClick={() => changeZoom(labelPt / 1.2)}>−</button>
+    <div className="pointer-events-none absolute z-10" style={{ left: `${(0.5 + (ROUTE_ORIGIN.x - constrainedCenter.x) / viewWidth) * 100}%`, top: `${(0.5 + (ROUTE_ORIGIN.y - constrainedCenter.y) / viewHeight) * 100}%` }}>
+      <div className="absolute bottom-[10px] left-0 -translate-x-1/2 whitespace-nowrap rounded-[12.715px] bg-[#22a36b] px-[19.073px] py-[7.947px] text-[32px] font-bold leading-normal text-white">{t("현위치")}</div>
+      <img src="/figma/results/current-location-tail.svg" alt="" className="absolute bottom-[3px] left-0 -translate-x-1/2 -rotate-45" />
+    </div>
+    <div className="absolute right-[40px] z-20 flex w-[80px] flex-col gap-[8px]" style={{ bottom: bottomOverlayHeight + 16 }} onPointerDown={(event) => event.stopPropagation()}>
+      <button type="button" className="relative h-[80px] w-[80px] rounded-[16px] disabled:opacity-40" aria-label={t("지도 확대")} disabled={labelPt >= MAX_LABEL_PT} onClick={() => changeZoom(labelPt * 1.2)}><img src="/figma/results/map-zoom-in.svg" alt="" className="pointer-events-none absolute left-[-32px] top-[-32px] max-w-none" /></button>
+      <button type="button" className="relative h-[80px] w-[80px] rounded-[16px] disabled:opacity-40" aria-label={t("지도 축소")} disabled={labelPt <= MIN_LABEL_PT} onClick={() => changeZoom(labelPt / 1.2)}><img src="/figma/results/map-zoom-out.svg" alt="" className="pointer-events-none absolute left-[-32px] top-[-32px] max-w-none" /></button>
     </div>
   </div>;
 }

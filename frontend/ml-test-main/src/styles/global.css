@@ -1,6 +1,22 @@
 @import 'tailwindcss' source(none);
 @source '../**/*.{ts,tsx}';
 
+@font-face {
+  font-family: 'Kiosk Result Noto';
+  src: url('/fonts/NotoSansKR.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Kiosk Result Inter';
+  src: url('/fonts/Inter.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 @layer base {
   html,
   body,
