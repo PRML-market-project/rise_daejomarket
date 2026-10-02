@@ -11,6 +11,12 @@ try {
   await access(source);
   await copyFile(source, destination);
   await copyFile(path.join(path.dirname(source), "search-tag-icons.ts"), path.resolve(adminRoot, "src/data/search-tag-icons.ts"));
+  const mapComponentDestination = path.resolve(adminRoot, "src/components/market");
+  await mkdir(mapComponentDestination, { recursive: true });
+  await copyFile(
+    path.resolve(adminRoot, "../frontend/ml-test-main/src/components/market/MapView.tsx"),
+    path.join(mapComponentDestination, "MapView.tsx"),
+  );
   const tagSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/search-icons");
   const tagDestination = path.resolve(adminRoot, "public/search-icons");
   await mkdir(tagDestination, { recursive: true });
@@ -19,12 +25,15 @@ try {
   }
   const iconsSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/images");
   const iconsDestination = path.resolve(adminRoot, "public/map-icons");
-  await mkdir(iconsDestination, { recursive: true });
-  for (const file of await readdir(iconsSource)) {
-    if (/^figma-.*-icon\.svg$/.test(file)) await copyFile(path.join(iconsSource, file), path.join(iconsDestination, file));
-  }
   const mapDestination = path.resolve(adminRoot, "public/images");
+  await mkdir(iconsDestination, { recursive: true });
   await mkdir(mapDestination, { recursive: true });
+  for (const file of await readdir(iconsSource)) {
+    if (/^figma-.*-icon\.svg$/.test(file)) {
+      await copyFile(path.join(iconsSource, file), path.join(iconsDestination, file));
+      await copyFile(path.join(iconsSource, file), path.join(mapDestination, file));
+    }
+  }
   await copyFile(path.join(iconsSource, "daejomarket-map.svg"), path.join(mapDestination, "daejomarket-map.svg"));
   const designSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/figma");
   const designDestination = path.resolve(adminRoot, "public/figma");
@@ -33,8 +42,15 @@ try {
     await copyFile(path.join(designSource, file), path.join(designDestination, file));
   }
   console.log("[map-data] Synced the kiosk shop map into the admin app.");
-} catch {
-  // The production Docker context can contain only admin-frontend. In that
-  // case the committed snapshot remains available and the build stays valid.
-  console.log("[map-data] Kiosk source is outside this build context; using the committed synchronized snapshot.");
+} catch (error) {
+  // Only fall back when the sibling kiosk project is absent. A missing file
+  // inside an available source project must fail instead of serving old data.
+  try {
+    await access(path.resolve(adminRoot, "../frontend/ml-test-main"));
+  } catch (sourceError) {
+    if (sourceError.code !== "ENOENT") throw sourceError;
+    console.log("[map-data] Kiosk source is outside this build context; using the committed synchronized snapshot.");
+    process.exit(0);
+  }
+  throw error;
 }

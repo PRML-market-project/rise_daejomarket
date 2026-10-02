@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { ChangeEvent, ComponentType, useEffect, useRef, useState } from "react";
+import { ChangeEvent, ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import {
   Map as MapIcon,
   Search,
@@ -10,12 +10,16 @@ import {
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
 import { absoluteAssetUrl, getKioskExperience, saveManagedShops, saveOperationMode, uploadPromotion } from "@/lib/kioskExperienceApi";
-import { figmaMapShops, leftMapIconCells, rightMapIconCells, type FigmaMapIconCell } from "@/data/figmaMapShops";
+import { figmaMapShops } from "@/data/figmaMapShops";
+import { MapView, getRouteDistanceForShop } from "@/components/market/MapView";
 
 type OperationMode = "길찾기" | "홍보";
 type DialogState = "session" | "unsaved" | "invalid-move" | "saving" | "save-error" | "upload" | "upload-error" | null;
 type IconOption = { label: string; Icon: ComponentType<{ size?: number; strokeWidth?: number }> };
 type ShopForm = { name: string; description: string; keywords: string };
+
+const DEFAULT_THUMBNAIL = "/api/design-asset/thumbnail";
+const thumbnailAssetUrl = (url: string) => url === DEFAULT_THUMBNAIL ? url : absoluteAssetUrl(url);
 
 const initialForm: ShopForm = {
   name: "불광돌쇠닭강정",
@@ -23,103 +27,12 @@ const initialForm: ShopForm = {
   keywords: "불광돌쇠닭강정, 음식점, 닭강정, 옛날통닭, 치킨",
 };
 
-type PositionedShop = (typeof figmaMapShops)[number] & { iconCell: FigmaMapIconCell | null };
-const specialIconCells = new Map<string, FigmaMapIconCell>([
-  ["585:28760", { x: 4826, y: 1979, width: 52, height: 320 }],
-  ["585:28763", { x: 4758, y: 2245, width: 52, height: 54 }],
-  ["585:28764", { x: 4758, y: 2307, width: 52, height: 54 }],
-  ["585:30183", { x: 4758, y: 3267, width: 52, height: 54 }],
-  ["585:28881", { x: 4670, y: 4565, width: 95, height: 52 }],
-  ["585:28882", { x: 4826, y: 4548, width: 52, height: 69 }],
-  ["585:28839", { x: 4827, y: 7799, width: 52, height: 98 }],
-  ["585:28880", { x: 4539, y: 7798, width: 95, height: 52 }],
-  ["585:28845", { x: 4827, y: 8883, width: 52, height: 231 }],
-  ["585:28846", { x: 4827, y: 9541, width: 52, height: 154 }],
-  ["585:28847", { x: 4657, y: 9094, width: 95, height: 52 }],
-  ["585:28848", { x: 4451, y: 9094, width: 95, height: 52 }],
-  ["585:28849", { x: 4554, y: 9094, width: 95, height: 52 }],
-  ["585:28850", { x: 4348, y: 9094, width: 95, height: 52 }],
-  ["585:28851", { x: 4087, y: 9094, width: 95, height: 52 }],
-  ["585:30204", { x: 3984, y: 9094, width: 95, height: 52 }],
-  ["585:30205", { x: 3881, y: 9094, width: 95, height: 52 }],
-  ["585:28852", { x: 3735, y: 9094, width: 95, height: 52 }],
-  ["585:28854", { x: 3632, y: 9094, width: 95, height: 52 }],
-  ["585:28855", { x: 3054, y: 9094, width: 74, height: 52 }],
-  ["585:28856", { x: 2972, y: 9094, width: 74, height: 52 }],
-  ["585:28857", { x: 2689, y: 9094, width: 95, height: 52 }],
-  ["585:30215", { x: 2586, y: 9094, width: 95, height: 52 }],
-  ["585:28858", { x: 2377, y: 9094, width: 95, height: 52 }],
-  ["585:28859", { x: 1634, y: 9094, width: 95, height: 52 }],
-  ["585:28860", { x: 1509, y: 9348, width: 95, height: 52 }],
-  ["585:30219", { x: 1936, y: 9349, width: 104, height: 52 }],
-  ["585:28861", { x: 2048, y: 9349, width: 102, height: 52 }],
-  ["585:28862", { x: 2158, y: 9349, width: 104, height: 52 }],
-  ["585:28863", { x: 2462, y: 9348, width: 95, height: 52 }],
-  ["585:28865", { x: 2913, y: 9349, width: 161, height: 52 }],
-  ["585:28866", { x: 3320, y: 9348, width: 95, height: 52 }],
-  ["585:28867", { x: 3492, y: 9349, width: 68, height: 52 }],
-  ["585:28868", { x: 3764, y: 9349, width: 109, height: 52 }],
-  ["585:28869", { x: 4184, y: 9349, width: 132, height: 52 }],
-  ["585:28870", { x: 4464, y: 9349, width: 133, height: 52 }],
-  ["585:28871", { x: 4745, y: 9349, width: 132, height: 52 }],
-  ["585:28872", { x: 3568, y: 9349, width: 68, height: 52 }],
-  ["585:28873", { x: 3881, y: 9349, width: 109, height: 52 }],
-  ["585:28874", { x: 4324, y: 9349, width: 132, height: 52 }],
-  ["585:28875", { x: 4605, y: 9349, width: 132, height: 52 }],
-  ["585:28876", { x: 1839, y: 9094, width: 95, height: 52 }],
-  ["585:28877", { x: 2890, y: 9094, width: 74, height: 52 }],
-  ["585:28878", { x: 1737, y: 9094, width: 94, height: 52 }],
-  ["585:28879", { x: 2274, y: 9094, width: 95, height: 52 }],
-  ["585:28795", { x: 5649, y: 6027, width: 52, height: 119 }],
-  ["585:28796", { x: 5649, y: 6154, width: 52, height: 119 }],
-  ["585:28797", { x: 5693, y: 6554.57, width: 52, height: 119 }],
-]);
-
-const shops: PositionedShop[] = figmaMapShops.map((shop) => {
-  const specialCell = specialIconCells.get(shop.id);
-  if (specialCell) {
-    return shop.id === "585:28797"
-      ? { ...shop, iconCell: specialCell }
-      : { ...shop, markerX: specialCell.x + specialCell.width / 2, markerY: specialCell.y + specialCell.height / 2, iconCell: specialCell };
-  }
-  const cells = shop.section === "시장 동측 통로" ? rightMapIconCells : shop.section === "시장 서측 통로" ? leftMapIconCells : [];
-  const nearest = cells.reduce<FigmaMapIconCell | null>((best, cell) => !best || Math.abs(cell.y + cell.height / 2 - shop.markerY) < Math.abs(best.y + best.height / 2 - shop.markerY) ? cell : best, null);
-  const iconCell = nearest && Math.abs(nearest.y + nearest.height / 2 - shop.markerY) <= 48 ? nearest : null;
-  return iconCell ? { ...shop, markerX: iconCell.x + iconCell.width / 2, markerY: iconCell.y + iconCell.height / 2, iconCell } : { ...shop, iconCell: null };
-});
-
-const ADMIN_ROUTE_ORIGIN = { x: 4920, y: 4291.5 };
-const ADMIN_SOUTH_AISLE_Y = 9247.5;
-const ADMIN_CROSSWALK_SHOP_IDS = new Set(["585:28795", "585:28796", "585:28797"]);
-const ADMIN_DISTANCE_REFERENCE = {
-  snackBar: { x: 4853, y: 9618 },
-  pharmacy: { x: 4853, y: 1620.5 },
-  goldButcher: { x: 1556.5, y: 9374 },
-};
-const ADMIN_Y_UNITS_PER_METER = Math.abs(ADMIN_DISTANCE_REFERENCE.snackBar.y - ADMIN_DISTANCE_REFERENCE.pharmacy.y) / 319;
-const ADMIN_GOLD_VERTICAL_METERS = Math.abs(ADMIN_DISTANCE_REFERENCE.snackBar.y - ADMIN_DISTANCE_REFERENCE.goldButcher.y) / ADMIN_Y_UNITS_PER_METER;
-const ADMIN_X_UNITS_PER_METER = Math.abs(ADMIN_DISTANCE_REFERENCE.snackBar.x - ADMIN_DISTANCE_REFERENCE.goldButcher.x)
-  / Math.sqrt(138 ** 2 - ADMIN_GOLD_VERTICAL_METERS ** 2);
+const shops = figmaMapShops;
 
 function getAdminRouteDistanceMeters(shopId: string) {
   const shop = shops.find((item) => item.id === shopId);
-  if (!shop) return 0;
-  const marker = { x: shop.markerX, y: shop.markerY };
-  const routePoints = ADMIN_CROSSWALK_SHOP_IDS.has(shop.id)
-    ? [ADMIN_ROUTE_ORIGIN, { x: 4920, y: 3804 }, { x: 5060, y: 3804 }, { x: 5540, y: 3804 }, { x: 5540, y: marker.y }]
-    : shop.section === "시장 남측" && !!shop.iconCell && shop.iconCell.width > 52
-      ? [ADMIN_ROUTE_ORIGIN, { x: 4920, y: ADMIN_SOUTH_AISLE_Y }, { x: marker.x, y: ADMIN_SOUTH_AISLE_Y }]
-      : [ADMIN_ROUTE_ORIGIN, { x: 4920, y: marker.y }];
-  const distance = routePoints.slice(1).reduce((sum, point, index) => {
-    const previous = routePoints[index];
-    return sum + Math.hypot(
-      (point.x - previous.x) / ADMIN_X_UNITS_PER_METER,
-      (point.y - previous.y) / ADMIN_Y_UNITS_PER_METER,
-    );
-  }, 0);
-  return Math.max(1, Math.round(distance));
+  return shop ? getRouteDistanceForShop(shop) : 0;
 }
-
 
 const iconOptions: IconOption[] = [
   ["정육청과수산", "wheat"], ["식품", "washoku"], ["식료품잡화", "shopping-cart"],
@@ -173,7 +86,14 @@ function OperationPanel({ current, selected, onSelect, onApply }: { current: Ope
   );
 }
 
-function ShopList({ selectedId, namesByShopId, onSelect }: { selectedId: string; namesByShopId: Record<string, string>; onSelect: (name: string) => void }) {
+function ShopThumbnail({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  return url && !failed
+    ? <img src={thumbnailAssetUrl(url)} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />
+    : <Store size={24} />;
+}
+
+function ShopList({ selectedId, namesByShopId, thumbnailsByShopId, onSelect }: { selectedId: string; namesByShopId: Record<string, string>; thumbnailsByShopId: Record<string, string>; onSelect: (name: string) => void }) {
   const [search, setSearch] = useState("");
   const filtered = shops.filter(({ id, name, number }) => `${namesByShopId[id] || name} ${number}`.includes(search));
   return (
@@ -185,7 +105,7 @@ function ShopList({ selectedId, namesByShopId, onSelect }: { selectedId: string;
           const selected = id === selectedId;
           return <button type="button" key={id} onClick={() => onSelect(id)} className={`flex shrink-0 items-center gap-[12px] rounded-[14px] border p-[12px] text-left ${selected ? "border-[#116543] bg-[#cfeadb]" : "border-[#ebebeb] bg-white"}`}>
             <span className={`flex h-[44px] w-[44px] shrink-0 items-center justify-center overflow-hidden rounded-[10px] ${selected ? "bg-[#a1a1a1]" : "bg-[#ebebeb] text-[#116543]"}`}>
-              {selected ? <img src="/api/design-asset/thumbnail" alt="" className="h-full w-full object-cover" /> : <Store size={24} />}
+              <ShopThumbnail key={thumbnailsByShopId[id] || "default"} url={thumbnailsByShopId[id] || ""} />
             </span>
             <span className="min-w-0"><strong className="block truncate text-[16px] leading-[23px]">{namesByShopId[id] || name}</strong></span>
           </button>;
@@ -195,145 +115,19 @@ function ShopList({ selectedId, namesByShopId, onSelect }: { selectedId: string;
   );
 }
 
-function MarketMap({ zoom, setZoom, selectedId, iconByShopId, namesByShopId, onSelect }: { zoom: number; setZoom: (value: number) => void; selectedId: string; iconByShopId: Record<string, string>; namesByShopId: Record<string, string>; onSelect: (name: string) => void }) {
-  const mapRef = useRef<HTMLDivElement>(null);
-  const [mapSize, setMapSize] = useState({ width: 852, height: 620 });
-  const selectedShop = shops.find((shop) => shop.id === selectedId) ?? shops[8];
-  const selectedName = namesByShopId[selectedShop.id] || selectedShop.name;
-  const defaultIconLabel = selectedShop.category === "식당" ? "식당"
-    : selectedShop.category === "서비스업" ? "서비스업"
-      : selectedShop.category === "잡화" ? "식료품잡화"
-        : selectedShop.category === "식품" ? "식품"
-          : "정육청과수산";
-  const selectedIconLabel = iconByShopId[selectedShop.id] || defaultIconLabel;
-  const SelectedMapIcon = iconOptions.find((option) => option.label === selectedIconLabel)?.Icon ?? Store;
-  const [center, setCenter] = useState({ x: selectedShop.markerX, y: selectedShop.markerY });
-  const [isPanning, setIsPanning] = useState(false);
-  const pointerRef = useRef<{ id: number; x: number; y: number; shopId: string | null } | null>(null);
-  const draggedRef = useRef(false);
-  const viewWidth = 1100 / zoom;
-  const viewHeight = viewWidth * (mapSize.height / mapSize.width);
-  const viewX = Math.min(Math.max(center.x - viewWidth / 2, 0), 6807 - viewWidth);
-  const viewY = Math.min(Math.max(center.y - viewHeight / 2, 0), 10577 - viewHeight);
-  const viewBox = `${viewX} ${viewY} ${viewWidth} ${viewHeight}`;
-
-  useEffect(() => {
-    const container = mapRef.current;
-    if (!container) return;
-    const updateSize = () => {
-      const bounds = container.getBoundingClientRect();
-      setMapSize({ width: Math.max(bounds.width, 1), height: Math.max(bounds.height, 1) });
-    };
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    setCenter({ x: selectedShop.markerX, y: selectedShop.markerY });
-  }, [selectedShop.id, selectedShop.markerX, selectedShop.markerY]);
-
-  const labelCenterX = selectedShop.x + selectedShop.width / 2;
-  const labelCenterY = selectedShop.y + selectedShop.height / 2;
-  const labelWidth = Math.max(96, selectedShop.width + 32, selectedName.length * 28 + 32);
-  const labelHeight = Math.max(58, selectedShop.height + 20);
-  const labelX = labelCenterX - labelWidth / 2;
-  const labelY = labelCenterY - labelHeight / 2;
-  const deltaX = selectedShop.markerX - labelCenterX;
-  const deltaY = selectedShop.markerY - labelCenterY;
-  const tailPath = Math.abs(deltaX) > Math.abs(deltaY)
-    ? (() => {
-        const edgeX = deltaX >= 0 ? labelX + labelWidth : labelX;
-        const tailY = Math.min(Math.max(selectedShop.markerY, labelY + 16), labelY + labelHeight - 16);
-        return `M ${edgeX} ${tailY - 9} L ${edgeX + Math.sign(deltaX || 1) * 16} ${tailY} L ${edgeX} ${tailY + 9} Z`;
-      })()
-    : (() => {
-        const edgeY = deltaY >= 0 ? labelY + labelHeight : labelY;
-        const tailX = Math.min(Math.max(selectedShop.markerX, labelX + 16), labelX + labelWidth - 16);
-        return `M ${tailX - 9} ${edgeY} L ${tailX} ${edgeY + Math.sign(deltaY || 1) * 16} L ${tailX + 9} ${edgeY} Z`;
-      })();
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    const shopId = (event.target as Element).closest<SVGGElement>("[data-shop-id]")?.dataset.shopId ?? null;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    pointerRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, shopId };
-    draggedRef.current = false;
-    setIsPanning(true);
-  };
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    const previous = pointerRef.current;
-    if (!previous || previous.id !== event.pointerId) return;
-    const deltaScreenX = event.clientX - previous.x;
-    const deltaScreenY = event.clientY - previous.y;
-    if (Math.hypot(deltaScreenX, deltaScreenY) > 2) draggedRef.current = true;
-    const worldDeltaX = deltaScreenX * viewWidth / mapSize.width;
-    const worldDeltaY = deltaScreenY * viewHeight / mapSize.height;
-    setCenter((current) => ({
-      x: Math.min(Math.max(current.x - worldDeltaX, viewWidth / 2), 6807 - viewWidth / 2),
-      y: Math.min(Math.max(current.y - worldDeltaY, viewHeight / 2), 10577 - viewHeight / 2),
-    }));
-    pointerRef.current = { ...previous, x: event.clientX, y: event.clientY };
-  };
-  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
-    const pointer = pointerRef.current;
-    if (pointer?.id !== event.pointerId) return;
-    pointerRef.current = null;
-    setIsPanning(false);
-    if (!draggedRef.current && pointer.shopId) onSelect(pointer.shopId);
-  };
+function MarketMap({ selectedId, iconByShopId, namesByShopId, onSelect }: { selectedId: string; iconByShopId: Record<string, string>; namesByShopId: Record<string, string>; onSelect: (id: string) => void }) {
+  const mapShops = useMemo(() => shops.map((shop) => ({
+    ...shop,
+    name: namesByShopId[shop.id] || shop.name,
+    icon: iconByShopId[shop.id] || shop.icon,
+  })), [namesByShopId, iconByShopId]);
+  const selectedShop = mapShops.find((shop) => shop.id === selectedId) ?? mapShops[0];
 
   return (
     <section className="flex min-h-0 flex-col gap-[16px] rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
       <h2 className="flex items-center gap-[12px] text-[20px] font-bold leading-[29px]"><MapIcon size={20} />가게 지도</h2>
-      <div ref={mapRef} className={`relative min-h-0 flex-1 touch-none select-none overflow-hidden rounded-[16px] bg-[#f1f2f1] ${isPanning ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
-        <svg viewBox={viewBox} preserveAspectRatio="xMidYMid meet" className="h-full w-full" role="img" aria-label={`${selectedName} 위치가 선택된 대조시장 가게 지도`}>
-          <image href="/images/daejomarket-map.svg" x="0" y="0" width="6807" height="10577" preserveAspectRatio="none" />
-          {shops.map((shop) => {
-            const cell = shop.iconCell;
-            if (!cell) return null;
-            const fallback = shop.category === "식당" ? "식당" : shop.category === "서비스업" ? "서비스업" : shop.category === "잡화" ? "식료품잡화" : shop.category === "식품" ? "식품" : "정육청과수산";
-            const Icon = iconOptions.find((option) => option.label === (iconByShopId[shop.id] || fallback))?.Icon ?? iconOptions[7].Icon;
-            return <g key={shop.id} pointerEvents="none">
-              <rect x={cell.x} y={cell.y} width={cell.width} height={cell.height} rx="8" fill="#7a7a7a" transform={shop.id === "585:28797" ? "rotate(-30.7263 5693 6554.57)" : undefined} />
-              <g transform={`translate(${shop.markerX - 17} ${shop.markerY - 17})`}><Icon size={34} /></g>
-            </g>;
-          })}
-          {shops.map((shop) => {
-            return (
-              <g
-                key={shop.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`${namesByShopId[shop.id] || shop.name} 선택`}
-                data-shop-id={shop.id}
-                className="cursor-pointer outline-none"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onSelect(shop.id);
-                  }
-                }}
-              >
-                <title>{namesByShopId[shop.id] || shop.name}</title>
-                <rect x={shop.x - 12} y={shop.y - 8} width={shop.width + 24} height={shop.height + 16} rx="8" fill="transparent" pointerEvents="all" />
-                {shop.iconCell && <rect x={shop.iconCell.x} y={shop.iconCell.y} width={shop.iconCell.width} height={shop.iconCell.height} rx="8" fill="transparent" pointerEvents="all" transform={shop.id === "585:28797" ? "rotate(-30.7263 5693 6554.57)" : undefined} />}
-              </g>
-            );
-          })}
-          <g className="pointer-events-none" aria-hidden="true">
-            <path d={tailPath} fill="#12bf68" />
-            <rect x={labelX} y={labelY} width={labelWidth} height={labelHeight} rx="16" fill="#12bf68" />
-            <text x={labelCenterX} y={labelCenterY} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="28" fontWeight="700" fontFamily="Pretendard, Arial, sans-serif">{selectedName}</text>
-            {selectedShop.iconCell && <><rect x={selectedShop.iconCell.x} y={selectedShop.iconCell.y} width={selectedShop.iconCell.width} height={selectedShop.iconCell.height} rx="8" fill="#08a957" transform={selectedShop.id === "585:28797" ? "rotate(-30.7263 5693 6554.57)" : undefined} /><g transform={`translate(${selectedShop.markerX - 16} ${selectedShop.markerY - 17})`} color="white"><SelectedMapIcon size={32} strokeWidth={2.4} /></g></>}
-          </g>
-        </svg>
-        <div className="absolute left-[16px] top-[16px] flex gap-[8px]" onPointerDown={(event) => event.stopPropagation()}>
-          <PillButton kind="secondary" className="w-[48px] px-0" onClick={() => setZoom(Math.max(.65, zoom - .15))}>−</PillButton>
-          <PillButton kind="secondary" className="w-[48px] px-0" onClick={() => setZoom(Math.min(1.7, zoom + .15))}>+</PillButton>
-          <PillButton kind="secondary" className="w-[104px]" onClick={() => setZoom(1)}>전체 보기</PillButton>
-        </div>
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[16px]">
+        <MapView shops={mapShops} selectedShop={selectedShop} onSelectShop={onSelect} />
       </div>
       <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">목록 또는 지도에서 가게를 선택하면 위치와 정보를 확인할 수 있습니다.</p>
     </section>
@@ -354,7 +148,7 @@ function IconPicker({ open, selected, onToggle, onSelect }: { open: boolean; sel
   </section>;
 }
 
-function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail, onSavedShop }: { shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void; onSavedShop: (shopId: string, name: string, icon: string) => void }) {
+function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail, onSavedShop }: { shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void; onSavedShop: (shopId: string, name: string, icon: string, thumbnailUrl: string) => void }) {
   const [tags, setTags] = useState(["닭강정", "옛날통닭", "포장"]);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(4);
@@ -406,13 +200,13 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
     setNameError(""); setDialog("saving");
     try {
       const config = await getKioskExperience();
-      const managed = { id: shopId, name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail.startsWith("/api/") ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
+      const managed = { id: shopId, name: form.name, description: form.description, keywords: form.keywords, tags, thumbnailUrl: thumbnail === DEFAULT_THUMBNAIL ? "" : thumbnail, icon: iconOptions[selectedIcon].label };
       const originalName = shops.find((shop) => shop.id === shopId)?.name;
       const uniqueOriginalName = shops.filter((shop) => shop.name === originalName).length === 1;
       const savedConfig = await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id && !(uniqueOriginalName && shop.name === originalName && !shops.some((candidate) => candidate.id === shop.id))), managed]);
       setTranslations(savedConfig.translations ?? {});
       setTranslationPending(savedConfig.pendingTranslations ?? 0);
-      onSavedShop(managed.id, managed.name, managed.icon);
+      onSavedShop(managed.id, managed.name, managed.icon, managed.thumbnailUrl);
       setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false);
     } catch { setDialog("save-error"); }
   };
@@ -436,9 +230,9 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
         <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">최대 3개 · 태그를 삭제하면 새 태그를 추가할 수 있어요.</p>
       </section>
       <section className="rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><Field label="검색용 키워드 · 관리자 전용" value={form.keywords} onChange={(keywords) => { setForm((prev) => ({ ...prev, keywords })); setSaved(false); }} /><p className="mt-[6px] text-[14px] font-medium leading-[21px] text-[#a1a1a1]">검색에만 사용되며, 이용자 화면에는 표시되지 않습니다. 쉼표로 구분하세요.</p></section>
-      <section className="flex flex-col gap-[8px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><strong className="text-[14px] leading-[20px]">썸네일 이미지</strong><div className="flex items-center gap-[16px]"><img src={thumbnail.startsWith("/api/") ? thumbnail : absoluteAssetUrl(thumbnail)} alt="현재 썸네일" className="h-[96px] w-[96px] rounded-[12px] object-cover" /><div className="flex flex-1 flex-col gap-[16px]"><span className="text-[14px] font-medium">가게_썸네일.jpg</span><div className="flex gap-[8px]"><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => fileRef.current?.click()}>이미지 교체</PillButton><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => { setThumbnail("/api/design-asset/thumbnail"); setSaved(false); }}>기본 이미지</PillButton></div></div><input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={chooseFile} /></div></section>
+      <section className="flex flex-col gap-[8px] rounded-[12px] bg-[#f6f6f6] px-[24px] py-[12px]"><strong className="text-[14px] leading-[20px]">썸네일 이미지</strong><div className="flex items-center gap-[16px]"><img src={thumbnailAssetUrl(thumbnail)} alt="현재 썸네일" className="h-[96px] w-[96px] rounded-[12px] object-cover" /><div className="flex flex-1 flex-col gap-[16px]"><span className="text-[14px] font-medium">가게_썸네일.jpg</span><div className="flex gap-[8px]"><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => fileRef.current?.click()}>이미지 교체</PillButton><PillButton kind="secondary" className="h-[32px] w-[120px] text-[14px]" onClick={() => { setThumbnail("/api/design-asset/thumbnail"); setSaved(false); }}>기본 이미지</PillButton></div></div><input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={chooseFile} /></div></section>
       <IconPicker open={iconOpen} selected={selectedIcon} onToggle={() => setIconOpen(!iconOpen)} onSelect={(index) => { setSelectedIcon(index); setIconOpen(false); setSaved(false); }} />
-      <section className="flex flex-col gap-[8px]"><strong className="text-[14px] leading-[20px]">카드 미리보기</strong><div className="flex justify-center rounded-[24px] bg-[#ebebeb] px-[12px] py-[24px]"><div className="flex h-[120px] w-[426px] items-center gap-[17px] rounded-[23px] border border-[#ebebeb] bg-white px-[23px]"><img src={thumbnail.startsWith("/api/") ? thumbnail : absoluteAssetUrl(thumbnail)} alt="" className="h-[87px] w-[87px] rounded-[12px] object-cover" /><div className="min-w-0"><strong className="block truncate text-[26px] leading-[32px]">{form.name || "가게명"}</strong><div className="mt-[10px] flex gap-[3px]">{tags.map((tag, index) => <span key={`${index}-${tag}`} className="rounded-full bg-[#ebebeb] px-[9px] py-[3px] text-[13px] text-[#6f6f6f]">{tag}</span>)}</div><span className="mt-[6px] block text-[12px] text-[#a1a1a1]">현재 위치에서 {distanceMeters}m</span></div></div></div></section>
+      <section className="flex flex-col gap-[8px]"><strong className="text-[14px] leading-[20px]">카드 미리보기</strong><div className="flex justify-center rounded-[24px] bg-[#ebebeb] px-[12px] py-[24px]"><div className="flex h-[120px] w-[426px] items-center gap-[17px] rounded-[23px] border border-[#ebebeb] bg-white px-[23px]"><img src={thumbnailAssetUrl(thumbnail)} alt="" className="h-[87px] w-[87px] rounded-[12px] object-cover" /><div className="min-w-0"><strong className="block truncate text-[26px] leading-[32px]">{form.name || "가게명"}</strong><div className="mt-[10px] flex gap-[3px]">{tags.map((tag, index) => <span key={`${index}-${tag}`} className="rounded-full bg-[#ebebeb] px-[9px] py-[3px] text-[13px] text-[#6f6f6f]">{tag}</span>)}</div><span className="mt-[6px] block text-[12px] text-[#a1a1a1]">현재 위치에서 {distanceMeters}m</span></div></div></div></section>
     </div>
     <div className="shrink-0 rounded-xl bg-[#f6f6f6] p-3 text-[13px] leading-5">
       <strong>영어 · 베트남어 자동 번역</strong>
@@ -474,11 +268,11 @@ export default function AdminStoreManager() {
   const [saved, setSaved] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
   const [thumbnail, setThumbnail] = useState("/api/design-asset/thumbnail");
-  const [zoom, setZoom] = useState(1);
   const [activePage, setActivePage] = useState<"store" | "promotion" | "tags">("store");
   const [selectedShopId, setSelectedShopId] = useState("585:28772");
   const [iconByShopId, setIconByShopId] = useState<Record<string, string>>({});
   const [namesByShopId, setNamesByShopId] = useState<Record<string, string>>({});
+  const [thumbnailsByShopId, setThumbnailsByShopId] = useState<Record<string, string>>({});
   const [pendingPage, setPendingPage] = useState<"store" | "promotion" | "tags">("promotion");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
 
@@ -503,6 +297,7 @@ export default function AdminStoreManager() {
         ?? shop.id;
       setIconByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.icon])));
       setNamesByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.name])));
+      setThumbnailsByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.thumbnailUrl])));
     }).catch(() => undefined);
   }, []);
 
@@ -552,7 +347,7 @@ export default function AdminStoreManager() {
       <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
       <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(selectedMode === "홍보" ? "PROMOTION" : "DIRECTIONS"); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
       <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
-        <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><MarketMap zoom={zoom} setZoom={setZoom} selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon) => { setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
+        <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} thumbnailsByShopId={thumbnailsByShopId} onSelect={selectShop} /><MarketMap selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon, thumbnailUrl) => { setThumbnailsByShopId((current) => ({ ...current, [shopId]: thumbnailUrl })); setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
       </div>
       </>}
     </div>
