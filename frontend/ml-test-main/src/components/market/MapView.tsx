@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Shop } from "@/types/shop";
+import { mapBackgroundUrl, mapLabelsUrl, mapShopLabels } from "@/data/mapShopLabels";
 import { CURRENT_LOCATION, LOCATION_LABEL, getLocalMapPoint, getLocationMarkerPosition } from "./locationMarker";
 import { useKioskLocale } from "@/features/kiosk/i18n";
 
@@ -233,20 +234,6 @@ function getShopLabelBubble(shop: Shop, marker: Point, name = shop.name) {
     sum + (/[가-힣ㄱ-ㅎㅏ-ㅣ]/.test(character) ? 29 : character === " " ? 10 : 17), 0)));
   const width = Math.max(96, shop.width + 32, textWidth + 40);
   const height = Math.max(58, lines.length * 38 + 20);
-  if (shop.id === "585:28797") {
-    // The tilted Taeseong icon reaches the source label's left edge. Keep the
-    // bubble on the printed lettering and point into the icon's upper corner.
-    const x = shop.x - 4;
-    const y = shop.y - 10;
-    const tailY = y + height / 2;
-    return {
-      x, y, width, height,
-      centerX: x + width / 2,
-      centerY: y + height / 2,
-      lines,
-      tailPath: `M ${x + 3} ${tailY - 9} L ${x - 22} ${tailY} L ${x + 3} ${tailY + 9} Z`,
-    };
-  }
   const deltaX = marker.x - labelCenterX;
   const deltaY = marker.y - labelCenterY;
   const tailLength = 16;
@@ -261,9 +248,10 @@ function getShopLabelBubble(shop: Shop, marker: Point, name = shop.name) {
   const iconHalfHeight = rotatedIcon
     ? (Math.abs(rotatedIcon.width * Math.sin(rotation)) + Math.abs(rotatedIcon.height * Math.cos(rotation))) / 2
     : (iconCell?.height ?? 34) / 2;
-  // The source SVG has different label-to-icon gaps for each shop. Keep the
-  // bubble over its original lettering while letting the pointer meet the icon.
-  const maxIconGap = tailLength - 4;
+  // Figma 379:5110 leaves roughly 12px between the pointer tip and icon
+  // at its 0.813 map scale. Reserve 16 map units beyond the pointer so
+  // the selected label never touches regular or rotated shop icons.
+  const iconGap = tailLength + 16;
   let x = labelCenterX - width / 2;
   let y = labelCenterY - height / 2;
   let tailPath: string;
@@ -273,10 +261,6 @@ function getShopLabelBubble(shop: Shop, marker: Point, name = shop.name) {
   const sideTail = Math.abs(deltaX) / (width / 2 + iconHalfWidth)
     > Math.abs(deltaY) / (height / 2 + iconHalfHeight);
   if (sideTail) {
-    const originalLabelGap = deltaX >= 0
-      ? marker.x - iconHalfWidth - (shop.x + shop.width)
-      : shop.x - (marker.x + iconHalfWidth);
-    const iconGap = clamp(originalLabelGap, 3, maxIconGap);
     x = deltaX >= 0
       ? Math.min(x, marker.x - iconHalfWidth - iconGap - width)
       : Math.max(x, marker.x + iconHalfWidth + iconGap);
@@ -287,10 +271,6 @@ function getShopLabelBubble(shop: Shop, marker: Point, name = shop.name) {
     const tailY = clamp(marker.y, y + tailInset, y + height - tailInset);
     tailPath = `M ${baseX} ${tailY - tailHalfWidth} L ${tipX} ${tailY} L ${baseX} ${tailY + tailHalfWidth} Z`;
   } else {
-    const originalLabelGap = deltaY >= 0
-      ? marker.y - iconHalfHeight - (shop.y + shop.height)
-      : shop.y - (marker.y + iconHalfHeight);
-    const iconGap = clamp(originalLabelGap, 3, maxIconGap);
     y = deltaY >= 0
       ? Math.min(y, marker.y - iconHalfHeight - iconGap - height)
       : Math.max(y, marker.y + iconHalfHeight + iconGap);
@@ -541,7 +521,12 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name} · 대조시장 안내 지도` : "대조시장 안내 지도"}>
       <style>{`.route-static-arrow{display:none}@media (prefers-reduced-motion:reduce){.route-moving-arrow{display:none}.route-static-arrow{display:block}}`}</style>
-      <image href="/images/daejomarket-map.svg" x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="none" pointerEvents="none" />
+      <image href={mapBackgroundUrl} x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="none" pointerEvents="none" />
+      <g aria-hidden="true" pointerEvents="none">
+        {mapShopLabels.filter(label => label.shopId !== selectedShop?.id).map(label => (
+          <use key={label.shopId} href={`${mapLabelsUrl}#${label.symbolId}`} data-shop-label={label.shopId} />
+        ))}
+      </g>
       {iconShops.map((shop) => {
         const cell = SPECIAL_ROTATED_ICON_CELLS.get(shop.id) ?? getShopIconCell(shop);
         if (!cell) return null;

@@ -19,6 +19,7 @@ try {
     .replace('const { t } = useKioskLocale();', 'const t = (text: string) => text;');
   await writeFile(path.join(mapComponentDestination, "MapView.tsx"), mapCode);
   await copyFile(path.join(mapSource, "locationMarker.ts"), path.join(mapComponentDestination, "locationMarker.ts"));
+  await copyFile(path.join(path.dirname(source), "mapShopLabels.ts"), path.resolve(adminRoot, "src/data/mapShopLabels.ts"));
   const fontsSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/fonts");
   const fontsDestination = path.resolve(adminRoot, "public/fonts");
   await mkdir(fontsDestination, { recursive: true });
@@ -43,6 +44,7 @@ try {
     }
   }
   await copyFile(path.join(iconsSource, "daejomarket-map.svg"), path.join(mapDestination, "daejomarket-map.svg"));
+  await copyFile(path.join(iconsSource, "daejomarket-shop-labels.svg"), path.join(mapDestination, "daejomarket-shop-labels.svg"));
   const designSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/figma");
   const designDestination = path.resolve(adminRoot, "public/figma");
   await mkdir(designDestination, { recursive: true });
