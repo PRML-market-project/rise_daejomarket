@@ -110,6 +110,25 @@ def select_shops(question, shops, tags, limit=18):
     return [shop for _, _, shop in ranked[:limit]]
 
 
+def format_chat_message(message):
+    """Keep the kiosk's short explanation separate from its shop cards."""
+    message = message.replace("**", "")
+    message = re.split(r"\[\s*(?:카테고리\s*매치|검색\s*매치|category\s*matches?|search\s*matches?)\s*\]", message, maxsplit=1, flags=re.IGNORECASE)[0]
+    message = re.split(r"\n\s*(?:[-*•]|\d+[.)])\s+", message, maxsplit=1)[0]
+    message = re.sub(r"\s+", " ", message).strip()
+    if len(message) > 85:
+        # Keep a complete sentence when possible, rather than cutting its ending.
+        endings = list(re.finditer(r"[.!?。！？](?=\s|$)", message[:86]))
+        if endings and endings[-1].end() <= 85:
+            message = message[:endings[-1].end()].strip()
+        else:
+            shortened = message[:84].rstrip()
+            if " " in shortened:
+                shortened = shortened.rsplit(" ", 1)[0]
+            message = shortened + "…"
+    return message
+
+
 def build_search_prompt(intent, question, language, shops, tags):
     candidates = select_shops(question, shops, tags)
     response_language = {"vi": "Vietnamese", "en": "English"}.get(language, "Korean")
@@ -125,6 +144,24 @@ selected kiosk language supplied as the response language.
 Translate all explanatory text, including uncertainty and price-unavailable messages, into the
 response language. Keep proper shop names in Korean exactly as supplied; never translate them.
 Keep JSON keys, intent values, status, and map IDs exactly as specified below.
+chat_message must be plain text of at most 85 characters, INCLUDING spaces and punctuation,
+in every response language. Write only one or two short, helpful explanatory sentences.
+Speak like a warm, patient market guide helping a visitor face to face.
+Use friendly, natural polite language, never terse fragments or bureaucratic wording.
+For Korean, prefer gentle 해요체 endings such as "찾아드릴게요", "확인해 보세요",
+and "가게에 물어보시면 좋겠어요". Avoid stiff endings such as "확인할 수 없습니다".
+For English and Vietnamese, use similarly warm, respectful, conversational wording.
+Give the useful answer first, then a gentle next step when it helps. Avoid repetitive greetings,
+excessive apologies, exclamation marks, and invented reassurance about products or stock.
+Finish every sentence with a natural complete ending and punctuation. Never use ellipses
+or stop mid-sentence to fit the limit; rewrite more briefly while keeping the key information.
+Korean style examples (use only when supported by the supplied data):
+"찾으시는 가게를 안내해 드릴게요. 아래에서 가게를 선택해 보세요."
+"판매 여부는 아직 확인되지 않았어요. 아래 가게에 물어보시면 좋겠어요."
+Do not append shop lists, bullet points, numbered lists, markdown, match classifications,
+or labels such as [카테고리 매치], [검색 매치], [Category match], or [Search match].
+Put recommended shops only in result.items. Do not append their names or map sections
+as a list inside chat_message. Shop cards are displayed separately by the kiosk.
 The user's intent has already been classified. Do not change the intent: {result_intent}.
 Use ONLY the supplied kiosk map and admin data. A category or keyword means a search match,
 NOT proof that a product is sold or in stock. Descriptions are the only evidence for detailed offerings.
@@ -137,8 +174,8 @@ description may prove a price and its selling unit. If it does not, say the pric
 verified from current data; do not repeat remembered prices or calculate a total.
 Even when a price is unavailable, include a matching shop's map ID in items so the kiosk can show it.
 If no candidate supports the request, explain what is unknown and return an empty items array.
-For a broad category request, recommend at most five relevant shops and identify them as category matches.
-If a name, description, or admin keyword directly matches, call it a search match, not a category match.
+For a broad category request, select at most five relevant shops in result.items.
+Use category and direct search matches internally; never display these classifications in chat_message.
 For a named shop, prefer an exact name match and use its map ID. If names are ambiguous, say so.
 For location requests, give the map section and return target_id; the frontend draws the actual route.
 Configured search tags use comma-separated OR terms, like the frontend search.

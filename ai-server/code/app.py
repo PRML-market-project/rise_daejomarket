@@ -4,7 +4,6 @@ from transformers import WhisperForConditionalGeneration, WhisperProcessor
 import torchaudio
 import os
 import json
-import base64
 from openai import OpenAI
 import io
 import wave
@@ -23,7 +22,8 @@ from functools import wraps
 from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
-from kiosk_search_context import build_search_prompt, load_kiosk_context, select_shops
+from tts_voice_reference import build_voice_reference
+from kiosk_search_context import build_search_prompt, format_chat_message, load_kiosk_context, select_shops
 
 
 # ==========================================
@@ -323,11 +323,12 @@ def answer_from_current_kiosk_data(intent, text, language):
         word in text.lower() for word in ("가격", "얼마", "합계", "총액", "price", "cost", "how much", "giá", "bao nhiêu")
     )
     if not has_verified_prices and (price_question or re.search(price_pattern, message, re.IGNORECASE)):
-        name = ", ".join(shop["name"] for shop in selected_shops)
         message = {
-            "vi": f"Chưa có giá được xác nhận trong dữ liệu hiện tại{(' của ' + name) if name else ''}. Vui lòng hỏi trực tiếp cửa hàng.",
-            "en": f"No verified price is registered in the current data{(' for ' + name) if name else ''}. Please check with the shop.",
-        }.get(language, f"{name + '의 ' if name else ''}현재 등록된 가격 정보가 없어 금액을 확인할 수 없습니다. 가게에 직접 확인해 주세요.")
+            "vi": "Chưa có giá được xác nhận. Vui lòng hỏi trực tiếp cửa hàng.",
+            "en": "No verified price is registered. Please check directly with the shop.",
+        }.get(language, "아직 등록된 가격 정보가 없어요. 정확한 금액은 가게에 물어보시면 좋겠어요.")
+
+    message = format_chat_message(message)
 
     result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
     return json.dumps({
@@ -456,6 +457,19 @@ def health():
 
 def ensure_local_tts_voice():
     with _local_tts_voice_lock:
+        if not LOCAL_TTS_VOICE_REFERENCE.is_file():
+            raise RuntimeError(
+                f"TTS voice reference is missing: {LOCAL_TTS_VOICE_REFERENCE}"
+            )
+        transcript_path = LOCAL_TTS_VOICE_REFERENCE.with_suffix(".txt")
+        if not transcript_path.is_file():
+            raise RuntimeError(f"TTS voice reference transcript is missing: {transcript_path}")
+        reference = build_voice_reference(
+            LOCAL_TTS_VOICE,
+            LOCAL_TTS_VOICE_REFERENCE.read_bytes(),
+            transcript_path.read_text(encoding="utf-8"),
+        )
+        voice_name = reference["name"]
         voices_request = UrlRequest(
             f"{LOCAL_TTS_BASE_URL}/v1/audio/voices",
             method="GET",
@@ -464,20 +478,10 @@ def ensure_local_tts_voice():
             voices_data = json.loads(response.read().decode("utf-8"))
 
         voices = voices_data.get("voices", [])
-        if any(voice.get("name") == LOCAL_TTS_VOICE for voice in voices):
-            return
+        if any(voice.get("name") == voice_name for voice in voices):
+            return voice_name
 
-        if not LOCAL_TTS_VOICE_REFERENCE.is_file():
-            raise RuntimeError(
-                f"TTS voice reference is missing: {LOCAL_TTS_VOICE_REFERENCE}"
-            )
-
-        register_payload = json.dumps({
-            "name": LOCAL_TTS_VOICE,
-            "wav_b64": base64.b64encode(
-                LOCAL_TTS_VOICE_REFERENCE.read_bytes()
-            ).decode("ascii"),
-        }).encode("utf-8")
+        register_payload = json.dumps(reference, ensure_ascii=False).encode("utf-8")
         register_request = UrlRequest(
             f"{LOCAL_TTS_BASE_URL}/v1/audio/voices",
             data=register_payload,
@@ -485,7 +489,7 @@ def ensure_local_tts_voice():
             method="POST",
         )
         with urlopen(register_request, timeout=LOCAL_TTS_TIMEOUT):
-            pass
+            return voice_name
 
 
 @app.route('/api/tts', methods=['POST', 'OPTIONS'])
@@ -502,11 +506,14 @@ def generate_tts():
             return jsonify({"error": "No text provided"}), 400
 
         tts_text = normalize_korean_tts_text(text) if language == 'ko' else text
-        ensure_local_tts_voice()
+        # A final sentence mark helps the synthesizer finish with a natural cadence.
+        if not tts_text.endswith(('.', '!', '?', '。', '！', '？', '…')):
+            tts_text += '.'
+        voice_name = ensure_local_tts_voice()
         payload = json.dumps({
             "model": LOCAL_TTS_MODEL,
             "input": tts_text,
-            "voice": LOCAL_TTS_VOICE,
+            "voice": voice_name,
             "seed": LOCAL_TTS_SEED,
             "response_format": "wav",
         }, ensure_ascii=False).encode("utf-8")

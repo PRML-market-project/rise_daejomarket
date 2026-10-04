@@ -13,6 +13,7 @@ import {
 } from "./KioskResultScreens";
 import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
 import { searchKioskWithAi } from "./kioskAiSearch";
+import { useKioskSpeech } from "./useKioskSpeech";
 import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
 import { CompatibleMotion, DesignMotion, VoiceMotionButton } from "./DesignMotion";
 
@@ -533,6 +534,11 @@ export default function KioskSearchApp() {
     [effectiveShops, selectedShopId],
   );
 
+  const { prepareSpeech, isSpeechActive } = useKioskSpeech(
+    screen === "results" || screen === "answer" || screen === "no-results" ? aiAnswer : "",
+    language,
+  );
+
   const returnToWelcome = useCallback(() => {
     setScreen("welcome");
     setMode("voice");
@@ -553,7 +559,8 @@ export default function KioskSearchApp() {
   }, []);
 
   useEffect(() => {
-    if (screen === "welcome") return;
+    // Start the full idle interval after speech generation and physical playback.
+    if (screen === "welcome" || isSpeechActive) return;
 
     let timeoutId = window.setTimeout(returnToWelcome, INACTIVITY_TIMEOUT_MS);
     const resetTimeout = () => {
@@ -567,7 +574,7 @@ export default function KioskSearchApp() {
       window.clearTimeout(timeoutId);
       activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetTimeout));
     };
-  }, [returnToWelcome, screen]);
+  }, [returnToWelcome, screen, isSpeechActive]);
 
   useEffect(() => {
     if (screen !== "processing") return;
@@ -624,6 +631,7 @@ export default function KioskSearchApp() {
 
   const submit = () => {
     if (!query.trim()) return;
+    prepareSpeech();
     setTagSearch(null);
     setSelectedShopId(null);
     setAiShopIds([]);

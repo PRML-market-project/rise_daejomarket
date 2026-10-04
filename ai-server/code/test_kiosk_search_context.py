@@ -1,6 +1,6 @@
 import unittest
 
-from kiosk_search_context import build_search_prompt, load_map_shops, select_shops
+from kiosk_search_context import build_search_prompt, format_chat_message, load_map_shops, select_shops
 
 
 class KioskSearchContextTests(unittest.TestCase):
@@ -37,6 +37,26 @@ class KioskSearchContextTests(unittest.TestCase):
         prompt = build_search_prompt(1, "간식가게", "ko", shops, tags)
         self.assertIn("수제쿠키, 식품", prompt)
         self.assertIn("get_store", prompt)
+
+    def test_chat_message_removes_match_list(self):
+        explanation = "비 오는 날 따뜻하게 즐기기 좋은 음식으로 칼국수와 전을 추천해 드립니다. 아래 가게들을 확인해 보세요."
+        raw = explanation + "  [카테고리 매치] - 도깨비칼국수 (시장 남측) - 장터빈대떡 (시장 서측 통로)"
+        self.assertEqual(format_chat_message(raw), explanation)
+        self.assertEqual(format_chat_message("**" + raw + "**"), explanation)
+        self.assertEqual(format_chat_message("아래 가게들을 확인해 보세요.\n- 도깨비칼국수\n- 장터빈대떡"), "아래 가게들을 확인해 보세요.")
+
+    def test_chat_message_limit_includes_spaces_and_punctuation(self):
+        for message in ["가" * 85, "가" * 86, "가 나. " * 30, "Please check the shops. " * 10, "Vui lòng hỏi trực tiếp cửa hàng. " * 10]:
+            result = format_chat_message(message)
+            self.assertLessEqual(len(result), 85)
+        self.assertEqual(format_chat_message("가" * 85), "가" * 85)
+        self.assertEqual(format_chat_message("가" * 86), "가" * 84 + "…")
+
+    def test_long_reply_preserves_complete_sentence(self):
+        first = "찾으시는 가게를 안내해 드릴게요."
+        self.assertEqual(format_chat_message(first + " " + "추가 안내 " * 30), first)
+        english = "Please check the shops below."
+        self.assertEqual(format_chat_message(english + " " + "Additional details " * 20), english)
 
 
 if __name__ == "__main__":
