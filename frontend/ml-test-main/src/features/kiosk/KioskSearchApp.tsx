@@ -705,7 +705,7 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} selectedViewportY={0.3} bottomOverlayHeight={1128} />
+            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} selectedViewportY={0.3} bottomOverlayHeight={1128} topOverlayHeight={208} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <ResultsPanel
               shops={resultShops}
@@ -720,7 +720,7 @@ export default function KioskSearchApp() {
 
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute bottomOverlayHeight={604} />
+            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute bottomOverlayHeight={604} topOverlayHeight={208} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <DirectionsPanel shopName={selectedShop.name} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>
@@ -728,7 +728,7 @@ export default function KioskSearchApp() {
 
         {screen === "map" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} bottomOverlayHeight={420} />
+            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} bottomOverlayHeight={420} topOverlayHeight={208} />
             <FloatingSearchBar onClick={openSearch} />
             <MarketMapPanel onHome={returnToWelcome} onSearch={openSearch} />
           </main>

@@ -1,4 +1,4 @@
-import { access, copyFile, mkdir, readdir } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,10 +13,18 @@ try {
   await copyFile(path.join(path.dirname(source), "search-tag-icons.ts"), path.resolve(adminRoot, "src/data/search-tag-icons.ts"));
   const mapComponentDestination = path.resolve(adminRoot, "src/components/market");
   await mkdir(mapComponentDestination, { recursive: true });
-  await copyFile(
-    path.resolve(adminRoot, "../frontend/ml-test-main/src/components/market/MapView.tsx"),
-    path.join(mapComponentDestination, "MapView.tsx"),
-  );
+  const mapSource = path.resolve(adminRoot, "../frontend/ml-test-main/src/components/market");
+  const mapCode = (await readFile(path.join(mapSource, "MapView.tsx"), "utf8"))
+    .replace('import { useKioskLocale } from "@/features/kiosk/i18n";', '')
+    .replace('const { t } = useKioskLocale();', 'const t = (text: string) => text;');
+  await writeFile(path.join(mapComponentDestination, "MapView.tsx"), mapCode);
+  await copyFile(path.join(mapSource, "locationMarker.ts"), path.join(mapComponentDestination, "locationMarker.ts"));
+  const fontsSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/fonts");
+  const fontsDestination = path.resolve(adminRoot, "public/fonts");
+  await mkdir(fontsDestination, { recursive: true });
+  for (const file of ["Pretendard-Bold.woff2", "Pretendard-OFL.txt"]) {
+    await copyFile(path.join(fontsSource, file), path.join(fontsDestination, file));
+  }
   const tagSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/search-icons");
   const tagDestination = path.resolve(adminRoot, "public/search-icons");
   await mkdir(tagDestination, { recursive: true });
@@ -40,6 +48,11 @@ try {
   await mkdir(designDestination, { recursive: true });
   for (const file of ["daecho-logo.svg", "search-result-food.png"]) {
     await copyFile(path.join(designSource, file), path.join(designDestination, file));
+  }
+  const resultsDestination = path.join(designDestination, "results");
+  await mkdir(resultsDestination, { recursive: true });
+  for (const file of ["current-location-tail.svg", "current-location-tail-left.svg", "map-zoom-in.svg", "map-zoom-out.svg"]) {
+    await copyFile(path.join(designSource, "results", file), path.join(resultsDestination, file));
   }
   console.log("[map-data] Synced the kiosk shop map into the admin app.");
 } catch (error) {

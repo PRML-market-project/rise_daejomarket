@@ -2,6 +2,14 @@
 @source '../**/*.{ts,tsx}';
 
 @font-face {
+  font-family: 'Kiosk Map Pretendard';
+  src: url('/fonts/Pretendard-Bold.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Kiosk Result Noto';
   src: url('/fonts/NotoSansKR.ttf') format('truetype');
   font-style: normal;

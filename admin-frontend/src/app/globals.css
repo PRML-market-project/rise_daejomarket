@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Kiosk Map Pretendard";
+  src: url("/fonts/Pretendard-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   --admin-surface: #f8fbf8;
   --admin-card: #ffffff;

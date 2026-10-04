@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Shop } from "@/types/shop";
+import { CURRENT_LOCATION, LOCATION_LABEL, getLocalMapPoint, getLocationMarkerPosition } from "./locationMarker";
+
 
 interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
 interface HitArea { x: number; y: number; width: number; height: number }
 interface RotatedIconCell extends IconCell { rotation: number; originX: number; originY: number }
-type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean; selectedViewportY?: number };
+type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean; selectedViewportY?: number; bottomOverlayHeight?: number; topOverlayHeight?: number };
 
 const MAP_WIDTH = 6807;
 const MAP_HEIGHT = 10577;
@@ -22,7 +24,6 @@ const INITIAL_CENTER: Point = { x: 4950, y: 4300 };
 const MIN_LABEL_PT = 15;
 const MAX_LABEL_PT = 32;
 const INITIAL_LABEL_PT = 18;
-const DIRECTIONS_PANEL_HEIGHT = 520;
 const CSS_PIXELS_PER_POINT = 4 / 3;
 const SOURCE_LABEL_HEIGHT = 38;
 const ROUTE_ARROW_PATH = "M -11 -9 L 7 0 L -11 9 Z";
@@ -384,8 +385,11 @@ export function getRouteDistanceForShop(shop: Shop): number {
   return Math.max(1, Math.round(getRouteDistanceMeters(getRoutePointsForShop(shop))));
 }
 
-export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false, selectedViewportY = 0.5 }: MapViewProps) {
+export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false, selectedViewportY = 0.5, bottomOverlayHeight = 0, topOverlayHeight = 0 }: MapViewProps) {
+  const t = (text: string) => text;
   const containerRef = useRef<HTMLDivElement>(null);
+  const locationBubbleRef = useRef<HTMLDivElement>(null);
+  const [locationBubbleSize, setLocationBubbleSize] = useState({ width: LOCATION_LABEL.width, height: LOCATION_LABEL.height });
   const cameraAnimationRef = useRef<number | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
   const gestureRef = useRef<{ midpoint: Point; distance: number } | null>(null);
@@ -405,6 +409,26 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const viewHeight = containerSize.height / mapScale;
   const constrainedCenter = useMemo(() => clampCenter(center), [center]);
   const viewBox = `${constrainedCenter.x - viewWidth / 2} ${constrainedCenter.y - viewHeight / 2} ${viewWidth} ${viewHeight}`;
+  const bubbleSize = { width: locationBubbleSize.width * mapScale, height: locationBubbleSize.height * mapScale };
+  const locationMarker = getLocationMarkerPosition(CURRENT_LOCATION, constrainedCenter, mapScale, containerSize, bubbleSize, bottomOverlayHeight, topOverlayHeight);
+  const tailRadius = 18 / Math.SQRT2 * mapScale;
+  const tailAngle = locationMarker.angle * Math.PI / 180;
+  const tailStyle: React.CSSProperties = {
+    left: locationMarker.arrowTip.x - Math.cos(tailAngle) * tailRadius - locationMarker.x - tailRadius,
+    top: locationMarker.arrowTip.y - Math.sin(tailAngle) * tailRadius - locationMarker.y - tailRadius,
+    width: tailRadius * 2,
+    height: tailRadius * 2,
+  };
+
+  useEffect(() => {
+    const bubble = locationBubbleRef.current;
+    if (!bubble) return;
+    const updateSize = () => setLocationBubbleSize({ width: bubble.offsetWidth, height: bubble.offsetHeight });
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(bubble);
+    return () => observer.disconnect();
+  }, []);
 
   const cancelCameraAnimation = useCallback(() => {
     if (cameraAnimationRef.current !== null) {
@@ -416,7 +440,8 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const updateSize = () => { const rect = container.getBoundingClientRect(); setContainerSize({ width: Math.max(rect.width, 1), height: Math.max(rect.height, 1) }); };
+    // Layout pixels match the SVG and overlay; boundingClientRect includes the kiosk CSS scale.
+    const updateSize = () => setContainerSize({ width: Math.max(container.clientWidth, 1), height: Math.max(container.clientHeight, 1) });
     updateSize();
     const observer = new ResizeObserver(updateSize);
     observer.observe(container);
@@ -439,7 +464,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       return sum + Math.hypot(point.x - previous.x, point.y - previous.y);
     }, 0);
     const duration = clamp(2200 + routeLength * 0.45, 2600, 6200);
-    const panelOffsetY = DIRECTIONS_PANEL_HEIGHT / (2 * mapScaleRef.current);
+    const panelOffsetY = bottomOverlayHeight / (2 * mapScaleRef.current);
     const cameraCenterFor = (point: Point) => clampCenter({ x: point.x, y: point.y + panelOffsetY });
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -464,7 +489,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     cameraAnimationRef.current = requestAnimationFrame(animateCamera);
 
     return cancelCameraAnimation;
-  }, [cancelCameraAnimation, containerSize.height, containerSize.width, routePoints, selectedMarker, selectedViewportY, showRoute]);
+  }, [bottomOverlayHeight, cancelCameraAnimation, containerSize.height, containerSize.width, routePoints, selectedMarker, selectedViewportY, showRoute]);
 
   const changeZoom = useCallback((nextLabelPt: number) => {
     cancelCameraAnimation();
@@ -489,8 +514,9 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     if (previous) { panBy(midpoint.x - previous.midpoint.x, midpoint.y - previous.midpoint.y); if (previous.distance > 0) setLabelPt((current) => clamp(current * (distance / previous.distance), MIN_LABEL_PT, MAX_LABEL_PT)); }
     gestureRef.current = { midpoint, distance };
   }, [panBy]);
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => { cancelCameraAnimation(); event.currentTarget.setPointerCapture(event.pointerId); pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); setIsDragging(true); updateGesture(); };
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => { const previous = pointersRef.current.get(event.pointerId); if (!previous) return; pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY }); if (pointersRef.current.size === 1) { panBy(event.clientX - previous.x, event.clientY - previous.y); gestureRef.current = { midpoint: { x: event.clientX, y: event.clientY }, distance: 0 }; } else updateGesture(); };
+  const pointerPosition = (event: React.PointerEvent<HTMLDivElement>) => getLocalMapPoint({ x: event.clientX, y: event.clientY }, event.currentTarget.getBoundingClientRect(), containerSize);
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => { cancelCameraAnimation(); event.currentTarget.setPointerCapture(event.pointerId); pointersRef.current.set(event.pointerId, pointerPosition(event)); setIsDragging(true); updateGesture(); };
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => { const previous = pointersRef.current.get(event.pointerId); if (!previous) return; const point = pointerPosition(event); pointersRef.current.set(event.pointerId, point); if (pointersRef.current.size === 1) { panBy(point.x - previous.x, point.y - previous.y); gestureRef.current = { midpoint: point, distance: 0 }; } else updateGesture(); };
   const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => { pointersRef.current.delete(event.pointerId); setIsDragging(pointersRef.current.size > 0); updateGesture(); };
 
   const selectedLabelBubble = selectedShop && selectedMarker ? getShopLabelBubble(selectedShop, selectedMarker) : null;
@@ -498,8 +524,8 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const selectedRotatedIcon = selectedShop ? SPECIAL_ROTATED_ICON_CELLS.get(selectedShop.id) : undefined;
   const selectedRotatedIconElement = selectedRotatedIcon && selectedIconAsset
     ? selectedShop?.id === "585:28797" && selectedMarker
-      ? <g><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#09a956" transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`} /><image href={selectedIconAsset} x={selectedMarker.x - 17} y={selectedMarker.y - 17} width="34" height="34" /></g>
-      : <g transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`}><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#09a956" /><image href={selectedIconAsset} x={selectedRotatedIcon.x + selectedRotatedIcon.width / 2 - 17} y={selectedRotatedIcon.y + selectedRotatedIcon.height / 2 - 17} width="34" height="34" /></g>
+      ? <g><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#22A36B" transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`} /><image href={selectedIconAsset} x={selectedMarker.x - 17} y={selectedMarker.y - 17} width="34" height="34" /></g>
+      : <g transform={`rotate(${selectedRotatedIcon.rotation} ${selectedRotatedIcon.originX} ${selectedRotatedIcon.originY})`}><rect x={selectedRotatedIcon.x} y={selectedRotatedIcon.y} width={selectedRotatedIcon.width} height={selectedRotatedIcon.height} rx="8" fill="#22A36B" /><image href={selectedIconAsset} x={selectedRotatedIcon.x + selectedRotatedIcon.width / 2 - 17} y={selectedRotatedIcon.y + selectedRotatedIcon.height / 2 - 17} width="34" height="34" /></g>
     : null;
   const routeTarget = routePoints?.[routePoints.length - 1] ?? null;
   const routeArrows = routePoints ? getRouteArrows(routePoints) : [];
@@ -531,29 +557,37 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       })}
       {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${shop.name} · 선택`} className="cursor-pointer outline-none" onPointerDown={(event) => event.stopPropagation()} onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{shop.name}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
       {showRoute && routeTarget && routePoints && <g key={selectedShop?.id} pointerEvents="none">
-        <polyline points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#19bf69" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#22A36B" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" />
         {Array.from({ length: movingArrowCount }, (_, index) => <path key={index} className="route-moving-arrow" d={ROUTE_ARROW_PATH} fill="#d8f5e7">
           <animateMotion path={routeMotionPath} dur={`${arrowDuration}s`} begin={`${-index * arrowDuration / movingArrowCount}s`} repeatCount="indefinite" rotate="auto" />
         </path>)}
         {routeArrows.map((arrow, index) => <path key={`${index}-${arrow.x}-${arrow.y}`} className="route-static-arrow" d={ROUTE_ARROW_PATH} fill="#d8f5e7" transform={`translate(${arrow.x} ${arrow.y}) rotate(${arrow.rotation})`} />)}
-        <circle cx={routeTarget.x} cy={routeTarget.y} r="38" fill="#b7ead0" /><circle cx={routeTarget.x} cy={routeTarget.y} r="24" fill="#19bf69" />
-        <rect x={routeTarget.x + 68} y={routeTarget.y - 35} width={routeDistanceWidth} height="70" rx="14" fill="#19bf69" /><text x={routeTarget.x + 68 + routeDistanceWidth / 2} y={routeTarget.y + 12} textAnchor="middle" fill="white" fontSize="38" fontWeight="700">{routeDistanceLabel}</text>
-        <circle cx={ROUTE_ORIGIN.x} cy={ROUTE_ORIGIN.y} r="38" fill="#b7ead0" /><circle cx={ROUTE_ORIGIN.x} cy={ROUTE_ORIGIN.y} r="24" fill="#19bf69" />
+        <circle cx={routeTarget.x} cy={routeTarget.y} r="38" fill="#b7ead0" /><circle cx={routeTarget.x} cy={routeTarget.y} r="24" fill="#22A36B" />
+        <rect x={routeTarget.x + 68} y={routeTarget.y - 35} width={routeDistanceWidth} height="70" rx="14" fill="#22A36B" /><text x={routeTarget.x + 68 + routeDistanceWidth / 2} y={routeTarget.y + 12} textAnchor="middle" fill="white" fontSize="38" fontWeight="700">{routeDistanceLabel}</text>
       </g>}
       {selectedShop && selectedMarker && selectedLabelBubble && <g pointerEvents="none">
-        <path d={selectedLabelBubble.tailPath} fill="#19bf69" />
-        <rect x={selectedLabelBubble.x} y={selectedLabelBubble.y} width={selectedLabelBubble.width} height={selectedLabelBubble.height} rx="16" fill="#19bf69" />
+        <path d={selectedLabelBubble.tailPath} fill="#22A36B" />
+        <rect x={selectedLabelBubble.x} y={selectedLabelBubble.y} width={selectedLabelBubble.width} height={selectedLabelBubble.height} rx="16" fill="#22A36B" />
         <text x={selectedLabelBubble.centerX} y={selectedLabelBubble.centerY} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="28" fontWeight="700" fontFamily="Noto Sans KR, sans-serif">
           {selectedLabelBubble.lines.map((line, index) => (
             <tspan key={`${index}-${line}`} x={selectedLabelBubble.centerX} dy={index === 0 ? `${-(selectedLabelBubble.lines.length - 1) * 19}px` : "38px"}>{line}</tspan>
           ))}
         </text>
-        {selectedIconCell && selectedIconAsset && <><rect x={selectedIconCell.x} y={selectedIconCell.y} width={selectedIconCell.width} height={selectedIconCell.height} rx="8" fill="#09a956" /><image href={selectedIconAsset} x={selectedMarker.x - 17} y={selectedMarker.y - 17} width="34" height="34" /></>}
+        {selectedIconCell && selectedIconAsset && <><rect x={selectedIconCell.x} y={selectedIconCell.y} width={selectedIconCell.width} height={selectedIconCell.height} rx="8" fill="#22A36B" /><image href={selectedIconAsset} x={selectedMarker.x - 17} y={selectedMarker.y - 17} width="34" height="34" /></>}
         {selectedRotatedIconElement}
       </g>}
     </svg>
-    <div className="absolute right-5 top-[210px] z-20 flex flex-col overflow-hidden rounded-2xl border border-black/10 bg-white/95 shadow-lg backdrop-blur" onPointerDown={(event) => event.stopPropagation()}>
-      <button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label="지도 확대" onClick={() => changeZoom(labelPt * 1.2)}>+</button><div className="h-px bg-black/10" /><button type="button" className="h-16 w-16 text-4xl font-semibold text-gray-800 hover:bg-gray-100 active:bg-gray-200" aria-label="지도 축소" onClick={() => changeZoom(labelPt / 1.2)}>−</button>
+    <div className="pointer-events-none absolute z-10" style={{ left: locationMarker.x, top: locationMarker.y }} data-location-tail={locationMarker.side} data-location-offscreen={locationMarker.offscreen} data-location-angle={locationMarker.angle}>
+      <div className="absolute flex items-center justify-center" style={tailStyle}>
+        <img src="/figma/results/current-location-tail-left.svg" alt="" className="block shrink-0 max-w-none" style={{ transform: `scale(${mapScale}) rotate(${locationMarker.angle + 225}deg)` }} />
+      </div>
+      <div style={{ width: bubbleSize.width, height: bubbleSize.height }}>
+        <div ref={locationBubbleRef} className="relative w-max min-w-[173px] origin-top-left whitespace-nowrap rounded-[16px] bg-[#22A36B] px-[24px] py-[10px] text-center font-['Kiosk_Map_Pretendard',sans-serif] text-[48px] font-bold leading-[58px] text-white" style={{ transform: `scale(${mapScale})` }}>{t("현위치")}</div>
+      </div>
+    </div>
+    <div className="absolute right-[40px] z-20 flex w-[80px] flex-col gap-[8px]" style={{ bottom: bottomOverlayHeight + 16 }} onPointerDown={(event) => event.stopPropagation()}>
+      <button type="button" className="relative h-[80px] w-[80px] rounded-[16px] disabled:opacity-40" aria-label={t("지도 확대")} disabled={labelPt >= MAX_LABEL_PT} onClick={() => changeZoom(labelPt * 1.2)}><img src="/figma/results/map-zoom-in.svg" alt="" className="pointer-events-none absolute left-[-32px] top-[-32px] max-w-none" /></button>
+      <button type="button" className="relative h-[80px] w-[80px] rounded-[16px] disabled:opacity-40" aria-label={t("지도 축소")} disabled={labelPt <= MIN_LABEL_PT} onClick={() => changeZoom(labelPt / 1.2)}><img src="/figma/results/map-zoom-out.svg" alt="" className="pointer-events-none absolute left-[-32px] top-[-32px] max-w-none" /></button>
     </div>
   </div>;
 }
