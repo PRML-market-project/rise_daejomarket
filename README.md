@@ -67,9 +67,18 @@ The kiosk's top-left logo opens the admin page in a new tab after 10 consecutive
 clicks (no more than 1.5 seconds between clicks). Admin authentication still applies.
 The kiosk build includes `/login` and `/dashboard`, so the Vercel deployment
 serves the admin UI on the same domain without a separate admin deployment.
-Both use the kiosk's `VITE_API_URL` backend. Login is required; the local demo
-credentials work only on localhost. The existing standalone Next.js admin app
+Both use the kiosk's `VITE_API_URL` backend. Login is required; localhost alone
+allows demo login without backend authentication. The existing standalone Next.js admin app
 reuses the same admin components.
+
+On backend startup, a missing `daejo_admin` account is created with password
+`2580` (stored as a BCrypt hash). This lets the deployed admin UI use the same
+credentials through the real backend `/login` endpoint. Deploy/restart the
+backend with these changes; a Vercel frontend redeploy alone does not create
+the account. No additional Vercel credential variables are needed.
+The backend variables `KIOSK_ADMIN_USERNAME` and `KIOSK_ADMIN_PASSWORD` override
+the credentials for initial creation, and `KIOSK_ADMIN_BOOTSTRAP_ENABLED=false`
+disables creation. Existing accounts and their passwords are preserved.
 
 Deploy with the Vercel Root Directory set to `frontend/ml-test-main` (or
 `frontend`, which has a wrapper build configuration). After pulling these
