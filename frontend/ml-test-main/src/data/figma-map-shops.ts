@@ -1,4 +1,4 @@
-import type { Shop } from "@/types/shop";
+import type { Shop } from "../types/shop";
 
 // Source: Figma node 585:28759 (가게이름), inside map 585:27627.
 // Coordinates are the actual positions in the 6807 × 10577 map.

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../../../frontend/ml-test-main/src/features/admin/**/*.{ts,tsx}";
+@source "../../../../frontend/ml-test-main/src/components/market/**/*.{ts,tsx}";
 
 @font-face {
   font-family: "Kiosk Map Pretendard";

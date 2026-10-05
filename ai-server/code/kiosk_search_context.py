@@ -110,6 +110,37 @@ def select_shops(question, shops, tags, limit=18):
     return [shop for _, _, shop in ranked[:limit]]
 
 
+def is_recommendation_question(question):
+    query = _normalize(question)
+    return any(_normalize(term) in query for term in (
+        "추천", "뭐 먹", "뭐먹", "먹을 만", "먹을만", "어디가 좋", "어디가좋",
+        "recommend", "suggest", "what to eat", "where should", "gợi ý", "đề xuất",
+    ))
+
+
+def select_search_candidates(question, shops, tags):
+    if is_recommendation_question(question):
+        # Situation-based recommendations may have no literal keyword match.
+        # Let the LLM judge the map catalog, with direct matches listed first.
+        matched = select_shops(question, shops, tags, limit=None)
+        matched_ids = {shop["id"] for shop in matched}
+        return matched + [shop for shop in shops if shop["id"] not in matched_ids]
+    return select_shops(question, shops, tags)
+
+
+def warm_food_recommendation_priorities(question, shops):
+    query = _normalize(question)
+    rainy_day = any(_normalize(term) in query for term in ("비 오는 날", "비가 오는 날"))
+    if not is_recommendation_question(question) or not rainy_day or _normalize("따뜻") not in query:
+        return []
+    # Curated market examples: dumplings, porridge, pancakes, and noodles.
+    # Resolve against current map/admin data so renamed or removed shops are
+    # never represented with a stale name or an invented ID.
+    preferred_ids = ("585:28762", "585:28790", "585:28803", "585:28874")
+    by_id = {shop["id"]: shop for shop in shops}
+    return [by_id[shop_id] for shop_id in preferred_ids if shop_id in by_id]
+
+
 def format_chat_message(message):
     """Keep the kiosk's short explanation separate from its shop cards."""
     message = message.replace("**", "")
@@ -130,10 +161,19 @@ def format_chat_message(message):
 
 
 def build_search_prompt(intent, question, language, shops, tags):
-    candidates = select_shops(question, shops, tags)
+    candidates = select_search_candidates(question, shops, tags)
+    recommendation = is_recommendation_question(question)
     response_language = {"vi": "Vietnamese", "en": "English"}.get(language, "Korean")
     public_fields = ("id", "name", "category", "section", "description", "keywords", "tags")
-    compact = [{key: shop[key] for key in public_fields if shop.get(key)} for shop in candidates]
+    detailed = select_shops(question, shops, tags) if recommendation else candidates
+    compact = [{key: shop[key] for key in public_fields if shop.get(key)} for shop in detailed]
+    # The full catalog provides semantic choices without copying every admin
+    # description into the local model's limited context window.
+    catalog = [{key: shop[key] for key in ("id", "name", "category")} for shop in candidates] if recommendation else []
+    warm_food_priorities = [
+        {key: shop[key] for key in public_fields if shop.get(key)}
+        for shop in warm_food_recommendation_priorities(question, candidates)
+    ]
     tag_context = [{key: tag[key] for key in ("name", "keywords") if tag.get(key)} for tag in tags]
     result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
     return f"""You are the Daejo Market kiosk guide.
@@ -174,14 +214,36 @@ description may prove a price and its selling unit. If it does not, say the pric
 verified from current data; do not repeat remembered prices or calculate a total.
 Even when a price is unavailable, include a matching shop's map ID in items so the kiosk can show it.
 If no candidate supports the request, explain what is unknown and return an empty items array.
-For a broad category request, select at most five relevant shops in result.items.
+For recommendations and broad category requests, include as many genuinely relevant shops as
+the supplied data supports in result.items. Do not arbitrarily stop at one, three, or five shops.
+Review every supplied candidate and include all suitable alternatives, ordered by relevance:
+direct offering/description matches first, then related categories and useful alternatives.
+For situational requests (weather, a snack, a meal, a gift, or a visitor's preferences), judge
+the meaning of the request using the map catalog and the detailed admin evidence; an exact
+keyword overlap is not required. Include different relevant choices so the visitor can compare.
+For rainy-day warm-food recommendations, consider steamed dumplings, porridge, pancakes,
+and noodle dishes together; do not reduce the choices to only soup or only pancakes.
+When [Rainy-day warm-food priority shops] is nonempty, include ALL of those shops in
+result.items first, in the supplied order, unless the user explicitly excludes an option
+or requests fewer recommendations. These are curated relevant choices from the current map.
+An explicit requested count overrides the priority list and additional recommendations:
+for "한 곳만", "하나만", or "one", return exactly ONE result.items entry, with no alternatives.
+Then add other genuinely relevant shops; the priority list is not a maximum result count.
+Use the supplied descriptions for offering claims and never infer current stock or prices.
+Never add unrelated shops merely to increase the count. Respect explicit exclusions, conditions,
+and any number of recommendations requested by the user. If only one shop is relevant, return one.
+When suitability is inferred only from a name or category, describe it as a place to check;
+do not invent menus, stock, quality, popularity, or claims such as "best" or "cheapest".
+The 85-character limit applies only to chat_message, not to the number of result.items.
 Use category and direct search matches internally; never display these classifications in chat_message.
 For a named shop, prefer an exact name match and use its map ID. If names are ambiguous, say so.
 For location requests, give the map section and return target_id; the frontend draws the actual route.
 Configured search tags use comma-separated OR terms, like the frontend search.
 Return ONLY valid JSON, with no markdown or extra fields:
-{{"user_message": {json.dumps(question, ensure_ascii=False)}, "chat_message": "answer", "result": {{"status": "success", "intent": "{result_intent}", "items": [{{"target_id": "map ID", "target_name": "shop name"}}]}}}}
+{{"user_message": {json.dumps(question, ensure_ascii=False)}, "chat_message": "answer", "result": {{"status": "success", "intent": "{result_intent}", "items": [{{"target_id": "map ID"}}]}}}}
 Use only IDs from the candidate data. For no match use items: [].
 
 [Visible search tags] {json.dumps(tag_context, ensure_ascii=False)}
+[Rainy-day warm-food priority shops] {json.dumps(warm_food_priorities, ensure_ascii=False)}
+[Recommendation map catalog] {json.dumps(catalog, ensure_ascii=False, separators=(',', ':'))}
 [Relevant map shops with admin overrides] {json.dumps(compact, ensure_ascii=False)}"""

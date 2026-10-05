@@ -61,12 +61,20 @@ The local endpoints are:
 - handwriting-server: http://localhost:17832
 - frontend: http://localhost:5173
 - admin-frontend: http://localhost:3000
-- admin through the kiosk origin: http://localhost:5173/dashboard
+- admin included in the kiosk app: http://localhost:5173/dashboard
 
 The kiosk's top-left logo opens the admin page in a new tab after 10 consecutive
 clicks (no more than 1.5 seconds between clicks). Admin authentication still applies.
-For a separately deployed admin site, set `VITE_ADMIN_URL` on the kiosk frontend
-to its full dashboard URL.
+The kiosk build includes `/login` and `/dashboard`, so the Vercel deployment
+serves the admin UI on the same domain without a separate admin deployment.
+Both use the kiosk's `VITE_API_URL` backend. Login is required; the local demo
+credentials work only on localhost. The existing standalone Next.js admin app
+reuses the same admin components.
+
+Deploy with the Vercel Root Directory set to `frontend/ml-test-main` (or
+`frontend`, which has a wrapper build configuration). After pulling these
+changes, redeploy the frontend. Leave `VITE_ADMIN_URL` unset to open the bundled
+admin UI. Set it only when deliberately using a separately deployed admin site.
 
 For local frontend development, set `frontend/ml-test-main/.env` like this:
 

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Shop } from "@/types/shop";
-import { mapBackgroundUrl, mapLabelsUrl, mapShopLabels } from "@/data/mapShopLabels";
+import type { Shop } from "../../types/shop";
+import { mapBackgroundUrl, mapLabelsUrl, mapShopLabels } from "../../data/mapShopLabels";
 import { CURRENT_LOCATION, LOCATION_LABEL, getLocalMapPoint, getLocationMarkerPosition } from "./locationMarker";
-import { useKioskLocale } from "@/features/kiosk/i18n";
+import { useKioskLocale } from "../../features/kiosk/i18n";
 
 interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }

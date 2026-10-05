@@ -1,6 +1,6 @@
 import unittest
 
-from kiosk_search_context import build_search_prompt, format_chat_message, load_map_shops, select_shops
+from kiosk_search_context import build_search_prompt, format_chat_message, load_map_shops, select_shops, warm_food_recommendation_priorities
 
 
 class KioskSearchContextTests(unittest.TestCase):
@@ -22,6 +22,28 @@ class KioskSearchContextTests(unittest.TestCase):
 
     def test_unknown_shop_has_no_match(self):
         self.assertEqual(select_shops("없는가게 어디야?", self.shops, []), [])
+
+    def test_rainy_day_warm_food_has_all_four_priorities(self):
+        question = "비 오는 날 따뜻한 음식 추천해줘."
+        preferred = warm_food_recommendation_priorities(question, self.shops)
+        self.assertEqual([shop["name"] for shop in preferred], ["행운손만두", "옛날죽집", "장터빈대떡", "도깨비칼국수"])
+        prompt = build_search_prompt(2, question, "ko", self.shops, [])
+        for shop in preferred:
+            self.assertIn(shop["id"], prompt)
+            self.assertIn(shop["name"], prompt)
+        self.assertEqual(warm_food_recommendation_priorities("비가 오는 날 따뜻한 음식 추천해 주세요", self.shops), preferred)
+
+    def test_warm_food_priorities_do_not_apply_to_unrelated_requests(self):
+        for question in ("식당 추천해줘", "비 오는 날 차가운 음식 추천해줘", "따뜻한 음식 파는 가게 위치"):
+            self.assertEqual(warm_food_recommendation_priorities(question, self.shops), [])
+
+    def test_warm_food_priorities_follow_current_catalog(self):
+        shops = [dict(shop) for shop in self.shops if shop["id"] != "585:28790"]
+        next(shop for shop in shops if shop["id"] == "585:28762")["name"] = "변경된 만두 가게"
+        preferred = warm_food_recommendation_priorities("비 오는 날 따뜻한 음식 추천해줘", shops)
+        self.assertEqual(len(preferred), 3)
+        self.assertEqual(preferred[0]["name"], "변경된 만두 가게")
+        self.assertNotIn("585:28790", {shop["id"] for shop in preferred})
 
     def test_side_dish_query_does_not_expand_to_all_food_shops(self):
         matched = select_shops("반찬가게", self.shops, [{"name": "반찬가게", "keywords": "반찬"}])

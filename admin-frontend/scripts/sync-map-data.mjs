@@ -15,7 +15,7 @@ try {
   await mkdir(mapComponentDestination, { recursive: true });
   const mapSource = path.resolve(adminRoot, "../frontend/ml-test-main/src/components/market");
   const mapCode = (await readFile(path.join(mapSource, "MapView.tsx"), "utf8"))
-    .replace('import { useKioskLocale } from "@/features/kiosk/i18n";', '')
+    .replace(/import \{ useKioskLocale \} from "[^"]+";\r?\n/, '')
     .replace('const { t } = useKioskLocale();', 'const t = (text: string) => text;');
   await writeFile(path.join(mapComponentDestination, "MapView.tsx"), mapCode);
   await copyFile(path.join(mapSource, "locationMarker.ts"), path.join(mapComponentDestination, "locationMarker.ts"));

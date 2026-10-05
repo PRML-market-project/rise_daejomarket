@@ -1,5 +1,8 @@
 {
   "version": 2,
-  "framework": "nextjs",
-  "rootDirectory": "ml-test-main"
+  "framework": "vite",
+  "installCommand": "npm --prefix ml-test-main ci",
+  "buildCommand": "npm --prefix ml-test-main run build",
+  "outputDirectory": "ml-test-main/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

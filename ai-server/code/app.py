@@ -23,7 +23,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
 from tts_voice_reference import build_voice_reference
-from kiosk_search_context import build_search_prompt, format_chat_message, load_kiosk_context, select_shops
+from kiosk_search_context import build_search_prompt, format_chat_message, is_recommendation_question, load_kiosk_context, select_search_candidates
 
 
 # ==========================================
@@ -286,8 +286,11 @@ def replace_phrases(text, admin_id, threshold=2):
 def answer_from_current_kiosk_data(intent, text, language):
     """Return the kiosk's JSON contract using only current map/admin shop data."""
     shops, tags = load_kiosk_context()
-    candidates = select_shops(text, shops, tags)
-    raw = generate_json_response(build_search_prompt(intent, text, language, shops, tags), text)
+    candidates = select_search_candidates(text, shops, tags)
+    raw = generate_json_response(
+        build_search_prompt(intent, text, language, shops, tags), text,
+        max_tokens=2048 if is_recommendation_question(text) else 1200,
+    )
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         answer = json.loads(match.group() if match else raw)
@@ -304,13 +307,12 @@ def answer_from_current_kiosk_data(intent, text, language):
         shop = candidate_by_id.get(item.get("target_id")) if isinstance(item, dict) else None
         if shop and shop["id"] not in {entry["target_id"] for entry in selected}:
             selected.append({"target_id": shop["id"], "target_name": shop["name"]})
-    selected = selected[:5]
 
     # Explicitly named shops stay selectable even when a price is not registered.
     compact_query = re.sub(r"\s+", "", text).lower()
     named = [shop for shop in candidates if re.sub(r"\s+", "", shop["name"]).lower() in compact_query]
     if named and (intent in (2, 4) or not selected):
-        selected = [{"target_id": shop["id"], "target_name": shop["name"]} for shop in named[:5]]
+        selected = [{"target_id": shop["id"], "target_name": shop["name"]} for shop in named]
 
     message = answer.get("chat_message") if isinstance(answer.get("chat_message"), str) else ""
     selected_shops = [candidate_by_id[item["target_id"]] for item in selected]
@@ -395,7 +397,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
     return answer_from_current_kiosk_data(intent, text, language)
 
 
-def generate_json_response(system_prompt, text):
+def generate_json_response(system_prompt, text, max_tokens=1200):
     """Generate the existing /gpt JSON envelope with the local model first."""
     messages = [
         {"role": "system", "content": system_prompt},
@@ -406,7 +408,7 @@ def generate_json_response(system_prompt, text):
         local_response = local_chat_completion(
             messages,
             temperature=0.0,
-            max_tokens=1200,
+            max_tokens=max_tokens,
             json_mode=True,
         )
 
