@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import AdminLogo from "./AdminLogo";
 
 export default function AdminLogin({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [userId, setUserId] = useState("");
@@ -45,8 +46,7 @@ export default function AdminLogin({ onAuthenticated }: { onAuthenticated: () =>
   return (
     <main className="flex min-h-screen flex-col bg-[#116543]">
       <header className="flex h-[80px] shrink-0 items-center gap-[20px] border-b border-[#ebebeb] bg-white px-[32px]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/figma/daecho-logo.svg" alt="대조시장" className="h-[44px] w-[142px]" />
+        <AdminLogo />
         <strong className="text-[16px] leading-[23px] text-[#19211c]">관리자</strong>
       </header>
       <section className="flex flex-1 items-center justify-center p-[32px]">

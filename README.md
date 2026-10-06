@@ -52,19 +52,25 @@ npm.cmd run dev:local
 `dev:local` keeps one visible PowerShell window. It starts the native Windows Ink
 recognizer behind the backend API and the local llama.cpp model behind the AI
 server in hidden child processes; their output is saved in `.local-service-logs/`.
+Both `dev:local` and `dev:server` also start the Argos translator on port 17834
+and wait for its health check before starting the backend, so translation
+backfill can complete on startup.
 Keep the launcher window open, and press Ctrl+C there to stop the services it started.
 
 The local endpoints are:
 
 - backend: http://localhost:8080
+- translator: http://localhost:17834
 - ai-server: http://localhost:8000
 - handwriting-server: http://localhost:17832
 - frontend: http://localhost:5173
 - admin-frontend: http://localhost:3000
 - admin included in the kiosk app: http://localhost:5173/dashboard
 
-The kiosk's top-left logo opens the admin page in a new tab after 10 consecutive
-clicks (no more than 1.5 seconds between clicks). Admin authentication still applies.
+The kiosk's top-left logo opens the admin page in a new tab after five clicks
+within one second of the first click. Admin authentication still applies.
+In the bundled admin dashboard or login screen, click the market logo five times
+(no more than 1.5 seconds between clicks) to return to the kiosk in the same tab.
 The kiosk build includes `/login` and `/dashboard`, so the Vercel deployment
 serves the admin UI on the same domain without a separate admin deployment.
 Both use the kiosk's `VITE_API_URL` backend. Login is required; localhost alone

@@ -87,6 +87,13 @@ function Stop-ServiceTree {
 
 $services = @(
     @{
+        Name = "argos-translator"
+        Path = "ai-server\argos-translate-server"
+        Command = "& .\.venv\Scripts\python.exe -X utf8 .\server.py"
+        Url = "http://localhost:17834"
+        ReadyUrl = "http://127.0.0.1:17834/health"
+    },
+    @{
         Name = "local-llm"
         Path = "ai-server"
         Command = "& .\.llama-cpp\llama-server.exe -m .\gemma-4-26B_q4_0-it.gguf --host 127.0.0.1 --port 8010 -ngl all -c 8192 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
@@ -181,6 +188,7 @@ try {
 
     Write-Host ""
     Write-Host "All local services are running."
+    Write-Host "translation:    http://localhost:17834"
     Write-Host "local-llm:      http://localhost:8010"
     Write-Host "backend:        http://localhost:8080"
     Write-Host "ai-server:      http://localhost:8000"

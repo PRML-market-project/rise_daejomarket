@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
+import AdminLogo from "./AdminLogo";
 import { absoluteAssetUrl, getKioskExperience, saveManagedShops, saveOperationMode, uploadPromotion } from "./kioskExperienceApi";
 import { figmaMapShops } from "./mapShops";
 import { MapView, getRouteDistanceForShop } from "../../components/market/MapView";
@@ -54,7 +55,7 @@ function Header({ mode, onLogout }: { mode: OperationMode; onLogout: () => void 
   return (
     <header className="flex h-[80px] shrink-0 items-center gap-[32px] border-b border-[#ebebeb] bg-white px-[32px]">
       <div className="flex items-center gap-[20px]">
-        <img src="/figma/daecho-logo.svg" alt="대조시장" className="h-[44px] w-[142px]" />
+        <AdminLogo />
         <strong className="text-[16px] leading-[23px]">관리자</strong>
       </div>
       <div className="flex-1" />
@@ -158,6 +159,19 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
   const distanceMeters = getAdminRouteDistanceMeters(shopId);
+
+  useEffect(() => {
+    if (!translationPending) return;
+    let disposed = false;
+    const timer = window.setInterval(() => {
+      getKioskExperience().then((config) => {
+        if (disposed) return;
+        setTranslations(config.translations ?? {});
+        setTranslationPending(config.pendingTranslations ?? 0);
+      }).catch(() => undefined);
+    }, 5000);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [translationPending]);
 
   useEffect(() => {
     let disposed = false;

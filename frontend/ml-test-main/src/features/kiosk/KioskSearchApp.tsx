@@ -65,19 +65,22 @@ const languageLabels = { ko: "한국어", en: "English", vi: "Tiếng Việt" } 
 
 function Header({ language, onMap, onLanguage }: { language: Language; onMap: () => void; onLanguage: () => void }) {
   const { t } = useKioskLocale();
-  const logoTaps = useRef({ count: 0, lastAt: 0 });
-  const openAdminAfterTenTaps = () => {
+  const logoTaps = useRef({ count: 0, startedAt: 0 });
+  const openAdminAfterFiveTaps = () => {
     const now = Date.now();
-    logoTaps.current.count = now - logoTaps.current.lastAt <= 1500 ? logoTaps.current.count + 1 : 1;
-    logoTaps.current.lastAt = now;
-    if (logoTaps.current.count === 10) {
+    if (logoTaps.current.count === 0 || now - logoTaps.current.startedAt > 1000) {
+      logoTaps.current = { count: 1, startedAt: now };
+    } else {
+      logoTaps.current.count += 1;
+    }
+    if (logoTaps.current.count === 5) {
       logoTaps.current.count = 0;
       window.open(import.meta.env.VITE_ADMIN_URL?.trim() || `${window.location.origin}/dashboard`, "_blank", "noopener,noreferrer");
     }
   };
   return (
     <header className="flex h-[120px] shrink-0 items-center justify-between border-b-2 border-[#ebebeb] px-[52px]">
-      <button type="button" onClick={openAdminAfterTenTaps} aria-label={t("대조시장")} className="shrink-0 touch-manipulation"><img src="/figma/daecho-logo.svg" alt="" className="block h-[44px] w-[142px]" /></button>
+      <button type="button" onClick={openAdminAfterFiveTaps} aria-label={t("대조시장")} className="shrink-0 touch-manipulation"><img src="/figma/daecho-logo.svg" alt="" className="block h-[44px] w-[142px]" /></button>
       <div className="flex gap-[16px]">
         <button
           type="button"

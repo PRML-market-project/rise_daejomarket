@@ -101,6 +101,38 @@ $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $backendLog = Join-Path $tunnelLogDir "backend-$timestamp.log"
 $aiServerLog = Join-Path $tunnelLogDir "ai-server-$timestamp.log"
 
+$translationReady = $false
+try {
+    Invoke-WebRequest -Uri "http://127.0.0.1:17834/health" -UseBasicParsing -TimeoutSec 2 | Out-Null
+    $translationReady = $true
+} catch {}
+
+if (-not $translationReady) {
+    $translationRoot = Join-Path $root "ai-server\argos-translate-server"
+    $translationPython = Join-Path $translationRoot ".venv\Scripts\python.exe"
+    if (-not (Test-Path -LiteralPath $translationPython)) {
+        throw "Argos translator is not installed. See ai-server/argos-translate-server/README.md."
+    }
+    Start-Process -FilePath $translationPython `
+        -ArgumentList @("-X", "utf8", "server.py") `
+        -WorkingDirectory $translationRoot `
+        -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $tunnelLogDir "argos-$timestamp.log") `
+        -RedirectStandardError (Join-Path $tunnelLogDir "argos-$timestamp.error.log") | Out-Null
+
+    $translationDeadline = (Get-Date).AddSeconds(180)
+    while ((Get-Date) -lt $translationDeadline) {
+        try {
+            Invoke-WebRequest -Uri "http://127.0.0.1:17834/health" -UseBasicParsing -TimeoutSec 2 | Out-Null
+            $translationReady = $true
+            break
+        } catch { Start-Sleep -Milliseconds 500 }
+    }
+    if (-not $translationReady) {
+        throw "Argos translator did not become ready. Check $tunnelLogDir/argos-$timestamp.error.log."
+    }
+}
+
 Start-ServiceWindow `
     -Name "backend" `
     -Path "backend" `
@@ -140,6 +172,7 @@ if ($cloudflared) {
 }
 
 Write-Host "Started server mode with 5 windows."
+Write-Host "translation:    http://localhost:17834 (background)"
 Write-Host "backend:        http://localhost:8080"
 Write-Host "ai-server:      http://localhost:8000"
 Write-Host "handwriting:    http://localhost:17832"

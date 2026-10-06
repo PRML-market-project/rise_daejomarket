@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 
 const nextConfig: NextConfig = {
+  // Admin and kiosk share UI source files across the two app directories.
+  // Next 15.3 also uses the tracing root as its Turbopack resolution root.
+  outputFileTracingRoot: path.resolve(__dirname, '..'),
   images: {
     remotePatterns: [
       // 1. AWS S3 이미지 경로 (배포용)
