@@ -11,8 +11,8 @@ async function loadModule(path, dependencies = {}) {
   moduleUrls.set(path, url);
   return import(url);
 }
-const { getLocationMarkerPosition, getCandidateMarkerPosition, CURRENT_LOCATION, ORIGINAL_LOCATION_TIP } = await loadModule("../src/components/market/locationMarker.ts");
-const { MAP_SIZE, getMapOverviewCamera, constrainCoveredMapCenter, getNumberedMarkerLayouts } = await loadModule("../src/components/market/mapOverview.ts", { "./locationMarker": "../src/components/market/locationMarker.ts" });
+const { getLocationMarkerPosition, CURRENT_LOCATION, ORIGINAL_LOCATION_TIP } = await loadModule("../src/components/market/locationMarker.ts");
+const { MAP_SIZE, getMapOverviewCamera, constrainCoveredMapCenter, getNumberedMarkerLayouts, getResultMapMarkerLayouts } = await loadModule("../src/components/market/mapOverview.ts", { "./locationMarker": "../src/components/market/locationMarker.ts" });
 const { getSearchResultPresentation, getSearchResultPage } = await loadModule("../src/features/kiosk/searchResultPresentation.ts");
 const { figmaMapShops } = await loadModule("../src/data/figma-map-shops.ts");
 // Load the real map geometry without starting React or loading browser-only imports.
@@ -67,91 +67,122 @@ assert.equal(getSearchResultPage([], 1).pageCount, 1);
 const pageLocalNumbers = getSearchResultPresentation(figmaMapShops.slice(0, 12), "relevance", () => 10).map((result, index) => ({ ...result, number: index % 6 + 1 }));
 assert.deepEqual(getSearchResultPage(pageLocalNumbers, 2).visible.map(result => result.number), [7, 8, 9, 10, 11, 12], "page two derives global numbers from its offset even if incoming numbers restarted");
 const reserved = [{ x: 952, y: 600, width: 128, height: 192 }];
-const cluster = Array.from({ length: 6 }, (_, index) => ({ id: String(index), number: index + 1, x: 730, y: 600 + index * 2 }));
-const layouts = getNumberedMarkerLayouts(cluster, viewport, top, bottom, reserved);
-// Adjacent shops force labels to move. Snapping must not move the arrow tip
-// from a shop's side target onto its icon centre or another map coordinate.
-const pairedCluster = cluster.map(marker => ({ ...marker, candidates: [{ x: marker.x - 8, y: marker.y }, { x: marker.x + 8, y: marker.y }] }));
-for (const tag of getNumberedMarkerLayouts(pairedCluster, viewport, top, bottom, reserved)) {
-  assert.deepEqual(tag.tip, tag.anchor, "a visible shop's arrow tip stays on the selected side target after collision handling");
-  const shop = pairedCluster.find(marker => marker.id === tag.id);
-  assert.notDeepEqual(tag.tip, { x: shop.x, y: shop.y }, "the tip never falls back to the shop's midpoint");
+const horizontalSide = side => side === "left" || side === "right";
+// A previously vertical arrow must return to a side when space opens up.
+for (const width of [62, 104.497]) {
+  const current = { id: "current-location", width, height: 46.956, tail: 12.658, targets: [{ x: 400, y: 450 }] };
+  const layout = controls => getResultMapMarkerLayouts([], viewport, top, bottom, controls, undefined, current, {
+    "current-location": { side: "top", candidateIndex: 0 },
+  }).location;
+  const rightBlocked = { x: 420, y: 425, width: 110, height: 50 };
+  const leftBlocked = { x: 270, y: 425, width: 110, height: 50 };
+  assert.ok(horizontalSide(layout([]).side), "horizontal placement takes priority over a previous vertical side");
+  assert.equal(layout([rightBlocked]).side, "right", "use the other horizontal side before a vertical arrow");
+  assert.ok(!horizontalSide(layout([rightBlocked, leftBlocked]).side), "vertical arrows remain available when both sides are blocked");
 }
-assert.equal(layouts.length, 6, "all six adjacent results have a readable number");
-for (const [index, marker] of layouts.entries()) {
-  assert.deepEqual(marker.anchor, { x: cluster[index].x, y: cluster[index].y });
-  assert.ok(marker.y >= top && marker.y + marker.height <= viewport.height - bottom);
-  for (const other of [...layouts.slice(index + 1), ...reserved]) {
-    assert.ok(marker.x + marker.width <= other.x || other.x + other.width <= marker.x || marker.y + marker.height <= other.y || other.y + other.height <= marker.y, "numbers and controls never overlap");
+const sideBySide = getNumberedMarkerLayouts([
+  { id: "first", number: 3, x: 400, y: 500 },
+  { id: "second", number: 4, x: 460, y: 520 },
+], viewport, top, bottom);
+assert.ok(sideBySide.every(marker => !marker.tracking && horizontalSide(marker.side)), "choose a joint layout with horizontal arrows when both shops can fit");
+const cardinalAngles = new Set([-90, 0, 90, 180]);
+const overlapArea = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
+function checkLayouts(layouts, overlay = bottom, controls = reserved) {
+  for (const [index, marker] of layouts.entries()) {
+    assert.ok(cardinalAngles.has(marker.angle), "all current-location and number arrows are cardinal");
+    assert.ok(marker.x >= 0 && marker.x + marker.width <= viewport.width);
+    assert.ok(marker.y >= top && marker.y + marker.height <= viewport.height - overlay);
+    const horizontal = marker.side === "left" || marker.side === "right";
+    const center = { x: marker.x + marker.width / 2, y: marker.y + marker.height / 2 };
+    const tail = marker.id === "current-location" ? 12.658 : 12;
+    close(horizontal ? marker.arrowTip.y : marker.arrowTip.x, horizontal ? center.y : center.x);
+    close(horizontal ? Math.abs(marker.arrowTip.x - center.x) : Math.abs(marker.arrowTip.y - center.y), (horizontal ? marker.width : marker.height) / 2 + tail);
+    if (!marker.tracking) assert.deepEqual(marker.arrowTip, marker.projected, "exact tips stay on their shop-side point");
+    for (const control of controls) assert.equal(overlapArea(marker, control), 0, "controls stay usable");
+    for (const other of layouts.slice(index + 1)) {
+      const overlap = overlapArea(marker, other);
+      if (!marker.tracking || !other.tracking) assert.equal(overlap, 0, "exact labels never overlap any marker");
+      else assert.ok(overlap / Math.min(marker.width * marker.height, other.width * other.height) <= 0.15 + 1e-8, "trackers retain readable numbers with only a small overlap");
+    }
   }
 }
-const tracked = getNumberedMarkerLayouts([{ id: "outside", number: 1, x: 100, y: 1000 }], viewport, top, bottom);
-assert.equal(tracked.length, 1, "an offscreen shop retains an edge indicator");
-assert.equal(tracked[0].offscreen, true);
-assert.ok(tracked[0].y + tracked[0].height < viewport.height - bottom);
-const edgeCluster = getNumberedMarkerLayouts(cluster.map(marker => ({ ...marker, y: 1000 })), viewport, top, bottom, reserved);
-for (const tag of edgeCluster) for (const other of edgeCluster) if (tag.id !== other.id) {
-  assert.ok(tag.tip.x <= other.x || tag.tip.x >= other.x + other.width || tag.tip.y <= other.y || tag.tip.y >= other.y + other.height, "edge-indicator tips are not hidden inside another number label");
+const cluster = Array.from({ length: 6 }, (_, index) => ({ id: String(index), number: index + 1, x: 730, y: 600 + index * 2 }));
+const pairedCluster = cluster.map(marker => ({ ...marker, candidates: [{ x: marker.x - 8, y: marker.y }, { x: marker.x + 8, y: marker.y }] }));
+for (const markers of [cluster, pairedCluster]) {
+  const layouts = getNumberedMarkerLayouts(markers, viewport, top, bottom, reserved);
+  assert.equal(layouts.length, 6, "no number is lost when shops are crowded");
+  assert.ok(layouts.some(marker => !marker.tracking), "available exact positions are used");
+  checkLayouts(layouts);
+  for (const tag of layouts.filter(marker => !marker.tracking)) {
+    const shop = markers.find(marker => marker.id === tag.id);
+    assert.ok((shop.candidates ?? [shop]).some(target => target.x === tag.tip.x && target.y === tag.tip.y));
+  }
 }
-const cardinalAngles = new Set([-180, -90, 0, 90, 180]);
+const edgeTargets = cluster.map(marker => ({ ...marker, y: 1000 }));
+const edgeCluster = getNumberedMarkerLayouts(edgeTargets, viewport, top, bottom, reserved);
+assert.ok(edgeCluster.every(marker => marker.offscreen && marker.tracking));
+checkLayouts(edgeCluster);
+assert.ok(edgeCluster.some((a, index) => edgeCluster.slice(index + 1).some(b => overlapArea(a, b) > 0)), "edge trackers can share space rather than spread across the map");
+assert.ok(Math.max(...edgeCluster.map(marker => marker.y)) - Math.min(...edgeCluster.map(marker => marker.y)) < 1, "bottom trackers slide along the edge");
 const seenSides = new Set();
 for (const x of [-500, 20, 540, 1060, 1500]) for (const y of [0, 220, 500, 780, 1400]) {
-  const [tag] = getNumberedMarkerLayouts([{ id: "tracked", number: 1, x, y }], viewport, top, bottom, reserved);
-  assert.ok(cardinalAngles.has(tag.angle), "numbers use only four directions, including corners and offscreen tracking");
-  seenSides.add(tag.side);
-  const center = { x: tag.x + tag.width / 2, y: tag.y + tag.height / 2 };
-  if (!tag.offscreen) assert.deepEqual(tag.tip, tag.anchor, "visible tips remain on their map coordinates, even at corners");
-  else if (tag.side === "left" || tag.side === "right") {
-    assert.equal(tag.tip.y, center.y, "horizontal edge indicator attaches to the edge centre");
-    assert.equal(Math.abs(tag.tip.x - center.x), tag.width / 2 + 12);
-  } else {
-    assert.equal(tag.tip.x, center.x, "vertical edge indicator attaches to the edge centre");
-    assert.equal(Math.abs(tag.tip.y - center.y), tag.height / 2 + 12);
-  }
+  const tags = getNumberedMarkerLayouts([{ id: "tracked", number: 1, x, y }], viewport, top, bottom, reserved);
+  checkLayouts(tags);
+  seenSides.add(tags[0].side);
 }
-assert.equal(seenSides.size, 4, "all four fixed directions are available");
-assert.equal(getNumberedMarkerLayouts(cluster, viewport, top, bottom, [], "2").some(marker => marker.id === "2"), false, "selection hides only the selected shop number");
+assert.equal(seenSides.size, 4);
+assert.equal(getNumberedMarkerLayouts(cluster, viewport, top, bottom, [], "2").some(marker => marker.id === "2"), false);
 assert.equal(getNumberedMarkerLayouts(cluster, viewport, top, bottom, [], "2").length, 5);
-for (const overlay of [bottom, bottom + 144]) {
-  const camera = getMapOverviewCamera(viewport, top, overlay);
-  const current = getCandidateMarkerPosition([ORIGINAL_LOCATION_TIP, CURRENT_LOCATION], camera.center, camera.scale, viewport, { width: 104.497, height: 46.956 }, overlay, top, 12.658 / 16);
-  const exclusions = [{ x: current.x, y: current.y, width: 104.497, height: 46.956 }];
-  for (let start = 0; start < figmaMapShops.length; start++) {
-    const visibleShops = figmaMapShops.slice(start, start + 6);
-    const markers = visibleShops.map((shop, index) => {
-      const candidates = getShopNumberMarkers(shop).map(point => project(point, camera, viewport));
-      return { id: shop.id, number: index + 1, ...candidates[0], candidates };
-    });
-    const dualLayouts = getNumberedMarkerLayouts(markers, viewport, top, overlay, exclusions);
-    assert.equal(dualLayouts.length, visibleShops.length, `each shop retains one number with overlay ${overlay}, starting at ${start}`);
-    assert.equal(new Set(dualLayouts.map(marker => marker.key)).size, dualLayouts.length, "each shop has one unique render key");
-    for (let index = 0; index < dualLayouts.length; index++) {
-      const rect = dualLayouts[index];
-      assert.ok(cardinalAngles.has(rect.angle), "every real shop uses a fixed arrow direction");
-      if (!rect.offscreen) assert.deepEqual(rect.tip, rect.anchor, "real shop arrow tips stay on a side target, never on the icon centre");
-      const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-      const distances = markers[index].candidates.map(point => Math.hypot(point.x - center.x, point.y - center.y));
-      const chosen = Math.hypot(rect.anchor.x - center.x, rect.anchor.y - center.y);
-      assert.ok(chosen <= Math.min(...distances) + 1e-8, "the single pointer chooses the nearer candidate");
-      for (const other of [...dualLayouts.slice(index + 1), ...exclusions]) assert.ok(rect.x + rect.width <= other.x || other.x + other.width <= rect.x || rect.y + rect.height <= other.y || other.y + other.height <= rect.y, "all numbers remain readable without overlapping labels");
-    }
-    assert.equal(getNumberedMarkerLayouts(markers, viewport, top, overlay, exclusions, visibleShops[0].id).length, visibleShops.length - 1, "selection hides only the selected shop number");
+
+// Use the same joint placement as MapView, including the current-location label.
+function layoutCamera(shops, camera, overlay, previous = {}) {
+  const markers = shops.map((shop, index) => {
+    const candidates = getShopNumberMarkers(shop).map(point => project(point, camera, viewport));
+    return { id: shop.id, number: index + 1, ...candidates[0], candidates };
+  });
+  const current = { id: "current-location", width: 104.497, height: 46.956, tail: 12.658, targets: [ORIGINAL_LOCATION_TIP, CURRENT_LOCATION].map(point => project(point, camera, viewport)) };
+  const controls = [{ x: 952, y: viewport.height - overlay - 192, width: 128, height: 192 }];
+  const result = getResultMapMarkerLayouts(markers, viewport, top, overlay, controls, undefined, current, previous);
+  checkLayouts(Object.values(result.positions), overlay, controls);
+  assert.equal(result.numbered.length, shops.length);
+  assert.equal(new Set(result.numbered.map(marker => marker.key)).size, shops.length);
+  for (const [index, rect] of result.numbered.entries()) {
+    const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    const distance = point => Math.hypot(point.x - center.x, point.y - center.y);
+    assert.ok(distance(rect.anchor) <= Math.min(...markers[index].candidates.map(distance)) + 1e-8, "the nearer of the two real shop-side points is retained");
   }
+  return result;
+}
+for (const overlay of [bottom, bottom + 144]) {
+  const camera = getMapOverviewCamera(viewport, 0, overlay);
+  for (let start = 0; start < figmaMapShops.length; start++) layoutCamera(figmaMapShops.slice(start, start + 6), camera, overlay);
 }
 const restaurants = figmaMapShops.filter(shop => shop.category === "식당").slice(0, 6);
+assert.equal(restaurants.length, 6);
 for (const zoom of [1, 1.2, 2, 4]) for (const offset of [{ x: 0, y: 0 }, { x: -2000, y: -3000 }, { x: 1500, y: 2000 }]) {
   const overview = getMapOverviewCamera(viewport, 0, bottom);
   const camera = { scale: overview.scale * zoom, center: constrainCoveredMapCenter({ x: overview.center.x + offset.x, y: overview.center.y + offset.y }, overview.scale * zoom, viewport, 0, bottom) };
-  const markers = restaurants.map((shop, index) => ({ id: shop.id, number: index + 1, ...project(getShopMapMarker(shop), camera, viewport), candidates: getShopNumberMarkers(shop).map(point => project(point, camera, viewport)) }));
-  const tags = getNumberedMarkerLayouts(markers, viewport, top, bottom, reserved);
-  assert.equal(tags.length, 6, "all numbers remain visible after zooming and panning");
-  for (const [index, tag] of tags.entries()) {
-    assert.ok(cardinalAngles.has(tag.angle));
-    if (!tag.offscreen) {
-      assert.deepEqual(tag.tip, tag.anchor);
-      assert.notDeepEqual(tag.tip, { x: markers[index].x, y: markers[index].y }, "zoom never moves a visible tip onto the shop icon's centre");
-    }
-    for (const other of [...tags.slice(index + 1), ...reserved]) assert.ok(tag.x + tag.width <= other.x || other.x + other.width <= tag.x || tag.y + tag.height <= other.y || other.y + other.height <= tag.y, "panning keeps number labels readable");
-  }
+  layoutCamera(restaurants, camera, bottom);
 }
-console.log("Result map passed: tips stay on shop-side targets after collisions, zoom and pan; four fixed directions, nearest candidate selection, readable numbers and selected-only hiding preserved.");
+// Previous placements should stay on their side under a small unobstructed pan.
+let previous = {};
+for (let offset = 0; offset < 20; offset++) {
+  const target = [{ id: "stable", number: 7, x: 400 + offset, y: 450 }];
+  const result = getResultMapMarkerLayouts(target, viewport, top, bottom, [], undefined, undefined, previous);
+  if (previous.stable) {
+    assert.equal(result.positions.stable.side, previous.stable.side);
+    close(result.positions.stable.x - previous.stable.x, 1);
+  }
+  previous = result.positions;
+}
+// Continuous pan across all real shops exercises exact/tracking transitions.
+const overview = getMapOverviewCamera(viewport, 0, bottom);
+previous = {};
+const started = performance.now();
+for (let frame = 0; frame <= 120; frame++) {
+  const scale = overview.scale * 2;
+  const camera = { scale, center: constrainCoveredMapCenter({ x: 4900, y: 2000 + frame * 60 }, scale, viewport, 0, bottom) };
+  previous = layoutCamera(restaurants, camera, bottom, previous).positions;
+}
+console.log(`Result map passed: compact cardinal arrows, exact-label priority, limited tracking overlap, real-shop pan/zoom, selection and pagination; 121 pan frames in ${Math.round(performance.now() - started)}ms.`);

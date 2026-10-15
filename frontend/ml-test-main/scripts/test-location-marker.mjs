@@ -9,6 +9,17 @@ const viewport = { width: 1080, height: 1920 };
 const bubble = { width: label.width, height: label.height };
 const marker = (center, scale = 1, overlay = 604, size = bubble, top = 208) => position(origin, center, scale, viewport, size, overlay, top);
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
+function checkPointer(result, size, tail) {
+  assert.ok([0, 90, 180, -90].includes(result.angle), "current location uses four directions");
+  const center = { x: result.x + size.width / 2, y: result.y + size.height / 2 };
+  const horizontal = result.side === "left" || result.side === "right";
+  close(horizontal ? result.arrowTip.y : result.arrowTip.x, horizontal ? center.y : center.x);
+  close(horizontal ? Math.abs(result.arrowTip.x - center.x) : Math.abs(result.arrowTip.y - center.y), (horizontal ? size.width : size.height) / 2 + tail);
+  if (!result.tracking) assert.deepEqual(result.arrowTip, result.projected, "exact markers retain their actual map point");
+  if (result.offscreen) assert.equal(result.tracking, true);
+  const delta = horizontal ? result.projected.x - center.x : result.projected.y - center.y;
+  assert.ok((result.side === "left" || result.side === "top" ? -delta : delta) >= -1e-8, "the cardinal arrow faces its target");
+}
 const chosenCandidates = new Set();
 for (const scale of [0.16, 0.6, 1.2]) for (const x of [4200, 4950, 5100, 6000]) for (const y of [2000, 4300, 6500]) {
   const camera = { x, y };
@@ -19,9 +30,7 @@ for (const scale of [0.16, 0.6, 1.2]) for (const x of [4200, 4950, 5100, 6000]) 
   assert.deepEqual(result.projected, projectedCandidates[result.candidateIndex]);
   const distance = point => Math.hypot(point.x - labelCenter.x, point.y - labelCenter.y);
   assert.ok(distance(result.projected) <= Math.min(...projectedCandidates.map(distance)) + 1e-8);
-  const angle = Math.atan2(result.projected.y - labelCenter.y, result.projected.x - labelCenter.x);
-  close(Math.cos(result.angle * Math.PI / 180), Math.cos(angle));
-  close(Math.sin(result.angle * Math.PI / 180), Math.sin(angle));
+  checkPointer(result, { width: 104, height: 47 }, 12);
 }
 assert.equal(chosenCandidates.size, 2, "panning can select either target without adding another label");
 assert.equal(origin.x, 4938);
@@ -63,14 +72,7 @@ for (const overlay of [420, 604, 1128]) {
           const result = marker({ x, y }, scale, overlay, size);
           assert.ok(result.x >= 8 - 1e-8 && result.x + size.width <= viewport.width - 8 + 1e-8);
           assert.ok(result.y >= 208 && result.y + size.height <= viewport.height - overlay - 8 + 1e-8);
-          const center = { x: result.x + size.width / 2, y: result.y + size.height / 2 };
-          const expectedAngle = Math.atan2(result.projected.y - center.y, result.projected.x - center.x);
-          const angle = result.angle * Math.PI / 180;
-          close(Math.cos(angle), Math.cos(expectedAngle));
-          close(Math.sin(angle), Math.sin(expectedAngle));
-          const tipAngle = Math.atan2(result.arrowTip.y - center.y, result.arrowTip.x - center.x);
-          close(Math.cos(tipAngle), Math.cos(expectedAngle));
-          close(Math.sin(tipAngle), Math.sin(expectedAngle));
+          checkPointer(result, size, label.tailLength * scale);
         }
       }
     }
@@ -100,5 +102,5 @@ for (const path of ["../public/images/daejomarket-map.svg", "../../../admin-fron
 }
 assert.equal(readFileSync(new URL("../../../admin-frontend/src/components/market/locationMarker.ts", import.meta.url), "utf8"), source);
 const diagonal = marker({ x: origin.x - 2000, y: origin.y - 1000 });
-assert.ok(Math.abs(diagonal.angle % 90) > 1, "diagonal offscreen target has a continuous arrow angle");
-console.log("Location marker passed: opposite-side anchor, reflection distance and midpoint, continuous arrow direction, zoom, scaled input, overlays, corners, colours and admin sync.");
+checkPointer(diagonal, bubble, label.tailLength);
+console.log("Location marker passed: four compact pointer directions, exact anchors, tracked corners, zoom, scaled input, overlays, colours and admin sync.");

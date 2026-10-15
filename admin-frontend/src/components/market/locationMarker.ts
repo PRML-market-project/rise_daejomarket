@@ -1,6 +1,23 @@
 type Point = { x: number; y: number };
 type Size = { width: number; height: number };
+type Rect = Point & Size;
 export type LocationTail = "bottom" | "left" | "top" | "right";
+export type MarkerPosition = Rect & {
+  id: string;
+  side: LocationTail;
+  angle: number;
+  projected: Point;
+  arrowTip: Point;
+  candidateIndex: number;
+  offscreen: boolean;
+  tracking: boolean;
+};
+export type MapMarker = Size & {
+  id: string;
+  targets: Point[];
+  tail: number;
+  previous?: MarkerPosition;
+};
 
 export function reflectPointAcrossCenter(point: Point, center: Point): Point {
   return { x: 2 * center.x - point.x, y: 2 * center.y - point.y };
@@ -12,121 +29,137 @@ export const ORIGINAL_LOCATION_TIP = { x: 5036, y: 4253 + 26 + 18 / Math.SQRT2 }
 export const CURRENT_LOCATION = reflectPointAcrossCenter(ORIGINAL_LOCATION_TIP, CURRENT_LOCATION_ICON_CENTER);
 export const LOCATION_LABEL = { width: 173, height: 78, tailLength: 16, tipY: 26 + 18 / Math.SQRT2 };
 
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
+const sides: LocationTail[] = ["left", "right", "top", "bottom"];
+const isHorizontal = (side: LocationTail) => side === "left" || side === "right";
+const directions = { left: { x: -1, y: 0, angle: 180 }, right: { x: 1, y: 0, angle: 0 }, top: { x: 0, y: -1, angle: -90 }, bottom: { x: 0, y: 1, angle: 90 } };
+const trackingOverlap = 0.15;
+const overlaps = (a: Rect, b: Rect, gap = 4) => a.x < b.x + b.width + gap && a.x + a.width + gap > b.x && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
+const coversTip = (rect: Rect, tip: Point) => tip.x > rect.x - 2 && tip.x < rect.x + rect.width + 2 && tip.y > rect.y - 2 && tip.y < rect.y + rect.height + 2;
+const compatible = (a: MarkerPosition, b: MarkerPosition) => !overlaps(a, b) && !coversTip(a, b.arrowTip) && !coversTip(b, a.arrowTip);
 
-/** Render one label, pointing at the nearer of the two symmetric targets. */
-export function getCandidateMarkerPosition(origins: [Point, Point], center: Point, scale: number, viewport: Size, bubble: Size, bottomOverlayHeight: number, topOverlayHeight = 0, markerScale = scale, reserved: Array<Point & Size> = []) {
-  const midpoint = { x: (origins[0].x + origins[1].x) / 2, y: (origins[0].y + origins[1].y) / 2 };
-  const targets = origins.map(origin => ({ x: viewport.width / 2 + (origin.x - center.x) * scale, y: viewport.height / 2 + (origin.y - center.y) * scale }));
-  const nearest = (position: Point) => {
-    const labelCenter = { x: position.x + bubble.width / 2, y: position.y + bubble.height / 2 };
-    return Math.hypot(targets[0].x - labelCenter.x, targets[0].y - labelCenter.y) <= Math.hypot(targets[1].x - labelCenter.x, targets[1].y - labelCenter.y) ? 0 : 1;
+function nearestTarget(marker: MapMarker, position: Point) {
+  const distance = (point: Point) => Math.hypot(point.x - position.x - marker.width / 2, point.y - position.y - marker.height / 2);
+  return marker.targets.reduce((best, target, index) => distance(target) < distance(marker.targets[best]) ? index : best, 0);
+}
+
+/** Shared placement keeps arrows short and cardinal, with exact labels taking priority. */
+export function getMapMarkerLayouts(markers: MapMarker[], viewport: Size, topOverlayHeight: number, bottomOverlayHeight: number, reserved: Rect[] = []): MarkerPosition[] {
+  const top = clamp(topOverlayHeight, 0, viewport.height);
+  const bottom = Math.max(top, viewport.height - bottomOverlayHeight);
+  const visible = (point: Point) => point.x >= 0 && point.x <= viewport.width && point.y >= top && point.y <= bottom;
+  const makePosition = (marker: MapMarker, position: Point, side: LocationTail, candidateIndex: number, tracking: boolean): MarkerPosition => {
+    const direction = directions[side];
+    return { ...position, width: marker.width, height: marker.height, id: marker.id, side, angle: direction.angle, candidateIndex,
+      projected: marker.targets[candidateIndex], offscreen: !visible(marker.targets[candidateIndex]), tracking,
+      arrowTip: tracking ? { x: position.x + marker.width / 2 + direction.x * (marker.width / 2 + marker.tail), y: position.y + marker.height / 2 + direction.y * (marker.height / 2 + marker.tail) } : marker.targets[candidateIndex] };
   };
-  const initial = getLocationMarkerPosition(midpoint, center, scale, viewport, bubble, bottomOverlayHeight, topOverlayHeight, markerScale, reserved);
-  const candidateIndex = nearest(initial);
-  const anchored = getLocationMarkerPosition(origins[candidateIndex], center, scale, viewport, bubble, bottomOverlayHeight, topOverlayHeight, markerScale, reserved);
-  if (nearest(anchored) === candidateIndex) return { ...anchored, candidateIndex };
+  const fits = (position: MarkerPosition) => position.x >= 8 && position.x + position.width <= viewport.width - 8 && position.y >= top + 8 && position.y + position.height <= bottom - 8 && visible(position.arrowTip);
+  const clearControls = (position: MarkerPosition) => reserved.every(rect => !overlaps(position, rect) && !coversTip(rect, position.arrowTip));
+  const options = markers.map(marker => marker.targets.flatMap((target, candidateIndex) => !visible(target) ? [] : sides.map(side => {
+    const direction = directions[side];
+    const position = { x: target.x - marker.width / 2 - direction.x * (marker.width / 2 + marker.tail), y: target.y - marker.height / 2 - direction.y * (marker.height / 2 + marker.tail) };
+    return makePosition(marker, position, side, candidateIndex, false);
+  }).filter(position => fits(position) && clearControls(position) && nearestTarget(marker, position) === candidateIndex)).sort((a, b) => {
+    const preference = (position: MarkerPosition) => (marker.previous?.side === position.side ? -10 : 0) + (marker.previous?.candidateIndex === position.candidateIndex ? -1 : 0) + sides.indexOf(position.side) + position.candidateIndex / 10;
+    // Side placement outranks keeping a previous top/bottom arrow.
+    return Number(isHorizontal(b.side)) - Number(isHorizontal(a.side)) || preference(a) - preference(b);
+  }));
 
-  // If attaching directly would switch sides, keep the collision-free position
-  // and rotate its pointer toward the nearer target without duplicating labels.
-  const projected = targets[candidateIndex];
-  const labelCenter = { x: initial.x + bubble.width / 2, y: initial.y + bubble.height / 2 };
-  const angle = Math.atan2(projected.y - labelCenter.y, projected.x - labelCenter.x);
-  const cos = Math.cos(angle), sin = Math.sin(angle);
-  const horizontalRadius = bubble.width / 2 / Math.max(Math.abs(cos), 1e-8);
-  const verticalRadius = bubble.height / 2 / Math.max(Math.abs(sin), 1e-8);
-  const radius = Math.min(horizontalRadius, verticalRadius) + LOCATION_LABEL.tailLength * markerScale;
-  const side: LocationTail = horizontalRadius < verticalRadius ? cos < 0 ? "left" : "right" : sin < 0 ? "top" : "bottom";
-  return { ...initial, side, angle: angle * 180 / Math.PI, projected, candidateIndex,
-    offscreen: projected.x < 0 || projected.x > viewport.width || projected.y < topOverlayHeight || projected.y > viewport.height - bottomOverlayHeight,
-    arrowTip: { x: labelCenter.x + cos * radius, y: labelCenter.y + sin * radius } };
+  // Keep as many labels exact as possible, then prefer the layout with the most
+  // horizontal arrows. One label can switch sides to make room for its neighbour.
+  const order = markers.map((_, index) => index).sort((a, b) => options[a].length - options[b].length);
+  const remainingExact = Array<number>(order.length + 1).fill(0);
+  const remainingHorizontal = Array<number>(order.length + 1).fill(0);
+  for (let depth = order.length - 1; depth >= 0; depth--) {
+    remainingExact[depth] = remainingExact[depth + 1] + Number(options[order[depth]].length > 0);
+    remainingHorizontal[depth] = remainingHorizontal[depth + 1] + Number(options[order[depth]].some(option => isHorizontal(option.side)));
+  }
+  let best: Array<MarkerPosition | undefined> = [];
+  let bestCount = -1;
+  let bestHorizontalCount = -1;
+  let visits = 0;
+  const chosen: Array<MarkerPosition | undefined> = Array(markers.length);
+  const search = (depth: number, count: number, horizontalCount: number) => {
+    const possibleCount = count + remainingExact[depth];
+    if (++visits > 6000 || possibleCount < bestCount || (possibleCount === bestCount && horizontalCount + remainingHorizontal[depth] <= bestHorizontalCount)) return;
+    if (depth === order.length) { best = [...chosen]; bestCount = count; bestHorizontalCount = horizontalCount; return; }
+    const index = order[depth];
+    for (const option of options[index]) {
+      if (chosen.some(other => other && !compatible(option, other))) continue;
+      chosen[index] = option;
+      search(depth + 1, count + 1, horizontalCount + Number(isHorizontal(option.side)));
+      chosen[index] = undefined;
+    }
+    search(depth + 1, count, horizontalCount);
+  };
+  search(0, 0, 0);
+  const exact = best.filter((position): position is MarkerPosition => !!position);
+  const tracked: MarkerPosition[] = [];
+
+  return markers.map((marker, index) => {
+    if (best[index]) return best[index];
+    const halfWidth = marker.width / 2, halfHeight = marker.height / 2;
+    const minX = 8 + marker.tail, maxX = Math.max(minX, viewport.width - 8 - marker.tail - marker.width);
+    const minY = top + 8 + marker.tail, maxY = Math.max(minY, bottom - 8 - marker.tail - marker.height);
+    const focus = { x: viewport.width / 2, y: (top + bottom) / 2 };
+    const target = marker.targets[nearestTarget(marker, { x: focus.x - halfWidth, y: focus.y - halfHeight })];
+    const dx = target.x - focus.x, dy = target.y - focus.y;
+    const tx = dx === 0 ? Infinity : ((dx > 0 ? maxX : minX) + halfWidth - focus.x) / dx;
+    const ty = dy === 0 ? Infinity : ((dy > 0 ? maxY : minY) + halfHeight - focus.y) / dy;
+    const progress = Math.max(0, Math.min(1, tx, ty));
+    const initial = { x: clamp(focus.x + dx * progress - halfWidth, minX, maxX), y: clamp(focus.y + dy * progress - halfHeight, minY, maxY) };
+    const obstacles = [...reserved, ...exact];
+    const xs = [initial.x, ...obstacles.flatMap(rect => [rect.x - marker.width - 6, rect.x + rect.width + 6])];
+    const ys = [initial.y, ...obstacles.flatMap(rect => [rect.y - marker.height - 6, rect.y + rect.height + 6])];
+    // Local sliding allows a small overlap between trackers. Exact labels
+    // and controls remain protected; no long connectors are ever needed.
+    for (let step = 1; step <= markers.length; step++) for (const sign of [-1, 1]) {
+      xs.push(initial.x + sign * step * marker.width * (1 - trackingOverlap));
+      ys.push(initial.y + sign * step * marker.height * (1 - trackingOverlap));
+    }
+    const candidates = [...new Set(xs.map(x => clamp(x, minX, maxX)))].flatMap(x => [...new Set(ys.map(y => clamp(y, minY, maxY)))].map(y => {
+      const candidateIndex = nearestTarget(marker, { x, y });
+      const point = marker.targets[candidateIndex];
+      const horizontal = (point.x - x - halfWidth) / halfWidth;
+      const vertical = (point.y - y - halfHeight) / halfHeight;
+      let side: LocationTail = Math.abs(horizontal) >= Math.abs(vertical) ? horizontal < 0 ? "left" : "right" : vertical < 0 ? "top" : "bottom";
+      const previousSide = marker.previous?.side;
+      if (previousSide) {
+        const previousDirection = directions[previousSide];
+        // Keep the previous side near diagonal boundaries to avoid flicker.
+        const previousComponent = previousDirection.x * horizontal + previousDirection.y * vertical;
+        if (previousComponent > 0 && previousComponent >= Math.max(Math.abs(horizontal), Math.abs(vertical)) * 0.85) side = previousSide;
+      }
+      return makePosition(marker, { x, y }, side, candidateIndex, true);
+    }));
+    const overlapFraction = (position: Rect, other: Rect) => Math.max(0, Math.min(position.x + position.width, other.x + other.width) - Math.max(position.x, other.x)) * Math.max(0, Math.min(position.y + position.height, other.y + other.height) - Math.max(position.y, other.y)) / Math.min(position.width * position.height, other.width * other.height);
+    const clear = candidates.filter(position => clearControls(position) && exact.every(other => compatible(position, other)));
+    const readable = clear.filter(position => tracked.every(other => overlapFraction(position, other) <= trackingOverlap + 1e-8));
+    const available = readable.length ? readable : clear.length ? clear : candidates;
+    const edgeCandidates = visible(target) ? [] : available.filter(position => Math.abs(tx < ty ? position.x - initial.x : position.y - initial.y) < 1e-8);
+    // Offscreen indicators slide along the same edge before moving inward.
+    const displacement = (position: Point) => Math.hypot(position.x - initial.x, position.y - initial.y)
+      + (visible(target) ? 0 : 4 * Math.abs(tx < ty ? position.x - initial.x : position.y - initial.y));
+    const preferred = edgeCandidates.length ? edgeCandidates : available;
+    preferred.sort((a, b) => displacement(a) - displacement(b));
+    const position = preferred[0];
+    tracked.push(position);
+    return position;
+  });
+}
+
+/** Render one label using one of the two symmetric targets. */
+export function getCandidateMarkerPosition(origins: [Point, Point], center: Point, scale: number, viewport: Size, bubble: Size, bottomOverlayHeight: number, topOverlayHeight = 0, markerScale = scale, reserved: Rect[] = []) {
+  const targets = origins.map(origin => ({ x: viewport.width / 2 + (origin.x - center.x) * scale, y: viewport.height / 2 + (origin.y - center.y) * scale }));
+  return getMapMarkerLayouts([{ id: "location", targets, ...bubble, tail: LOCATION_LABEL.tailLength * markerScale }], viewport, topOverlayHeight, bottomOverlayHeight, reserved)[0];
 }
 
 // Pointer events use physical screen pixels; SVG and overlays use layout pixels.
 export function getLocalMapPoint(point: Point, rect: { left: number; top: number; width: number; height: number }, viewport: Size): Point {
-  return {
-    x: (point.x - rect.left) * viewport.width / Math.max(rect.width, 1),
-    y: (point.y - rect.top) * viewport.height / Math.max(rect.height, 1),
-  };
+  return { x: (point.x - rect.left) * viewport.width / Math.max(rect.width, 1), y: (point.y - rect.top) * viewport.height / Math.max(rect.height, 1) };
 }
 
-export function getLocationMarkerPosition(origin: Point, center: Point, scale: number, viewport: Size, bubble: Size, bottomOverlayHeight: number, topOverlayHeight = 0, markerScale = scale, reserved: Array<Point & Size> = []) {
-  const gap = 8;
-  const tail = LOCATION_LABEL.tailLength * markerScale;
-  const projected = {
-    x: viewport.width / 2 + (origin.x - center.x) * scale,
-    y: viewport.height / 2 + (origin.y - center.y) * scale,
-  };
-  const top = clamp(topOverlayHeight, 0, viewport.height);
-  const bottom = Math.max(top, viewport.height - bottomOverlayHeight);
-  const offscreen = projected.x < 0 || projected.x > viewport.width || projected.y < top || projected.y > bottom;
-  const clear = (p: Point) => reserved.every(rect => p.x + bubble.width + gap <= rect.x || p.x >= rect.x + rect.width + gap || p.y + bubble.height + gap <= rect.y || p.y >= rect.y + rect.height + gap);
-  const fits = (p: Point) => p.x >= gap + tail && p.x + bubble.width <= viewport.width - gap - tail && p.y >= top + gap + tail && p.y + bubble.height <= bottom - gap - tail;
-
-  if (!offscreen) {
-    // Every pointer attaches to the centre of one of the four label edges.
-    // Choose a side that fits while keeping the tip on the same map point.
-    const candidates = [
-      { x: projected.x + tail, y: projected.y - bubble.height / 2, side: "left" as const, angle: 180 },
-      { x: projected.x - tail - bubble.width, y: projected.y - bubble.height / 2, side: "right" as const, angle: 0 },
-      { x: projected.x - bubble.width / 2, y: projected.y + tail, side: "top" as const, angle: -90 },
-      { x: projected.x - bubble.width / 2, y: projected.y - tail - bubble.height, side: "bottom" as const, angle: 90 },
-    ];
-    const fitting = candidates.find(p => fits(p) && clear(p));
-    if (fitting) return { ...fitting, offscreen, projected, arrowTip: projected };
-    // At a corner, use the edge indicator instead of sliding the arrow away
-    // from the label's centre or hiding the label under an overlay.
-  }
-
-  // Keep the label inside the viewport along the ray to its actual map point.
-  // Rotate the pointer continuously toward that point, including at corners.
-  const focus = { x: viewport.width / 2, y: (top + bottom) / 2 };
-  const dx = projected.x - focus.x;
-  const dy = projected.y - focus.y;
-  const halfWidth = bubble.width / 2;
-  const halfHeight = bubble.height / 2;
-  const minX = Math.min(focus.x, gap + halfWidth + tail);
-  const maxX = Math.max(focus.x, viewport.width - gap - halfWidth - tail);
-  const minY = Math.min(focus.y, top + gap + halfHeight + tail);
-  const maxY = Math.max(focus.y, bottom - gap - halfHeight - tail);
-  const tx = dx === 0 ? Infinity : ((dx > 0 ? maxX : minX) - focus.x) / dx;
-  const ty = dy === 0 ? Infinity : ((dy > 0 ? maxY : minY) - focus.y) / dy;
-  let progress = Math.min(tx, ty);
-
-  // Keep the complete marker outside the zoom controls without changing its ray.
-  const controlsLeft = viewport.width - 120 - halfWidth - tail - gap;
-  const controlsTop = bottom - 184 - halfHeight - tail - gap;
-  const enterX = dx > 0 ? Math.max(0, (controlsLeft - focus.x) / dx) : Infinity;
-  const enterY = dy > 0 ? Math.max(0, (controlsTop - focus.y) / dy) : (focus.y >= controlsTop ? 0 : Infinity);
-  const controlsEntry = Math.max(enterX, enterY);
-  if (controlsEntry < progress && controlsEntry > 0) {
-    progress = controlsEntry;
-  }
-
-  if (!Number.isFinite(progress)) progress = 0;
-  const initial = offscreen
-    ? { x: focus.x + dx * progress - halfWidth, y: focus.y + dy * progress - halfHeight }
-    : { x: clamp(projected.x + tail, gap + tail, viewport.width - gap - tail - bubble.width), y: clamp(projected.y - halfHeight, top + gap + tail, bottom - gap - tail - bubble.height) };
-  const offsets = [0, -1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6];
-  const candidates = offsets.flatMap(y => offsets.map(x => ({
-    x: clamp(initial.x + x * (bubble.width + gap), gap + tail, viewport.width - gap - tail - bubble.width),
-    y: clamp(initial.y + y * (bubble.height + gap), top + gap + tail, bottom - gap - tail - bubble.height),
-  })));
-  candidates.sort((a, b) => Math.hypot(a.x - initial.x, a.y - initial.y) - Math.hypot(b.x - initial.x, b.y - initial.y));
-  const position = candidates.find(p => fits(p) && clear(p)) ?? initial;
-  const markerCenter = { x: position.x + halfWidth, y: position.y + halfHeight };
-  const angle = Math.atan2(projected.y - markerCenter.y, projected.x - markerCenter.x);
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const radius = Math.min(Math.abs(cos) < 1e-8 ? Infinity : halfWidth / Math.abs(cos), Math.abs(sin) < 1e-8 ? Infinity : halfHeight / Math.abs(sin));
-  const side: LocationTail = halfWidth / Math.max(Math.abs(cos), 1e-8) < halfHeight / Math.max(Math.abs(sin), 1e-8)
-    ? cos < 0 ? "left" : "right" : sin < 0 ? "top" : "bottom";
-  return {
-    ...position,
-    side,
-    angle: angle * 180 / Math.PI,
-    offscreen,
-    projected,
-    arrowTip: { x: markerCenter.x + cos * (radius + tail), y: markerCenter.y + sin * (radius + tail) },
-  };
+export function getLocationMarkerPosition(origin: Point, center: Point, scale: number, viewport: Size, bubble: Size, bottomOverlayHeight: number, topOverlayHeight = 0, markerScale = scale, reserved: Rect[] = []) {
+  return getCandidateMarkerPosition([origin, origin], center, scale, viewport, bubble, bottomOverlayHeight, topOverlayHeight, markerScale, reserved);
 }

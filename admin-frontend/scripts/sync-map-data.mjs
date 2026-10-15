@@ -19,6 +19,7 @@ try {
     .replace('const { t } = useKioskLocale();', 'const t = (text: string) => text;');
   await writeFile(path.join(mapComponentDestination, "MapView.tsx"), mapCode);
   await copyFile(path.join(mapSource, "locationMarker.ts"), path.join(mapComponentDestination, "locationMarker.ts"));
+  await copyFile(path.join(mapSource, "mapOverview.ts"), path.join(mapComponentDestination, "mapOverview.ts"));
   await copyFile(path.join(path.dirname(source), "mapShopLabels.ts"), path.resolve(adminRoot, "src/data/mapShopLabels.ts"));
   const fontsSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/fonts");
   const fontsDestination = path.resolve(adminRoot, "public/fonts");
@@ -53,7 +54,7 @@ try {
   }
   const resultsDestination = path.join(designDestination, "results");
   await mkdir(resultsDestination, { recursive: true });
-  for (const file of ["current-location-tail.svg", "current-location-tail-left.svg", "map-zoom-in.svg", "map-zoom-out.svg"]) {
+  for (const file of ["current-location-tail.svg", "current-location-tail-left.svg", "current-location-tail-orange.svg", "result-number-tail.svg", "map-zoom-in.svg", "map-zoom-out.svg"]) {
     await copyFile(path.join(designSource, "results", file), path.join(resultsDestination, file));
   }
   console.log("[map-data] Synced the kiosk shop map into the admin app.");

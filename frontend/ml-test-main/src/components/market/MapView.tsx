@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Shop } from "../../types/shop";
 import { mapBackgroundUrl, mapLabelsUrl, mapShopLabels } from "../../data/mapShopLabels";
-import { CURRENT_LOCATION, ORIGINAL_LOCATION_TIP, LOCATION_LABEL, getLocalMapPoint, getCandidateMarkerPosition, reflectPointAcrossCenter } from "./locationMarker";
+import { CURRENT_LOCATION, ORIGINAL_LOCATION_TIP, LOCATION_LABEL, getLocalMapPoint, reflectPointAcrossCenter, type MarkerPosition } from "./locationMarker";
 import { useKioskLocale } from "../../features/kiosk/i18n";
-import { constrainCoveredMapCenter, getMapOverviewCamera, getNumberedMarkerLayouts } from "./mapOverview";
+import { constrainCoveredMapCenter, getMapOverviewCamera, getResultMapMarkerLayouts } from "./mapOverview";
 
 interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
@@ -390,6 +390,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const { t } = useKioskLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const locationBubbleRef = useRef<HTMLDivElement>(null);
+  const markerPositionsRef = useRef<Record<string, MarkerPosition>>({});
   const [locationBubbleSize, setLocationBubbleSize] = useState({ width: LOCATION_LABEL.width, height: LOCATION_LABEL.height });
   const cameraAnimationRef = useRef<number | null>(null);
   const pointersRef = useRef(new Map<number, Point>());
@@ -419,9 +420,15 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     const candidates = getShopNumberMarkers(shop).map(point => ({ x: containerSize.width / 2 + (point.x - constrainedCenter.x) * mapScale, y: containerSize.height / 2 + (point.y - constrainedCenter.y) * mapScale })) as [Point, Point];
     return { id: shop.id, number, ...candidates[0], candidates };
   });
-  // The location label must not cover a number's actual pointer tip.
-  const numberTipAreas = numberedMarkerTargets.filter(marker => marker.id !== selectedShop?.id).flatMap(marker => marker.candidates.map(point => ({ x: point.x - 10, y: point.y - 10, width: 20, height: 20 })));
-  const locationMarker = getCandidateMarkerPosition([ORIGINAL_LOCATION_TIP, CURRENT_LOCATION], constrainedCenter, mapScale, containerSize, bubbleSize, visibleBottomOverlayHeight, topOverlayHeight, locationScale * 12.658 / LOCATION_LABEL.tailLength, numberTipAreas);
+  const markerLayouts = getResultMapMarkerLayouts(numberedMarkerTargets, containerSize, topOverlayHeight, visibleBottomOverlayHeight, [
+    { x: containerSize.width - 128, y: containerSize.height - bottomOverlayHeight - 192, width: 128, height: 192 },
+  ], selectedShop?.id, {
+    id: "current-location", ...bubbleSize, tail: locationScale * 12.658,
+    targets: [ORIGINAL_LOCATION_TIP, CURRENT_LOCATION].map(point => ({ x: containerSize.width / 2 + (point.x - constrainedCenter.x) * mapScale, y: containerSize.height / 2 + (point.y - constrainedCenter.y) * mapScale })),
+  }, markerPositionsRef.current);
+  const locationMarker = markerLayouts.location!;
+  const numberedMarkers = markerLayouts.numbered;
+  useEffect(() => { markerPositionsRef.current = markerLayouts.positions; });
 
   useEffect(() => {
     const bubble = locationBubbleRef.current;
@@ -562,10 +569,6 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const routeDistance = selectedShop && routePoints ? getRouteDistanceForShop(selectedShop) : 0;
   const routeDistanceLabel = `${routeDistance}m`;
   const routeDistanceWidth = Math.max(132, routeDistanceLabel.length * 28 + 36);
-  const numberedMarkers = getNumberedMarkerLayouts(numberedMarkerTargets, containerSize, topOverlayHeight, visibleBottomOverlayHeight, [
-    { x: locationMarker.x, y: locationMarker.y, ...bubbleSize },
-    { x: containerSize.width - 128, y: containerSize.height - bottomOverlayHeight - 192, width: 128, height: 192 },
-  ], selectedShop?.id);
 
   return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name} · 대조시장 안내 지도` : "대조시장 안내 지도"}>
@@ -611,19 +614,13 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
         {selectedRotatedIconElement}
       </g>}
     </svg>
-    <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${containerSize.width} ${containerSize.height}`}>
-      {!locationMarker.offscreen && Math.hypot(locationMarker.arrowTip.x - locationMarker.projected.x, locationMarker.arrowTip.y - locationMarker.projected.y) > 1 && <line x1={locationMarker.arrowTip.x} y1={locationMarker.arrowTip.y} x2={locationMarker.projected.x} y2={locationMarker.projected.y} stroke="#ff5e00" strokeWidth="2" />}
-      {numberedMarkers.filter(marker => !marker.offscreen && Math.hypot(marker.leaderStart.x - marker.tip.x, marker.leaderStart.y - marker.tip.y) > 12.1).map(marker => <path key={marker.key} d={marker.side === "left" || marker.side === "right"
-        ? `M ${marker.leaderStart.x} ${marker.leaderStart.y} V ${marker.tip.y} H ${marker.tip.x}`
-        : `M ${marker.leaderStart.x} ${marker.leaderStart.y} H ${marker.tip.x} V ${marker.tip.y}`} fill="none" stroke="#22a36b" strokeWidth="2" />)}
-    </svg>
     {numberedMarkers.map(marker => {
       const tailAngle = marker.angle * Math.PI / 180;
       const tailSize = 14.3045;
       const tailRadius = tailSize / Math.SQRT2;
       const tail = { left: marker.tip.x - Math.cos(tailAngle) * tailRadius - marker.x, top: marker.tip.y - Math.sin(tailAngle) * tailRadius - marker.y, rotation: marker.angle + 225 };
       const shop = numberedShops.find(result => result.shop.id === marker.id)?.shop;
-      return <button key={marker.key} type="button" data-result-marker={marker.number} data-marker-side={marker.key} data-marker-offscreen={marker.offscreen} data-marker-angle={marker.angle} aria-label={`${String(marker.number).padStart(2, "0")} · ${shop ? t(shop.name) : ""}`} aria-pressed={selectedShop?.id === marker.id}
+      return <button key={marker.key} type="button" data-result-marker={marker.number} data-marker-side={marker.side} data-marker-offscreen={marker.offscreen} data-marker-tracking={marker.tracking} data-marker-angle={marker.angle} aria-label={`${String(marker.number).padStart(2, "0")} · ${shop ? t(shop.name) : ""}`} aria-pressed={selectedShop?.id === marker.id}
         onPointerDown={event => event.stopPropagation()} onClick={() => onSelectShop?.(marker.id)}
         className="absolute z-10 rounded-[7.166px] bg-[#22a36b] text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]"
         style={{ left: marker.x, top: marker.y, width: marker.width, height: marker.height }}>
@@ -641,7 +638,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
         top: locationMarker.arrowTip.y - Math.sin(tailAngle) * tailRadius - locationMarker.y - tailRadius,
         width: tailRadius * 2, height: tailRadius * 2,
       };
-      return <div className="pointer-events-none absolute z-10 drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]" style={{ left: locationMarker.x, top: locationMarker.y }} data-location-side={locationMarker.candidateIndex} data-location-tail={locationMarker.side} data-location-offscreen={locationMarker.offscreen} data-location-angle={locationMarker.angle}>
+      return <div className="pointer-events-none absolute z-10 drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]" style={{ left: locationMarker.x, top: locationMarker.y }} data-location-side={locationMarker.candidateIndex} data-location-tail={locationMarker.side} data-location-offscreen={locationMarker.offscreen} data-location-tracking={locationMarker.tracking} data-location-angle={locationMarker.angle}>
       <div className="absolute flex items-center justify-center" style={tailStyle}>
         <img src="/figma/results/current-location-tail-orange.svg" alt="" className="block shrink-0 max-w-none" style={{ transform: `scale(${locationScale}) rotate(${locationMarker.angle + 225}deg)` }} />
       </div>
