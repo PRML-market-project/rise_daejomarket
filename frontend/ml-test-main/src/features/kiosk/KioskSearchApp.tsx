@@ -1,7 +1,7 @@
 import { KioskLocaleContext, createTranslator, useKioskLocale } from "./i18n";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSearchTagIcon } from "@/data/search-tag-icons";
-import { getRouteDistanceForShop, MapView } from "@/components/market/MapView";
+import { getRouteDirectionForShop, getRouteDistanceForShop, MapView } from "@/components/market/MapView";
 import { figmaMapShops as marketShops } from "@/data/figma-map-shops";
 import {
   DirectionsPanel,
@@ -16,6 +16,7 @@ import { searchKioskWithAi } from "./kioskAiSearch";
 import { useKioskSpeech } from "./useKioskSpeech";
 import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
 import { CompatibleMotion, DesignMotion, VoiceMotionButton } from "./DesignMotion";
+import { getSearchResultPage, getSearchResultPresentation, type ResultSortMode } from "./searchResultPresentation";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
@@ -470,6 +471,8 @@ export default function KioskSearchApp() {
   const [transcript, setTranscript] = useState("");
   const [handwritingResetKey, setHandwritingResetKey] = useState(0);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  const [resultSortMode, setResultSortMode] = useState<ResultSortMode>("relevance");
+  const [resultPage, setResultPage] = useState(1);
   const [aiShopIds, setAiShopIds] = useState<string[]>([]);
   const [aiAnswer, setAiAnswer] = useState("");
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
@@ -531,6 +534,11 @@ export default function KioskSearchApp() {
     const byId = new Map(effectiveShops.map((shop) => [shop.id, shop]));
     return aiShopIds.flatMap((id) => { const shop = byId.get(id); return shop ? [shop] : []; });
   }, [aiShopIds, effectiveShops, tagResultShops, tagSearch]);
+
+  const orderedResults = useMemo(() => getSearchResultPresentation(resultShops, resultSortMode, getRouteDistanceForShop), [resultShops, resultSortMode]);
+  const { currentPage: currentResultPage, visible: visibleResults } = getSearchResultPage(orderedResults, resultPage);
+  const changeResultSort = (next: ResultSortMode) => { setResultSortMode(next); setResultPage(1); setSelectedShopId(null); };
+  const changeResultPage = (next: number) => { setResultPage(next); setSelectedShopId(null); };
 
   const selectedShop = useMemo(
     () => effectiveShops.find((shop) => shop.id === selectedShopId) ?? null,
@@ -637,6 +645,8 @@ export default function KioskSearchApp() {
     prepareSpeech();
     setTagSearch(null);
     setSelectedShopId(null);
+    setResultSortMode("relevance");
+    setResultPage(1);
     setAiShopIds([]);
     setAiAnswer("");
     setScreen("processing");
@@ -646,6 +656,8 @@ export default function KioskSearchApp() {
     setQuery("");
     setTagSearch(tag);
     setSelectedShopId(null);
+    setResultSortMode("relevance");
+    setResultPage(1);
     setAiShopIds([]);
     setAiAnswer("");
     setScreen("processing");
@@ -694,6 +706,19 @@ export default function KioskSearchApp() {
               <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px] text-[36px] font-medium">{t("대조시장 길 찾기")}</PrimaryButton>
             </div>
             <DesignMotion name="welcome" className="absolute bottom-0 left-0 h-[1920px] w-full mix-blend-darken" />
+            <div role="img" aria-label="RISE · DOL³ · WDKY" className="pointer-events-none absolute left-1/2 top-[1704px] z-10 flex h-[48px] -translate-x-1/2 items-center gap-[14px] whitespace-nowrap text-white drop-shadow-[0_0_12px_rgba(0,0,0,0.4)]">
+              <span className="shrink-0 font-['Kiosk_Map_Pretendard',sans-serif] text-[48px] font-bold leading-none">RISE</span>
+              <span className="flex h-[24px] w-0 shrink-0 items-center justify-center">
+                <img src="/figma/woodikey-divider.svg" alt="" className="block max-w-none shrink-0 rotate-90" />
+              </span>
+              <img src="/figma/woodikey-dol3.png" alt="" className="h-[40px] w-[109px] shrink-0 object-cover" />
+              <span className="flex h-[24px] w-0 shrink-0 items-center justify-center">
+                <img src="/figma/woodikey-divider.svg" alt="" className="block max-w-none shrink-0 rotate-90" />
+              </span>
+              <span className="flex h-[40px] w-[109px] shrink-0 items-center justify-center">
+                <img src="/figma/woodikey-wdky.svg" alt="" className="block max-w-none shrink-0" />
+              </span>
+            </div>
           </main>
         )}
 
@@ -716,10 +741,14 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} selectedViewportY={0.3} bottomOverlayHeight={1128} topOverlayHeight={208} />
+            <MapView shops={visibleResults.map(result => result.shop)} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} selectedViewportY={0.3} bottomOverlayHeight={1128} topOverlayHeight={208} initialOverview overviewBottomPadding={!tagSearch && aiAnswer ? 144 : 0} numberedShops={visibleResults} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <ResultsPanel
-              shops={resultShops}
+              results={orderedResults}
+              sortMode={resultSortMode}
+              onSortModeChange={changeResultSort}
+              page={currentResultPage}
+              onPageChange={changeResultPage}
               answer={tagSearch ? "" : aiAnswer}
               selectedId={selectedShopId}
               onSelect={setSelectedShopId}
@@ -733,7 +762,7 @@ export default function KioskSearchApp() {
           <main className="relative h-[1920px] bg-white">
             <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute bottomOverlayHeight={604} topOverlayHeight={208} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
-            <DirectionsPanel shopName={selectedShop.name} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
+            <DirectionsPanel shopName={selectedShop.name} direction={getRouteDirectionForShop(selectedShop)} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>
         )}
 

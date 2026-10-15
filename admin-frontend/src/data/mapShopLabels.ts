@@ -1,5 +1,5 @@
 // Original Figma outlines, kept at their original map coordinates.
-export const mapBackgroundUrl = "/images/daejomarket-map.svg?v=520f4a913718";
+export const mapBackgroundUrl = "/images/daejomarket-map.svg?v=0c4b12837a14";
 export const mapLabelsUrl = "/images/daejomarket-shop-labels.svg?v=6a0663e1c5b5";
 export const mapShopLabels = [
   {

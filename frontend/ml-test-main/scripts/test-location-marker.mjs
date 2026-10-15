@@ -4,13 +4,38 @@ import ts from "typescript";
 
 const source = readFileSync(new URL("../src/components/market/locationMarker.ts", import.meta.url), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext } }).outputText;
-const { CURRENT_LOCATION: origin, LOCATION_LABEL: label, getLocalMapPoint, getLocationMarkerPosition: position } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+const { CURRENT_LOCATION: origin, CURRENT_LOCATION_ICON_CENTER: iconCenter, ORIGINAL_LOCATION_TIP: originalTip, reflectPointAcrossCenter, LOCATION_LABEL: label, getLocalMapPoint, getLocationMarkerPosition: position, getCandidateMarkerPosition } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 const viewport = { width: 1080, height: 1920 };
 const bubble = { width: label.width, height: label.height };
 const marker = (center, scale = 1, overlay = 604, size = bubble, top = 208) => position(origin, center, scale, viewport, size, overlay, top);
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
-assert.equal(origin.x, 5036);
-close(origin.y, 4291.727922061358);
+const chosenCandidates = new Set();
+for (const scale of [0.16, 0.6, 1.2]) for (const x of [4200, 4950, 5100, 6000]) for (const y of [2000, 4300, 6500]) {
+  const camera = { x, y };
+  const result = getCandidateMarkerPosition([originalTip, origin], camera, scale, viewport, { width: 104, height: 47 }, 1128, 208, 0.75);
+  chosenCandidates.add(result.candidateIndex);
+  const labelCenter = { x: result.x + 52, y: result.y + 23.5 };
+  const projectedCandidates = [originalTip, origin].map(point => ({ x: viewport.width / 2 + (point.x - x) * scale, y: viewport.height / 2 + (point.y - y) * scale }));
+  assert.deepEqual(result.projected, projectedCandidates[result.candidateIndex]);
+  const distance = point => Math.hypot(point.x - labelCenter.x, point.y - labelCenter.y);
+  assert.ok(distance(result.projected) <= Math.min(...projectedCandidates.map(distance)) + 1e-8);
+  const angle = Math.atan2(result.projected.y - labelCenter.y, result.projected.x - labelCenter.x);
+  close(Math.cos(result.angle * Math.PI / 180), Math.cos(angle));
+  close(Math.sin(result.angle * Math.PI / 180), Math.sin(angle));
+}
+assert.equal(chosenCandidates.size, 2, "panning can select either target without adding another label");
+assert.equal(origin.x, 4938);
+close(origin.y, 4294.272077938642);
+close((origin.x + originalTip.x) / 2, iconCenter.x);
+close((origin.y + originalTip.y) / 2, iconCenter.y);
+assert.deepEqual(reflectPointAcrossCenter(origin, iconCenter), originalTip, "reflection preserves the original offset on the opposite side");
+for (const tip of [{ x: 50, y: 80 }, { x: 150, y: 80 }, { x: 100, y: 20 }, { x: 120, y: 140 }]) {
+  const center = { x: 100, y: 80 };
+  const reflected = reflectPointAcrossCenter(tip, center);
+  close((tip.x + reflected.x) / 2, center.x);
+  close((tip.y + reflected.y) / 2, center.y);
+  close(Math.hypot(tip.x - center.x, tip.y - center.y), Math.hypot(reflected.x - center.x, reflected.y - center.y));
+}
 const initial = marker(origin);
 assert.equal(initial.offscreen, false);
 assert.equal(initial.side, "left");
@@ -36,22 +61,16 @@ for (const overlay of [420, 604, 1128]) {
       for (let x = 1400; x <= 6200; x += 200) {
         for (let y = 1350; y <= 10450; y += 200) {
           const result = marker({ x, y }, scale, overlay, size);
-          if (!result.offscreen) {
-            assert.deepEqual(result.arrowTip, result.projected, "visible tip stays on its map point");
-            continue;
-          }
           assert.ok(result.x >= 8 - 1e-8 && result.x + size.width <= viewport.width - 8 + 1e-8);
           assert.ok(result.y >= 208 && result.y + size.height <= viewport.height - overlay - 8 + 1e-8);
           const center = { x: result.x + size.width / 2, y: result.y + size.height / 2 };
-          const directions = { left: 180, right: 0, top: -90, bottom: 90 };
-          assert.equal(result.angle, directions[result.side]);
-          if (result.side === "left" || result.side === "right") {
-            close(result.arrowTip.y, center.y);
-            close(result.arrowTip.x, center.x + (result.side === "left" ? -1 : 1) * (size.width / 2 + label.tailLength * scale));
-          } else {
-            close(result.arrowTip.x, center.x);
-            close(result.arrowTip.y, center.y + (result.side === "top" ? -1 : 1) * (size.height / 2 + label.tailLength * scale));
-          }
+          const expectedAngle = Math.atan2(result.projected.y - center.y, result.projected.x - center.x);
+          const angle = result.angle * Math.PI / 180;
+          close(Math.cos(angle), Math.cos(expectedAngle));
+          close(Math.sin(angle), Math.sin(expectedAngle));
+          const tipAngle = Math.atan2(result.arrowTip.y - center.y, result.arrowTip.x - center.x);
+          close(Math.cos(tipAngle), Math.cos(expectedAngle));
+          close(Math.sin(tipAngle), Math.sin(expectedAngle));
         }
       }
     }
@@ -61,7 +80,7 @@ for (const overlay of [420, 604, 1128]) {
 for (const x of [0, 1, 1079, 1080]) {
   for (const y of [208, 209, 1315, 1316]) {
     const result = marker({ x: origin.x + 540 - x, y: origin.y + 960 - y });
-    assert.equal(result.offscreen, true, "corner uses an indicator with a centred arrow");
+    assert.ok(Number.isFinite(result.angle), "corner has a valid direction toward its actual map point");
     assert.deepEqual(result.projected, { x, y }, "corner tracking retains the original coordinate");
     assert.ok(result.x >= 0 && result.x + bubble.width <= 1080);
     assert.ok(result.y >= 208 && result.y + bubble.height <= 1316);
@@ -77,7 +96,9 @@ for (const path of ["../public/images/daejomarket-map.svg", "../../../admin-fron
   assert.ok(!svg.includes('<rect x="5052" y="4253"'));
   assert.ok(!svg.includes('M5036 4291.73L5052.2'));
   assert.ok(svg.includes('<rect x="4961" y="4255"'), "retain the actual kiosk map icon");
-  assert.ok(svg.includes('<rect x="4961" y="4255" width="52" height="76" rx="8" fill="#22A36B"'), "kiosk target matches the map accent");
+  assert.ok(svg.includes('<rect x="4961" y="4255" width="52" height="76" rx="8" fill="#FF5E00"'), "kiosk target matches the orange current-location label");
 }
 assert.equal(readFileSync(new URL("../../../admin-frontend/src/components/market/locationMarker.ts", import.meta.url), "utf8"), source);
-console.log("Location marker passed: fixed anchor, four centred arrow directions, zoom, scaled input, overlays, corners, colours and admin sync.");
+const diagonal = marker({ x: origin.x - 2000, y: origin.y - 1000 });
+assert.ok(Math.abs(diagonal.angle % 90) > 1, "diagonal offscreen target has a continuous arrow angle");
+console.log("Location marker passed: opposite-side anchor, reflection distance and midpoint, continuous arrow direction, zoom, scaled input, overlays, corners, colours and admin sync.");

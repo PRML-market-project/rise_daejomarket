@@ -179,6 +179,17 @@ OPENAI_API_KEY=<OpenAI API 키>
 
 ## 파일 관리
 
+### 임시 파일 정리
+
+다음 명령은 삭제 후보와 용량만 표시합니다. 실제 정리는 `-Apply`를 추가합니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/cleanup-workspace.ps1
+powershell -ExecutionPolicy Bypass -File scripts/cleanup-workspace.ps1 -Apply
+```
+
+빌드·번역 설치 캐시, 테스트 이미지·WAV와 오래된 로그를 정리합니다. 현재 사용하는 Gemma·Qwen Q8 모델, 번역 모델, 음성 기준 파일, 화면 에셋과 시연 영상은 정리 대상에서 제외합니다. 사용하지 않는 기존 Qwen 모델도 정리하려면 `-IncludeUnusedModels`를 추가하세요.
+
 - `.env`와 Python 가상환경, 모델·캐시, 서비스 로그는 Git 제외 설정을 확인하고 관리합니다.
 - `docs`의 원본 MP4와 `docs/previews`의 GIF를 함께 커밋해야 README의 시연 영상이 표시됩니다.
 - `frontend/ml-test-main/vite.config.ts`는 개발 시 `.trycloudflare.com` 호스트 접근을 허용합니다.

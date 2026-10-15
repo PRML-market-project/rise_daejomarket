@@ -34,3 +34,9 @@ application-secret.yml
 Thumbs.db
 
 artifacts/
+
+# Temporary previews and synthesized test audio
+.tmp-*
+output_*.wav
+speech.wav
+.next/

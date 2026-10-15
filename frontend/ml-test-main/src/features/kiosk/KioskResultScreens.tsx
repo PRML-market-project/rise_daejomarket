@@ -1,7 +1,8 @@
 import { useKioskLocale } from "./i18n";
-import { useEffect, useMemo, useState } from "react";
-import { getRouteDistanceForShop } from "@/components/market/MapView";
+import { useEffect, useState } from "react";
+import { getSearchResultPage, type ResultSortMode, type SearchResult } from "./searchResultPresentation";
 import type { Shop } from "@/types/shop";
+import type { RouteGuidanceDirection } from "@/components/market/MapView";
 
 type Language = "ko" | "en" | "vi";
 
@@ -144,13 +145,14 @@ export function LanguageSelectionScreen({
   );
 }
 
-function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; distanceMeters: number; selected: boolean; onSelect: () => void }) {
+function ResultCard({ shop, number, distanceMeters, selected, onSelect }: { shop: Shop; number: number; distanceMeters: number; selected: boolean; onSelect: () => void }) {
   const { t } = useKioskLocale();
   const tags = shop.tags?.length ? shop.tags : shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
   return (
     <button
       type="button"
       aria-pressed={selected}
+      data-result-card={number}
       onClick={onSelect}
       className={`flex h-[164px] min-w-0 items-center gap-[24px] rounded-[32px] border-2 px-[32px] py-[16px] font-['Kiosk_Result_Noto',sans-serif] text-left tracking-normal shadow-[0_0_8px_rgba(0,0,0,0.2)] ${selected ? "border-[#116543] bg-[#e8f2ee]" : "border-[#a1a1a1] bg-white"}`}
     >
@@ -159,8 +161,11 @@ function ResultCard({ shop, distanceMeters, selected, onSelect }: { shop: Shop; 
       ) : (
         <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-[16px] bg-[#ebebeb]"><img src="/figma/results/shop-placeholder.svg" alt="" /></div>
       )}
-      <div className="min-w-0">
-        <strong className="block truncate text-[36px] font-bold leading-[44px] text-[#19211c]" title={t(shop.name)}>{t(shop.name)}</strong>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-[8px]">
+          <span className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[8px] bg-[#cfeadb] font-['Kiosk_Map_Pretendard',sans-serif] text-[16px] font-semibold leading-[28px] tracking-[-0.8px] text-[#116543]">{String(number).padStart(2, "0")}</span>
+          <strong className="block min-w-0 truncate text-[36px] font-bold leading-[44px] text-[#19211c]" title={t(shop.name)}>{t(shop.name)}</strong>
+        </div>
         <div className="mt-[16px] flex gap-[4px] overflow-hidden">
           {tags.slice(0, 3).map((tag, index) => <span key={`${tag}-${index}`} className={`shrink-0 rounded-[16px] px-[12px] py-[4px] text-[18px] font-medium leading-[28px] ${selected ? "bg-[#b9ead2] text-[#116543]" : "bg-[#ebebeb] text-[#6f6f6f]"}`}>{t(tag)}</span>)}
         </div>
@@ -182,7 +187,7 @@ function ResultAnswer({ answer, onDismiss }: { answer: string; onDismiss: () => 
     <div className="flex items-center">
       <span aria-hidden="true" className="relative mr-[-12px] flex h-[22.627px] w-[22.627px] shrink-0 items-center justify-center"><img src="/figma/results/bubble-tail.svg" alt="" className="rotate-45" /></span>
       <div className="relative flex w-[540px] items-start gap-[12px] rounded-[24px] bg-[#363636] py-[16px] pl-[24px] pr-[16px]">
-        <p role="status" className="max-h-[84px] min-w-0 flex-1 overflow-y-auto overscroll-contain whitespace-pre-line break-words text-[20px] font-medium leading-[28px] text-white">{answer}</p>
+        <p role="status" className="min-w-0 flex-1 whitespace-pre-line break-words text-[20px] font-medium leading-[28px] text-white">{answer}</p>
         <button type="button" onClick={onDismiss} aria-label={t("안내 닫기")} className="relative shrink-0 after:absolute after:inset-[-10px]"><img src="/figma/results/close.svg" alt="" /></button>
       </div>
     </div>
@@ -190,14 +195,22 @@ function ResultAnswer({ answer, onDismiss }: { answer: string; onDismiss: () => 
 }
 
 export function ResultsPanel({
-  shops,
+  results,
+  sortMode,
+  onSortModeChange,
+  page,
+  onPageChange,
   answer,
   selectedId,
   onSelect,
   onSearchAgain,
   onDirections,
 }: {
-  shops: Shop[];
+  results: SearchResult[];
+  sortMode: ResultSortMode;
+  onSortModeChange: (mode: ResultSortMode) => void;
+  page: number;
+  onPageChange: (page: number) => void;
   answer?: string;
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -205,31 +218,10 @@ export function ResultsPanel({
   onDirections: () => void;
 }) {
   const { t } = useKioskLocale();
-  const pageSize = 6;
-  const [sortMode, setSortMode] = useState<"relevance" | "distance">("relevance");
-  const [page, setPage] = useState(1);
   const [answerDismissed, setAnswerDismissed] = useState(false);
   useEffect(() => { setAnswerDismissed(false); }, [answer]);
   const panelHeight = 1128;
-  const orderedResults = useMemo(() => {
-    const results = shops.map((shop, relevanceIndex) => ({
-      shop,
-      relevanceIndex,
-      distanceMeters: getRouteDistanceForShop(shop),
-    }));
-
-    if (sortMode === "distance") {
-      results.sort((a, b) => a.distanceMeters - b.distanceMeters || a.relevanceIndex - b.relevanceIndex);
-    }
-
-    return results;
-  }, [shops, sortMode]);
-  const pageCount = Math.max(1, Math.ceil(orderedResults.length / pageSize));
-  const visible = orderedResults.slice((page - 1) * pageSize, page * pageSize);
-
-  useEffect(() => {
-    setPage(1);
-  }, [shops, sortMode]);
+  const { pageCount, visible } = getSearchResultPage(results, page);
 
   return (
     <section
@@ -239,39 +231,39 @@ export function ResultsPanel({
       {answer && !answerDismissed && <ResultAnswer answer={answer} onDismiss={() => setAnswerDismissed(true)} />}
       <div className="flex h-full flex-col">
       <div className="flex h-[72px] shrink-0 items-center justify-between">
-        <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: shops.length })}</h2>
+        <h2 className="text-[36px] font-medium">{t("{count}개의 가게를 찾았어요", { count: results.length })}</h2>
         <div className="flex gap-[8px] rounded-full bg-[#ebebeb] p-[8px] text-[24px]">
           <button
             type="button"
             aria-pressed={sortMode === "relevance"}
-            onClick={() => setSortMode("relevance")}
+            onClick={() => onSortModeChange("relevance")}
             className={`w-[180px] rounded-full py-[8px] leading-[40px] ${sortMode === "relevance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
           >{t("정확도순")}</button>
           <button
             type="button"
             aria-pressed={sortMode === "distance"}
-            onClick={() => setSortMode("distance")}
+            onClick={() => onSortModeChange("distance")}
             className={`w-[180px] rounded-full py-[8px] leading-[40px] ${sortMode === "distance" ? "bg-[#363636] text-white" : "text-[#19211c]"}`}
           >{t("거리순")}</button>
         </div>
       </div>
       <div className="mt-[56px] grid h-[524px] shrink-0 auto-rows-[164px] grid-cols-2 content-start gap-[16px]">
-        {visible.map(({ shop, distanceMeters }) => <ResultCard key={shop.id} shop={shop} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
+        {visible.map(({ shop, number, distanceMeters }) => <ResultCard key={shop.id} shop={shop} number={number} distanceMeters={distanceMeters} selected={selectedId === shop.id} onSelect={() => onSelect(shop.id)} />)}
       </div>
       <div className="mt-[48px] flex h-[56px] shrink-0 items-center justify-center gap-[16px] font-['Kiosk_Result_Inter',sans-serif] text-[28px] font-medium leading-[22px] tracking-normal">
-          <button type="button" aria-label={t("이전")} disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/previous.svg" alt="" className="rotate-180" /></button>
+          <button type="button" aria-label={t("이전")} disabled={page === 1} onClick={() => onPageChange(Math.max(1, page - 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/previous.svg" alt="" className="rotate-180" /></button>
         {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
           <button
             type="button"
             key={pageNumber}
-            onClick={() => setPage(pageNumber)}
+            onClick={() => onPageChange(pageNumber)}
             aria-current={pageNumber === page ? "page" : undefined}
             className={`flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-[8px] ${pageNumber === page ? "bg-[#116543] text-white" : "bg-[#ebebeb] text-[#a1a1a1]"}`}
           >
             {pageNumber}
           </button>
         ))}
-          <button type="button" aria-label={t("다음")} disabled={page === pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/next.svg" alt="" /></button>
+          <button type="button" aria-label={t("다음")} disabled={page === pageCount} onClick={() => onPageChange(Math.min(pageCount, page + 1))} className="flex h-[56px] w-[24px] items-center justify-center disabled:opacity-40"><img src="/figma/results/next.svg" alt="" /></button>
       </div>
       <div className="mx-[-2px] mt-[48px] flex shrink-0 gap-[24px]">
         <button type="button" onClick={onSearchAgain} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("다시 검색하기")}</button>
@@ -282,8 +274,10 @@ export function ResultsPanel({
   );
 }
 
-export function DirectionsPanel({ shopName, distanceMeters, onBack, onHome }: { shopName: string; distanceMeters: number; onBack: () => void; onHome: () => void }) {
+export function DirectionsPanel({ shopName, direction, distanceMeters, onBack, onHome }: { shopName: string; direction: RouteGuidanceDirection; distanceMeters: number; onBack: () => void; onHome: () => void }) {
   const { t } = useKioskLocale();
+  const lastCode = shopName.trim().slice(-1).charCodeAt(0);
+  const hasFinalConsonant = lastCode >= 0xac00 && lastCode <= 0xd7a3 && (lastCode - 0xac00) % 28 !== 0;
   return (
     <section className="absolute bottom-0 left-0 right-0 z-30 flex h-[604px] flex-col justify-end rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
       <div className="flex h-[400px] shrink-0 flex-col justify-between">
@@ -292,8 +286,10 @@ export function DirectionsPanel({ shopName, distanceMeters, onBack, onHome }: { 
           <img src="/figma/results/directions-map.png" alt="" className="h-[100px] w-[100px] object-cover shadow-[4px_4px_24px_rgba(0,0,0,0.25)]" />
         </div>
         <h2 className="min-w-0 text-[40px] font-bold leading-[52px] text-[#19211c]">
-          <span className="block break-words">{t("“{name}”까지", { name: t(shopName) })}</span>
-          <span className="block">{t("지도 경로를 따라")} <strong className="text-[#22a36b] underline decoration-[4px]">{distanceMeters}m</strong> {t("이동하세요")}</span>
+          <span className="block break-words">{t(hasFinalConsonant ? "“{name}”은" : "“{name}”는", { name: t(shopName) })}</span>
+          {direction === "behind"
+            ? <span className="block">{t("바로 뒤에 있어요")}</span>
+            : <span className="block">{direction === "left" ? t("왼쪽으로") : t("오른쪽으로")} <strong className="text-[#22a36b] underline decoration-[4px]">{distanceMeters}m</strong> {t("이동하세요")}</span>}
         </h2>
       </div>
       <div className="mx-[-2px] flex gap-[24px]">

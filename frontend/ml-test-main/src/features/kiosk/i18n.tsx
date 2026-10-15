@@ -97,6 +97,11 @@ const copy: Record<string, [string, string]> = {
   "다음": ["Next", "Tiếp theo"],
   "{name}으로 이동하는 길을 알려드릴게요": ["Directions to {name}", "Chỉ đường đến {name}"],
   "“{name}”까지": ["To “{name}”", "Đến “{name}”"],
+  "“{name}”은": ["“{name}”", "“{name}”"],
+  "“{name}”는": ["“{name}”", "“{name}”"],
+  "왼쪽으로": ["Head left for", "Đi sang trái"],
+  "오른쪽으로": ["Head right for", "Đi sang phải"],
+  "바로 뒤에 있어요": ["It's right behind you", "Cửa hàng ở ngay phía sau bạn"],
   "지도 경로를 따라": ["Follow the map route for", "Theo tuyến đường trên bản đồ"],
   "이동하세요": ["to reach the shop", "để đến cửa hàng"],
 };
