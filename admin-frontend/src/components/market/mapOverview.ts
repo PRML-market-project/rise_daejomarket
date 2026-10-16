@@ -1,4 +1,4 @@
-import { getMapMarkerLayouts, type MapMarker, type MarkerPosition } from "./locationMarker";
+import { getMapMarkerLayouts, type MapMarker, type MarkerPosition, type MarkerAxis } from "./locationMarker";
 
 type Point = { x: number; y: number };
 type Size = { width: number; height: number };
@@ -6,7 +6,7 @@ type Rect = Point & Size;
 
 export const MAP_SIZE = { width: 6807, height: 10577 };
 export const RESULT_TAG_SIZE = { width: 62, height: 37 };
-type NumberedTarget = Point & { id: string; number: number; candidates?: [Point, Point] };
+type NumberedTarget = Point & { id: string; number: number; candidates?: [Point, Point]; preferredAxis?: MarkerAxis };
 
 /** Cover the visible map area without stretching the source or leaving gutters. */
 export function getMapOverviewCamera(viewport: Size, top: number, bottom: number) {
@@ -27,7 +27,7 @@ export function constrainCoveredMapCenter(center: Point, scale: number, viewport
 /** Current location and shop numbers share one collision and tracking layout. */
 export function getResultMapMarkerLayouts(markers: NumberedTarget[], viewport: Size, top: number, bottom: number, reserved: Rect[] = [], selectedId?: string, currentLocation?: MapMarker, previous: Record<string, MarkerPosition> = {}) {
   const visibleMarkers = markers.filter(marker => marker.id !== selectedId);
-  const requests: MapMarker[] = visibleMarkers.map(marker => ({ id: marker.id, targets: marker.candidates ?? [marker], ...RESULT_TAG_SIZE, tail: 12, previous: previous[marker.id] }));
+  const requests: MapMarker[] = visibleMarkers.map(marker => ({ id: marker.id, targets: marker.candidates ?? [marker], preferredAxis: marker.preferredAxis, ...RESULT_TAG_SIZE, tail: 12, previous: previous[marker.id] }));
   if (currentLocation) requests.unshift({ ...currentLocation, previous: previous[currentLocation.id] });
   const layouts = getMapMarkerLayouts(requests, viewport, top, bottom, reserved);
   const numberedLayouts = layouts.slice(currentLocation ? 1 : 0).map((position, index) => ({

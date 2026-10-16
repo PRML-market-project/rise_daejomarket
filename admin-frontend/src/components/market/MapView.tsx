@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Shop } from "../../types/shop";
 import { mapBackgroundUrl, mapLabelsUrl, mapShopLabels } from "../../data/mapShopLabels";
-import { CURRENT_LOCATION, ORIGINAL_LOCATION_TIP, LOCATION_LABEL, getLocalMapPoint, reflectPointAcrossCenter, type MarkerPosition } from "./locationMarker";
+import { CURRENT_LOCATION, ORIGINAL_LOCATION_TIP, LOCATION_LABEL, getLocalMapPoint, reflectPointAcrossCenter, type MarkerPosition, type MarkerAxis } from "./locationMarker";
 import { constrainCoveredMapCenter, getMapOverviewCamera, getResultMapMarkerLayouts } from "./mapOverview";
 
 interface Point { x: number; y: number }
@@ -285,7 +285,8 @@ function getShopLabelBubble(shop: Shop, marker: Point, name = shop.name) {
 
   const centerX = x + width / 2;
   const centerY = y + height / 2;
-  return { x, y, width, height, centerX, centerY, lines, tailPath, tailTip };
+  const tailAxis: MarkerAxis = sideTail ? "horizontal" : "vertical";
+  return { x, y, width, height, centerX, centerY, lines, tailPath, tailTip, tailAxis };
 }
 
 function getShopIconCell(shop: Shop): IconCell | null {
@@ -346,6 +347,10 @@ export function getShopNumberMarkers(shop: Shop): [Point, Point] {
   const center = getShopMapMarker(shop);
   const nameBubble = getShopLabelBubble(shop, center);
   return [nameBubble.tailTip, reflectPointAcrossCenter(nameBubble.tailTip, center)];
+}
+
+export function getShopNumberMarkerAxis(shop: Shop): MarkerAxis {
+  return getShopLabelBubble(shop, getShopMapMarker(shop)).tailAxis;
 }
 
 function getRoutePointsForShop(shop: Shop): Point[] {
@@ -417,7 +422,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const bubbleSize = { width: locationBubbleSize.width * locationScale, height: locationBubbleSize.height * locationScale };
   const numberedMarkerTargets = numberedShops.map(({ shop, number }) => {
     const candidates = getShopNumberMarkers(shop).map(point => ({ x: containerSize.width / 2 + (point.x - constrainedCenter.x) * mapScale, y: containerSize.height / 2 + (point.y - constrainedCenter.y) * mapScale })) as [Point, Point];
-    return { id: shop.id, number, ...candidates[0], candidates };
+    return { id: shop.id, number, ...candidates[0], candidates, preferredAxis: getShopNumberMarkerAxis(shop) };
   });
   const markerLayouts = getResultMapMarkerLayouts(numberedMarkerTargets, containerSize, topOverlayHeight, visibleBottomOverlayHeight, [
     { x: containerSize.width - 128, y: containerSize.height - bottomOverlayHeight - 192, width: 128, height: 192 },

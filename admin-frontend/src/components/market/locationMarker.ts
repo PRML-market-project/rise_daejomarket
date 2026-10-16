@@ -2,6 +2,7 @@ type Point = { x: number; y: number };
 type Size = { width: number; height: number };
 type Rect = Point & Size;
 export type LocationTail = "bottom" | "left" | "top" | "right";
+export type MarkerAxis = "horizontal" | "vertical";
 export type MarkerPosition = Rect & {
   id: string;
   side: LocationTail;
@@ -16,6 +17,7 @@ export type MapMarker = Size & {
   id: string;
   targets: Point[];
   tail: number;
+  preferredAxis?: MarkerAxis;
   previous?: MarkerPosition;
 };
 
@@ -32,6 +34,7 @@ export const LOCATION_LABEL = { width: 173, height: 78, tailLength: 16, tipY: 26
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), Math.max(min, max));
 const sides: LocationTail[] = ["left", "right", "top", "bottom"];
 const isHorizontal = (side: LocationTail) => side === "left" || side === "right";
+const matchesPreferredAxis = (marker: MapMarker, side: LocationTail) => isHorizontal(side) === (marker.preferredAxis !== "vertical");
 const directions = { left: { x: -1, y: 0, angle: 180 }, right: { x: 1, y: 0, angle: 0 }, top: { x: 0, y: -1, angle: -90 }, bottom: { x: 0, y: 1, angle: 90 } };
 const trackingOverlap = 0.15;
 const overlaps = (a: Rect, b: Rect, gap = 4) => a.x < b.x + b.width + gap && a.x + a.width + gap > b.x && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
@@ -62,36 +65,36 @@ export function getMapMarkerLayouts(markers: MapMarker[], viewport: Size, topOve
     return makePosition(marker, position, side, candidateIndex, false);
   }).filter(position => fits(position) && clearControls(position) && nearestTarget(marker, position) === candidateIndex)).sort((a, b) => {
     const preference = (position: MarkerPosition) => (marker.previous?.side === position.side ? -10 : 0) + (marker.previous?.candidateIndex === position.candidateIndex ? -1 : 0) + sides.indexOf(position.side) + position.candidateIndex / 10;
-    // Side placement outranks keeping a previous top/bottom arrow.
-    return Number(isHorizontal(b.side)) - Number(isHorizontal(a.side)) || preference(a) - preference(b);
+    // Match the shop name bubble's axis before retaining an old arrow side.
+    return Number(matchesPreferredAxis(marker, b.side)) - Number(matchesPreferredAxis(marker, a.side)) || preference(a) - preference(b);
   }));
 
   // Keep as many labels exact as possible, then prefer the layout with the most
-  // horizontal arrows. One label can switch sides to make room for its neighbour.
+  // arrows on their preferred axes. Labels can switch sides to make room.
   const order = markers.map((_, index) => index).sort((a, b) => options[a].length - options[b].length);
   const remainingExact = Array<number>(order.length + 1).fill(0);
-  const remainingHorizontal = Array<number>(order.length + 1).fill(0);
+  const remainingPreferred = Array<number>(order.length + 1).fill(0);
   for (let depth = order.length - 1; depth >= 0; depth--) {
     remainingExact[depth] = remainingExact[depth + 1] + Number(options[order[depth]].length > 0);
-    remainingHorizontal[depth] = remainingHorizontal[depth + 1] + Number(options[order[depth]].some(option => isHorizontal(option.side)));
+    remainingPreferred[depth] = remainingPreferred[depth + 1] + Number(options[order[depth]].some(option => matchesPreferredAxis(markers[order[depth]], option.side)));
   }
   let best: Array<MarkerPosition | undefined> = [];
   let bestCount = -1;
-  let bestHorizontalCount = -1;
+  let bestPreferredCount = -1;
   let visits = 0;
   const chosen: Array<MarkerPosition | undefined> = Array(markers.length);
-  const search = (depth: number, count: number, horizontalCount: number) => {
+  const search = (depth: number, count: number, preferredCount: number) => {
     const possibleCount = count + remainingExact[depth];
-    if (++visits > 6000 || possibleCount < bestCount || (possibleCount === bestCount && horizontalCount + remainingHorizontal[depth] <= bestHorizontalCount)) return;
-    if (depth === order.length) { best = [...chosen]; bestCount = count; bestHorizontalCount = horizontalCount; return; }
+    if (++visits > 6000 || possibleCount < bestCount || (possibleCount === bestCount && preferredCount + remainingPreferred[depth] <= bestPreferredCount)) return;
+    if (depth === order.length) { best = [...chosen]; bestCount = count; bestPreferredCount = preferredCount; return; }
     const index = order[depth];
     for (const option of options[index]) {
       if (chosen.some(other => other && !compatible(option, other))) continue;
       chosen[index] = option;
-      search(depth + 1, count + 1, horizontalCount + Number(isHorizontal(option.side)));
+      search(depth + 1, count + 1, preferredCount + Number(matchesPreferredAxis(markers[index], option.side)));
       chosen[index] = undefined;
     }
-    search(depth + 1, count, horizontalCount);
+    search(depth + 1, count, preferredCount);
   };
   search(0, 0, 0);
   const exact = best.filter((position): position is MarkerPosition => !!position);

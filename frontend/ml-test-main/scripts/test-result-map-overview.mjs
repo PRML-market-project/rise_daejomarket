@@ -21,7 +21,7 @@ const parsedMap = ts.createSourceFile("MapView.tsx", mapSource, ts.ScriptTarget.
 const geometrySource = ts.createPrinter().printFile(ts.factory.updateSourceFile(parsedMap, parsedMap.statements.filter(statement => !ts.isImportDeclaration(statement))));
 const geometryJs = ts.transpileModule(geometrySource, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.React } }).outputText;
 const geometryModule = `import { reflectPointAcrossCenter } from "${moduleUrls.get("../src/components/market/locationMarker.ts")}";\n${geometryJs}\nexport { getShopLabelBubble };`;
-const { getShopNumberMarkers, getShopMapMarker, getShopLabelBubble } = await import(`data:text/javascript;base64,${Buffer.from(geometryModule).toString("base64")}`);
+const { getShopNumberMarkers, getShopNumberMarkerAxis, getShopMapMarker, getShopLabelBubble } = await import(`data:text/javascript;base64,${Buffer.from(geometryModule).toString("base64")}`);
 for (const shop of figmaMapShops) {
   const center = getShopMapMarker(shop);
   const bubble = getShopLabelBubble(shop, center);
@@ -29,6 +29,9 @@ for (const shop of figmaMapShops) {
   assert.deepEqual(originalNumberTip, bubble.tailTip, "original point is retained alongside its reflected point");
   const drawnTip = bubble.tailPath.match(/L ([^ ]+) ([^ ]+)/).slice(1).map(Number);
   assert.deepEqual(drawnTip, [bubble.tailTip.x, bubble.tailTip.y], "reference point is the actual name-bubble triangle vertex");
+  const triangle = [...bubble.tailPath.matchAll(/[ML] ([^ ]+) ([^ ]+)/g)].map(match => match.slice(1).map(Number));
+  const expectedAxis = triangle[0][0] === triangle[2][0] ? "horizontal" : "vertical";
+  assert.equal(getShopNumberMarkerAxis(shop), expectedAxis, "number placement uses the actual selected name-bubble arrow axis");
   assert.ok(Math.abs((numberTip.x + bubble.tailTip.x) / 2 - center.x) < 1e-8, `${shop.name}: horizontal midpoint is the shop centre`);
   assert.ok(Math.abs((numberTip.y + bubble.tailTip.y) / 2 - center.y) < 1e-8, `${shop.name}: vertical midpoint is the shop centre`);
 }
@@ -85,6 +88,19 @@ const sideBySide = getNumberedMarkerLayouts([
   { id: "second", number: 4, x: 460, y: 520 },
 ], viewport, top, bottom);
 assert.ok(sideBySide.every(marker => !marker.tracking && horizontalSide(marker.side)), "choose a joint layout with horizontal arrows when both shops can fit");
+const verticalTarget = { id: "south", number: 5, x: 400, y: 450, preferredAxis: "vertical" };
+const verticalLayout = controls => getResultMapMarkerLayouts([verticalTarget], viewport, top, bottom, controls, undefined, undefined, {
+  south: { side: "left", candidateIndex: 0 },
+}).numbered[0];
+const belowBlocked = { x: 365, y: 470, width: 70, height: 40 };
+const aboveBlocked = { x: 365, y: 395, width: 70, height: 40 };
+assert.ok(!horizontalSide(verticalLayout([]).side), "south shop numbers prefer vertical placement over a previous horizontal side");
+assert.equal(verticalLayout([belowBlocked]).side, "bottom", "try the other vertical side before a horizontal arrow");
+assert.ok(horizontalSide(verticalLayout([belowBlocked, aboveBlocked]).side), "avoid overlap when both vertical sides are blocked");
+const mixedAxes = getNumberedMarkerLayouts([
+  verticalTarget, { id: "west", number: 6, x: 700, y: 450, preferredAxis: "horizontal" },
+], viewport, top, bottom);
+assert.ok(!horizontalSide(mixedAxes[0].side) && horizontalSide(mixedAxes[1].side), "each shop keeps its own preferred axis");
 const cardinalAngles = new Set([-90, 0, 90, 180]);
 const overlapArea = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
@@ -139,7 +155,7 @@ assert.equal(getNumberedMarkerLayouts(cluster, viewport, top, bottom, [], "2").l
 function layoutCamera(shops, camera, overlay, previous = {}) {
   const markers = shops.map((shop, index) => {
     const candidates = getShopNumberMarkers(shop).map(point => project(point, camera, viewport));
-    return { id: shop.id, number: index + 1, ...candidates[0], candidates };
+    return { id: shop.id, number: index + 1, ...candidates[0], candidates, preferredAxis: getShopNumberMarkerAxis(shop) };
   });
   const current = { id: "current-location", width: 104.497, height: 46.956, tail: 12.658, targets: [ORIGINAL_LOCATION_TIP, CURRENT_LOCATION].map(point => project(point, camera, viewport)) };
   const controls = [{ x: 952, y: viewport.height - overlay - 192, width: 128, height: 192 }];
@@ -154,6 +170,19 @@ function layoutCamera(shops, camera, overlay, previous = {}) {
   }
   return result;
 }
+for (const shop of figmaMapShops) {
+  const center = getShopMapMarker(shop);
+  const camera = { scale: 1, center: { x: center.x, y: center.y + 460 } };
+  const candidates = getShopNumberMarkers(shop).map(point => project(point, camera, viewport));
+  const preferredAxis = getShopNumberMarkerAxis(shop);
+  const [tag] = getNumberedMarkerLayouts([{ id: shop.id, number: 1, ...candidates[0], candidates, preferredAxis }], viewport, top, bottom);
+  assert.equal(tag.tracking, false);
+  assert.equal(horizontalSide(tag.side), preferredAxis === "horizontal", `${shop.name}: number matches the name bubble when there is room`);
+}
+for (const id of ["585:28847", "585:28849", "585:28866"]) {
+  assert.equal(getShopNumberMarkerAxis(figmaMapShops.find(shop => shop.id === id)), "vertical", "both southern rows use vertical arrows");
+}
+assert.equal(getShopNumberMarkerAxis(figmaMapShops.find(shop => shop.id === "585:28846")), "horizontal", "a south shop with a side-facing name bubble retains horizontal priority");
 for (const overlay of [bottom, bottom + 144]) {
   const camera = getMapOverviewCamera(viewport, 0, overlay);
   for (let start = 0; start < figmaMapShops.length; start++) layoutCamera(figmaMapShops.slice(start, start + 6), camera, overlay);
