@@ -96,7 +96,7 @@ $services = @(
     @{
         Name = "local-llm"
         Path = "ai-server"
-        Command = "& .\.llama-cpp\llama-server.exe -m .\gemma-4-26B_q4_0-it.gguf --host 127.0.0.1 --port 8010 -ngl all -c 8192 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
+        Command = "& .\.llama-cpp\llama-server.exe -m .\gemma-4-26B_q4_0-it.gguf --host 127.0.0.1 --port 8010 -ngl all -c 8192 --parallel 1 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
         Url = "http://localhost:8010"
         ReadyUrl = "http://127.0.0.1:8010/health"
     },

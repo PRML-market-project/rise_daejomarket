@@ -59,16 +59,19 @@ def load_kiosk_context(fetch_experience=True):
     return shops, [tag for tag in experience.get("searchTags", []) if tag.get("visible")]
 
 
-def select_shops(question, shops, tags, limit=18):
+def select_shops(question, shops, tags, limit=None):
     query = _normalize(question)
     words = [_normalize(word) for word in re.split(r"[\s,，?!]+", question) if len(_normalize(word)) > 1]
-    words += [term for term in ("반찬", "간식") if term in query]
+    words += [_normalize(term) for term in ("반찬", "간식", "만두", "국수", "두부", "문구", "신발")
+              if _normalize(term) in query]
     category_aliases = {
         "식당": ("식당", "음식점", "주변식당", "맛집", "restaurant", "quán ăn", "nhà hàng"),
         "식품": ("식품",),
         "청과": ("청과", "과일", "키위", "사과", "채소", "야채", "fruit"),
         "정육": ("정육", "고기", "육류", "meat"),
         "수산": ("수산", "생선", "해산물", "seafood"),
+        "잡화": ("잡화", "생활용품", "옷", "의류", "clothing"),
+        "서비스업": ("서비스업", "약국", "pharmacy"),
     }
     wanted_categories = {category for category, aliases in category_aliases.items()
                          if any(_normalize(alias) in query for alias in aliases)}
@@ -85,16 +88,17 @@ def select_shops(question, shops, tags, limit=18):
                         wanted_categories.add(category)
 
     ranked = []
+    stop_words = {_normalize(word) for word in ("어디", "가게", "점포", "찾아줘", "있나요", "알려줘", "정보")}
     for position, shop in enumerate(shops):
         name = _normalize(shop["name"])
         category = _normalize(shop["category"])
-        searchable = _normalize(" ".join(str(value) for value in (
+        searchable = "\0".join(_normalize(value) for value in (
             shop["name"], shop.get("description") or "", shop.get("keywords") or "",
-            *(shop.get("tags") or []))))
+            *(shop.get("tags") or [])))
         score = 0
         if name and name in query:
             score += 100
-        score += 12 * sum(1 for word in words if word in searchable and word not in ("어디", "가게", "찾아줘", "있나요"))
+        score += 12 * sum(1 for word in words if word in searchable and word not in stop_words)
         if shop["category"] in wanted_categories:
             score += 5
         if any(term in searchable or term == category for term in tag_terms):
@@ -110,6 +114,35 @@ def select_shops(question, shops, tags, limit=18):
     return [shop for _, _, shop in ranked[:limit]]
 
 
+def broad_category_shops(question, shops):
+    """Only expand unconstrained category questions, never a specific product/preference."""
+    query = re.sub(r"\s+", "", question.lower())
+    categories = set()
+    aliases = {
+        "식당": ("주변식당", "음식점", "식당", "맛집", "restaurants", "restaurant", "nhà hàng", "quán ăn"),
+        "식품": ("식품",), "청과": ("청과", "과일", "야채", "채소"),
+        "정육": ("정육", "고기", "육류"), "수산": ("수산", "생선", "해산물"),
+        "잡화": ("잡화",), "서비스업": ("서비스업",),
+    }
+    for category, terms in aliases.items():
+        for term in sorted(terms, key=len, reverse=True):
+            term = re.sub(r"\s+", "", term)
+            if term in query:
+                categories.add(category)
+                query = query.replace(term, " ")
+    # Any remaining substantive term means the LLM must assess the condition.
+    neutral = ("대조시장", "주변", "가게", "점포", "전체", "모두", "전부", "추천", "목록", "안내",
+               "찾아주세요", "찾아줘", "보여주세요", "보여줘", "알려주세요", "알려줘", "해주세요", "해줘",
+               "어디있나요", "어디", "있나요", "살 수 있는", "파는", "살", "좀", "please", "recommend", "show", "find", "near me",
+               "gợi ý", "을", "를", "이", "가", "은", "는", "에", "도", "와", "과")
+    for word in neutral:
+        word = re.sub(r"\s+", "", word)
+        query = query.replace(word, " ")
+    if re.sub(r"[\s?!.,，/]+", "", query):
+        return []
+    return [shop for shop in shops if shop["category"] in categories]
+
+
 def is_recommendation_question(question):
     query = _normalize(question)
     return any(_normalize(term) in query for term in (
@@ -119,12 +152,30 @@ def is_recommendation_question(question):
 
 
 def select_search_candidates(question, shops, tags):
-    if is_recommendation_question(question):
+    broad = broad_category_shops(question, shops)
+    if broad:
+        return broad
+    exclusion = re.split(r"말고|빼고|제외하고|아닌", question, maxsplit=1)
+    if len(exclusion) == 2:
+        excluded_categories = {shop["category"] for shop in broad_category_shops(exclusion[0], shops)}
+        positive = select_shops(exclusion[1], shops, tags)
+        if excluded_categories and positive:
+            return [shop for shop in positive if shop["category"] not in excluded_categories]
+    semantic = is_recommendation_question(question) or any(term in question.lower() for term in (
+        "먹", "마실", "선물", "살 수", "사고 싶", "파는", "구매", "what to eat"))
+    if semantic:
         # Situation-based recommendations may have no literal keyword match.
         # Let the LLM judge the map catalog, with direct matches listed first.
-        matched = select_shops(question, shops, tags, limit=None)
+        query = _normalize(question)
+        food_query = any(_normalize(term) in query for term in (
+            "먹", "식당", "음식", "식사", "간식", "브런치", "restaurant", "what to eat", "nhà hàng", "quán ăn"))
+        mixed_request = any(_normalize(term) in query for term in ("옷", "의류", "미용", "약", "수선", "문구", "잡화", "숙박"))
+        # Broad food alternatives can include ready-to-eat shops categorized as
+        # meat/fish/groceries, but a salon or pharmacy is never a meal alternative.
+        pool = [shop for shop in shops if shop["category"] not in ("잡화", "서비스업")] if food_query and not mixed_request else shops
+        matched = select_shops(question, pool, tags, limit=None)
         matched_ids = {shop["id"] for shop in matched}
-        return matched + [shop for shop in shops if shop["id"] not in matched_ids]
+        return matched + [shop for shop in pool if shop["id"] not in matched_ids]
     return select_shops(question, shops, tags)
 
 
@@ -139,6 +190,22 @@ def warm_food_recommendation_priorities(question, shops):
     preferred_ids = ("585:28762", "585:28790", "585:28803", "585:28874")
     by_id = {shop["id"]: shop for shop in shops}
     return [by_id[shop_id] for shop_id in preferred_ids if shop_id in by_id]
+
+
+def required_recommendation_shops(question, shops):
+    """Repair omissions only for the existing unconstrained rainy/warm-food guide.
+
+    Any leftover constraint/product/count leaves selection entirely to the model.
+    """
+    preferred = warm_food_recommendation_priorities(question, shops)
+    if not preferred:
+        return []
+    query = _normalize(question)
+    terms = ("비가 오는 날", "비 오는 날", "따뜻한", "따뜻하게", "음식", "먹거리", "먹을", "추천해 주세요",
+             "추천해줘요", "추천해줘", "추천", "대조시장", "시장에서", "좀", "해줘", "주세요")
+    for term in sorted(terms, key=lambda value: len(_normalize(value)), reverse=True):
+        query = query.replace(_normalize(term), "")
+    return [] if re.sub(r"[?!.,，]+", "", query) else preferred
 
 
 def format_chat_message(message):
@@ -160,90 +227,75 @@ def format_chat_message(message):
     return message
 
 
+def parse_model_response(raw):
+    """Recover complete card objects if generation stops partway through items.
+
+    Never invent a missing message or ID. The caller still validates every ID
+    against current candidates and removes duplicates before returning cards.
+    """
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    try:
+        return json.loads(match.group() if match else raw)
+    except json.JSONDecodeError:
+        message_field = re.search(r'"chat_message"\s*:\s*', raw)
+        items_field = re.search(r'"items"\s*:\s*\[', raw)
+        if not message_field or not items_field or message_field.start() > items_field.start():
+            raise
+        decoder = json.JSONDecoder()
+        message, _ = decoder.raw_decode(raw[message_field.end():])
+        if not isinstance(message, str) or not message.strip():
+            raise ValueError("Incomplete kiosk message")
+        remaining = raw[items_field.end():].lstrip()
+        items = []
+        while remaining.startswith("{"):
+            try:
+                item, end = decoder.raw_decode(remaining)
+            except json.JSONDecodeError:
+                break
+            if not isinstance(item, dict) or not isinstance(item.get("target_id"), str):
+                raise ValueError("Invalid incomplete kiosk card")
+            items.append(item)
+            remaining = remaining[end:].lstrip()
+            if not remaining.startswith(","):
+                break
+            remaining = remaining[1:].lstrip()
+        if not items:
+            raise ValueError("No complete kiosk cards to recover")
+        return {"chat_message": message, "result": {"items": items}}
+
+
 def build_search_prompt(intent, question, language, shops, tags):
     candidates = select_search_candidates(question, shops, tags)
-    recommendation = is_recommendation_question(question)
+    recommendation = is_recommendation_question(question) or len(candidates) > 20
     response_language = {"vi": "Vietnamese", "en": "English"}.get(language, "Korean")
     public_fields = ("id", "name", "category", "section", "description", "keywords", "tags")
-    detailed = select_shops(question, shops, tags) if recommendation else candidates
-    compact = [{key: shop[key] for key in public_fields if shop.get(key)} for shop in detailed]
-    # The full catalog provides semantic choices without copying every admin
-    # description into the local model's limited context window.
-    catalog = [{key: shop[key] for key in ("id", "name", "category")} for shop in candidates] if recommendation else []
-    warm_food_priorities = [
-        {key: shop[key] for key in public_fields if shop.get(key)}
-        for shop in warm_food_recommendation_priorities(question, candidates)
-    ]
-    tag_context = [{key: tag[key] for key in ("name", "keywords") if tag.get(key)} for tag in tags]
+    broad = broad_category_shops(question, shops)
+    # Compact rows retain evidence for EVERY semantic candidate without duplicating
+    # the full catalog in two sections of the local model's context window.
+    fields = ("id", "name", "category") if broad else (
+        ("id", "name", "category", "description", "clues") if recommendation else public_fields)
+    rows = []
+    for shop in candidates:
+        evidence = dict(shop)
+        # Indexing often repeats the name/category/description verbatim. Keep
+        # novel evidence for every shop instead of paying the token cost twice.
+        existing = _normalize(" ".join(str(shop.get(key) or "") for key in ("name", "category", "description")))
+        evidence["keywords"] = ",".join(term.strip() for term in re.split(r"[,，]", shop.get("keywords") or "")
+                                         if term.strip() and _normalize(term.strip()) not in existing)
+        evidence["tags"] = [tag for tag in shop.get("tags") or [] if _normalize(tag) not in existing]
+        evidence["clues"] = ",".join(filter(None, [evidence["keywords"], *evidence["tags"]]))
+        rows.append([evidence.get(key) or "" for key in fields])
+    priorities = [shop["id"] for shop in warm_food_recommendation_priorities(question, candidates)]
     result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
-    return f"""You are the Daejo Market kiosk guide.
-The response language for this question is {response_language}. Write the entire chat_message in
-{response_language}: English questions get English answers, Vietnamese questions get Vietnamese
-answers, and Korean questions get Korean answers. For short or mixed-language questions, use the
-selected kiosk language supplied as the response language.
-Translate all explanatory text, including uncertainty and price-unavailable messages, into the
-response language. Keep proper shop names in Korean exactly as supplied; never translate them.
-Keep JSON keys, intent values, status, and map IDs exactly as specified below.
-chat_message must be plain text of at most 85 characters, INCLUDING spaces and punctuation,
-in every response language. Write only one or two short, helpful explanatory sentences.
-Speak like a warm, patient market guide helping a visitor face to face.
-Use friendly, natural polite language, never terse fragments or bureaucratic wording.
-For Korean, prefer gentle 해요체 endings such as "찾아드릴게요", "확인해 보세요",
-and "가게에 물어보시면 좋겠어요". Avoid stiff endings such as "확인할 수 없습니다".
-For English and Vietnamese, use similarly warm, respectful, conversational wording.
-Give the useful answer first, then a gentle next step when it helps. Avoid repetitive greetings,
-excessive apologies, exclamation marks, and invented reassurance about products or stock.
-Finish every sentence with a natural complete ending and punctuation. Never use ellipses
-or stop mid-sentence to fit the limit; rewrite more briefly while keeping the key information.
-Korean style examples (use only when supported by the supplied data):
-"찾으시는 가게를 안내해 드릴게요. 아래에서 가게를 선택해 보세요."
-"판매 여부는 아직 확인되지 않았어요. 아래 가게에 물어보시면 좋겠어요."
-Do not append shop lists, bullet points, numbered lists, markdown, match classifications,
-or labels such as [카테고리 매치], [검색 매치], [Category match], or [Search match].
-Put recommended shops only in result.items. Do not append their names or map sections
-as a list inside chat_message. Shop cards are displayed separately by the kiosk.
-The user's intent has already been classified. Do not change the intent: {result_intent}.
-Use ONLY the supplied kiosk map and admin data. A category or keyword means a search match,
-NOT proof that a product is sold or in stock. Descriptions are the only evidence for detailed offerings.
-If a product is mentioned only through a category match, explicitly say its seller is unconfirmed;
-offer those shops as places to ask, never say the product can be bought there.
-Search keywords are private indexing data; do not display them to the user.
-Never invent prices, opening hours, floor numbers, travel distances, routes, or inventory.
-For menu/price/total-price questions, the old ordering menu is NOT available. Only the current admin
-description may prove a price and its selling unit. If it does not, say the price or total cannot be
-verified from current data; do not repeat remembered prices or calculate a total.
-Even when a price is unavailable, include a matching shop's map ID in items so the kiosk can show it.
-If no candidate supports the request, explain what is unknown and return an empty items array.
-For recommendations and broad category requests, include as many genuinely relevant shops as
-the supplied data supports in result.items. Do not arbitrarily stop at one, three, or five shops.
-Review every supplied candidate and include all suitable alternatives, ordered by relevance:
-direct offering/description matches first, then related categories and useful alternatives.
-For situational requests (weather, a snack, a meal, a gift, or a visitor's preferences), judge
-the meaning of the request using the map catalog and the detailed admin evidence; an exact
-keyword overlap is not required. Include different relevant choices so the visitor can compare.
-For rainy-day warm-food recommendations, consider steamed dumplings, porridge, pancakes,
-and noodle dishes together; do not reduce the choices to only soup or only pancakes.
-When [Rainy-day warm-food priority shops] is nonempty, include ALL of those shops in
-result.items first, in the supplied order, unless the user explicitly excludes an option
-or requests fewer recommendations. These are curated relevant choices from the current map.
-An explicit requested count overrides the priority list and additional recommendations:
-for "한 곳만", "하나만", or "one", return exactly ONE result.items entry, with no alternatives.
-Then add other genuinely relevant shops; the priority list is not a maximum result count.
-Use the supplied descriptions for offering claims and never infer current stock or prices.
-Never add unrelated shops merely to increase the count. Respect explicit exclusions, conditions,
-and any number of recommendations requested by the user. If only one shop is relevant, return one.
-When suitability is inferred only from a name or category, describe it as a place to check;
-do not invent menus, stock, quality, popularity, or claims such as "best" or "cheapest".
-The 85-character limit applies only to chat_message, not to the number of result.items.
-Use category and direct search matches internally; never display these classifications in chat_message.
-For a named shop, prefer an exact name match and use its map ID. If names are ambiguous, say so.
-For location requests, give the map section and return target_id; the frontend draws the actual route.
-Configured search tags use comma-separated OR terms, like the frontend search.
-Return ONLY valid JSON, with no markdown or extra fields:
-{{"user_message": {json.dumps(question, ensure_ascii=False)}, "chat_message": "answer", "result": {{"status": "success", "intent": "{result_intent}", "items": [{{"target_id": "map ID"}}]}}}}
-Use only IDs from the candidate data. For no match use items: [].
-
-[Visible search tags] {json.dumps(tag_context, ensure_ascii=False)}
-[Rainy-day warm-food priority shops] {json.dumps(warm_food_priorities, ensure_ascii=False)}
-[Recommendation map catalog] {json.dumps(catalog, ensure_ascii=False, separators=(',', ':'))}
-[Relevant map shops with admin overrides] {json.dumps(compact, ensure_ascii=False)}"""
+    contract = {"user_message": question, "chat_message": "answer", "result": {
+        "status": "success", "intent": result_intent, "items": [{"target_id": "map ID"}]}}
+    instructions = Path(__file__).with_name("kiosk_search_prompt.txt").read_text(encoding="utf-8")
+    return instructions + "\n" + "\n".join((
+        "Response language: " + response_language,
+        "Required intent: " + result_intent,
+        "JSON schema example: " + json.dumps(contract, ensure_ascii=False),
+        "[Visible search tags] " + json.dumps(tags, ensure_ascii=False, separators=(",", ":")),
+        "[Rainy-day warm-food priority shops] " + json.dumps(priorities),
+        "[Shop row fields] " + json.dumps(fields),
+        "[Candidate rows] " + json.dumps(rows, ensure_ascii=False, separators=(",", ":")),
+    ))

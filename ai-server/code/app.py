@@ -15,6 +15,7 @@ from jamo import hangul_to_jamo
 import Levenshtein
 import langdetect
 import re
+import random
 from dotenv import load_dotenv
 from pathlib import Path
 import time
@@ -23,7 +24,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
 from tts_voice_reference import build_voice_reference
-from kiosk_search_context import build_search_prompt, format_chat_message, is_recommendation_question, load_kiosk_context, select_search_candidates
+from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, load_kiosk_context, parse_model_response, required_recommendation_shops, select_search_candidates
 
 
 # ==========================================
@@ -289,11 +290,10 @@ def answer_from_current_kiosk_data(intent, text, language):
     candidates = select_search_candidates(text, shops, tags)
     raw = generate_json_response(
         build_search_prompt(intent, text, language, shops, tags), text,
-        max_tokens=2048 if is_recommendation_question(text) else 1200,
+        max_tokens=max(1200, min(8192, 256 + len(candidates) * 40)),
     )
     try:
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        answer = json.loads(match.group() if match else raw)
+        answer = parse_model_response(raw)
     except (TypeError, ValueError):
         return raw
     if not isinstance(answer, dict) or "error" in answer:
@@ -314,6 +314,15 @@ def answer_from_current_kiosk_data(intent, text, language):
     if named and (intent in (2, 4) or not selected):
         selected = [{"target_id": shop["id"], "target_name": shop["name"]} for shop in named]
 
+    # Coverage for unconstrained categories must not depend on the model remembering
+    # every ID. Constrained/semantic requests still use the model's relevance judgment.
+    broad = broad_category_shops(text, shops)
+    if broad:
+        selected = [{"target_id": shop["id"], "target_name": shop["name"]} for shop in broad]
+    for shop in required_recommendation_shops(text, candidates):
+        if shop["id"] not in {item["target_id"] for item in selected}:
+            selected.append({"target_id": shop["id"], "target_name": shop["name"]})
+
     message = answer.get("chat_message") if isinstance(answer.get("chat_message"), str) else ""
     selected_shops = [candidate_by_id[item["target_id"]] for item in selected]
     price_pattern = r"(?:₩\s*\d|\d[\d,]*\s*(?:원|₩|krw|vnd|동))"
@@ -332,6 +341,10 @@ def answer_from_current_kiosk_data(intent, text, language):
 
     message = format_chat_message(message)
 
+    # Shuffle once per response so repeated searches vary the card order while
+    # keeping the validated matches and requested result count intact.
+    random.shuffle(selected)
+
     result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
     return json.dumps({
         "user_message": text,
@@ -348,10 +361,13 @@ def detect_intent(text):
     prompt = """
 다음 문장의 의도를 분석하여 숫자(1~4)만 반환하세요. 다른 말은 절대 하지 마세요.
 
-1. 가게/카테고리 요청: 특정 가게를 보여달라거나 업종·상품으로 가게를 추천/검색할 때. (ex: 키위 사려는데 어느 가게에서 살 수 있나요? 주변식당 찾아줘, Find a restaurant near me)
-2. 메뉴/주문 관련: 특정 메뉴의 가격을 묻거나, 메뉴 추천을 원할 때. (ex: 키위 사려는데 얼마인가요?)
+1. 가게/카테고리 요청: 특정 가게 안내, 업종·상품·음식 추천과 검색. 상황이나 식단·알레르기 조건이 있는 음식/간식 추천도 모두 1번. (ex: 비 오는 날 따뜻한 음식 추천해줘, 땅콩 알레르기 간식 추천, 주변식당 찾아줘, Find a restaurant near me)
+2. 메뉴/가격 정보: 이름을 지정한 가게의 메뉴 목록이나 특정 상품의 가격을 물을 때. 음식 추천은 1번. (ex: 행운손만두 메뉴 알려줘, 키위 얼마인가요?)
 3. 위치/길찾기: 이름이 지정된 가게의 위치나 길찾기를 물을 때만. '주변식당 찾아줘'처럼 업종 검색은 1번
 4. 총 가격 문의: 각 메뉴들을 샀을 때의 총 가격을 요청할 때
+
+키오스크 범위를 벗어난 일반 질문, 주문/결제/예약/배달 실행 요청, 판단이 모호한 문장은 1번으로 분류하세요.
+실행 가능 여부와 대안 안내는 응답 단계에서 처리합니다. 단순 계산 문제는 상품 총액 문의가 아니므로 1번입니다.
 
 입력:
 """
@@ -366,7 +382,7 @@ def detect_intent(text):
             temperature=0.0,
             max_tokens=8,
         )
-        match = re.search(r'\d', intent_str)
+        match = re.search(r'[1-4]', intent_str)
         if match:
             return int(match.group())
         raise ValueError(f"로컬 LLM 의도 분류 결과에 숫자가 없습니다: {intent_str}")
@@ -383,13 +399,13 @@ def detect_intent(text):
             temperature=0.0,
             max_tokens=5,
         )
-        match = re.search(r'\d', intent_str)
+        match = re.search(r'[1-4]', intent_str)
         if match:
             return int(match.group())
     except Exception as openai_error:
         logging.error(f"OpenAI intent fallback failed: {openai_error}")
 
-    return 4
+    return 1
 
 
 def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
@@ -413,9 +429,7 @@ def generate_json_response(system_prompt, text, max_tokens=1200):
         )
 
         # JSON 형식까지 정상일 때만 로컬 응답을 사용한다.
-        json_match = re.search(r'\{.*\}', local_response, re.DOTALL)
-        json.loads(json_match.group() if json_match else local_response)
-        return local_response
+        return json.dumps(parse_model_response(local_response), ensure_ascii=False)
     except Exception as local_error:
         logging.warning(
             "Local response generation failed; falling back to OpenAI: %s",

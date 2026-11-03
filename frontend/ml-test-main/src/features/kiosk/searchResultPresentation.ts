@@ -4,6 +4,15 @@ export type ResultSortMode = "relevance" | "distance";
 export type SearchResult = { shop: Shop; number: number; distanceMeters: number };
 export const RESULT_PAGE_SIZE = 6;
 
+export function shuffleSearchMatches<T>(matches: T[], random = Math.random): T[] {
+  const result = [...matches];
+  for (let index = result.length - 1; index > 0; index--) {
+    const other = Math.floor(random() * (index + 1));
+    [result[index], result[other]] = [result[other], result[index]];
+  }
+  return result;
+}
+
 export function getSearchResultPresentation(shops: Shop[], sortMode: ResultSortMode, distanceForShop: (shop: Shop) => number): SearchResult[] {
   const results = shops.map((shop, relevanceIndex) => ({ shop, relevanceIndex, distanceMeters: distanceForShop(shop) }));
   if (sortMode === "distance") results.sort((a, b) => a.distanceMeters - b.distanceMeters || a.relevanceIndex - b.relevanceIndex);

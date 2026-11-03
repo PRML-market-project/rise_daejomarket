@@ -419,8 +419,8 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const viewHeight = containerSize.height / mapScale;
   const constrainedCenter = constrainCoveredMapCenter(center, mapScale, containerSize, 0, bottomOverlayHeight);
   const viewBox = `${constrainedCenter.x - viewWidth / 2} ${constrainedCenter.y - viewHeight / 2} ${viewWidth} ${viewHeight}`;
-  const locationScale = initialOverview ? Math.max(1, mapScale / 0.6) : mapScale / 0.6;
-  const bubbleSize = { width: locationBubbleSize.width * locationScale, height: locationBubbleSize.height * locationScale };
+  // The current-location overlay keeps its screen size at every map zoom level.
+  const bubbleSize = locationBubbleSize;
   const numberedMarkerTargets = numberedShops.map(({ shop, number }) => {
     const candidates = getShopNumberMarkers(shop).map(point => ({ x: containerSize.width / 2 + (point.x - constrainedCenter.x) * mapScale, y: containerSize.height / 2 + (point.y - constrainedCenter.y) * mapScale })) as [Point, Point];
     return { id: shop.id, number, ...candidates[0], candidates, preferredAxis: getShopNumberMarkerAxis(shop) };
@@ -428,7 +428,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const markerLayouts = getResultMapMarkerLayouts(numberedMarkerTargets, containerSize, topOverlayHeight, visibleBottomOverlayHeight, [
     { x: containerSize.width - 128, y: containerSize.height - bottomOverlayHeight - 192, width: 128, height: 192 },
   ], selectedShop?.id, {
-    id: "current-location", ...bubbleSize, tail: locationScale * 12.658,
+    id: "current-location", ...bubbleSize, tail: 12.658,
     targets: [ORIGINAL_LOCATION_TIP, CURRENT_LOCATION].map(point => ({ x: containerSize.width / 2 + (point.x - constrainedCenter.x) * mapScale, y: containerSize.height / 2 + (point.y - constrainedCenter.y) * mapScale })),
   }, markerPositionsRef.current);
   const locationMarker = markerLayouts.location!;
@@ -636,7 +636,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       </button>;
     })}
     {(() => {
-      const tailRadius = 14.305 / Math.SQRT2 * locationScale;
+      const tailRadius = 14.305 / Math.SQRT2;
       const tailAngle = locationMarker.angle * Math.PI / 180;
       const tailStyle: React.CSSProperties = {
         left: locationMarker.arrowTip.x - Math.cos(tailAngle) * tailRadius - locationMarker.x - tailRadius,
@@ -645,10 +645,10 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       };
       return <div className="pointer-events-none absolute z-10 drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]" style={{ left: locationMarker.x, top: locationMarker.y }} data-location-side={locationMarker.candidateIndex} data-location-tail={locationMarker.side} data-location-offscreen={locationMarker.offscreen} data-location-tracking={locationMarker.tracking} data-location-angle={locationMarker.angle}>
       <div className="absolute flex items-center justify-center" style={tailStyle}>
-        <img src="/figma/results/current-location-tail-orange.svg" alt="" className="block shrink-0 max-w-none" style={{ transform: `scale(${locationScale}) rotate(${locationMarker.angle + 225}deg)` }} />
+        <img src="/figma/results/current-location-tail-orange.svg" alt="" className="block shrink-0 max-w-none" style={{ transform: `rotate(${locationMarker.angle + 225}deg)` }} />
       </div>
       <div style={{ width: bubbleSize.width, height: bubbleSize.height }}>
-        <div ref={locationBubbleRef} className="relative w-max min-w-[104.497px] origin-top-left whitespace-nowrap rounded-[7.166px] bg-[#ff5e00] px-[10.748px] py-[4.478px] text-center font-['Kiosk_Map_Pretendard',sans-serif] text-[32px] font-bold leading-[38px] text-white" style={{ transform: `scale(${locationScale})` }}>{t("현위치")}</div>
+        <div ref={locationBubbleRef} className="relative w-max min-w-[104.497px] whitespace-nowrap rounded-[7.166px] bg-[#ff5e00] px-[10.748px] py-[4.478px] text-center font-['Kiosk_Map_Pretendard',sans-serif] text-[32px] font-bold leading-[38px] text-white">{t("현위치")}</div>
       </div>
       </div>;
     })()}

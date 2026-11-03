@@ -16,7 +16,7 @@ import { searchKioskWithAi } from "./kioskAiSearch";
 import { useKioskSpeech } from "./useKioskSpeech";
 import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
 import { CompatibleMotion, DesignMotion, VoiceMotionButton } from "./DesignMotion";
-import { getSearchResultPage, getSearchResultPresentation, type ResultSortMode } from "./searchResultPresentation";
+import { getSearchResultPage, getSearchResultPresentation, shuffleSearchMatches, type ResultSortMode } from "./searchResultPresentation";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
@@ -26,6 +26,7 @@ type Language = "ko" | "en" | "vi";
 const DESIGN_WIDTH = 1080;
 const DESIGN_HEIGHT = 1920;
 const INACTIVITY_TIMEOUT_MS = 30_000;
+const VOICE_SILENCE_TIMEOUT_MS = 2_000;
 const GREEN = "linear-gradient(105deg, #289064 0%, #116543 82%)";
 
 type KeyboardLayout = "ko" | "en" | "number";
@@ -469,6 +470,11 @@ export default function KioskSearchApp() {
   const [tagSearch, setTagSearch] = useState<{ name: string; keywords: string } | null>(null);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
+  const cancelVoiceRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (screen !== "search" || mode !== "voice") cancelVoiceRef.current?.();
+    return () => cancelVoiceRef.current?.();
+  }, [screen, mode, language]);
   const [handwritingResetKey, setHandwritingResetKey] = useState(0);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [resultSortMode, setResultSortMode] = useState<ResultSortMode>("relevance");
@@ -519,14 +525,14 @@ export default function KioskSearchApp() {
         정육청과수산: ["정육", "청과", "수산"],
         음식점: ["식당"], 주변식당: ["식당"], 식당찾기: ["식당"],
       };
-      return effectiveShops.filter((shop, index) => {
+      return shuffleSearchMatches(effectiveShops.filter((shop, index) => {
         const categories = [shop.category, marketShops[index]?.category, ...(shop.tags ?? [])].map(normalize);
         const source = [shop.name, shop.description, shop.searchKeywords, ...(shop.tags ?? [])].filter((value): value is string => Boolean(value)).map(normalize);
         return terms.some((term) => {
           const categoryTerms = categoryGroups[term] ?? [term];
           return categoryTerms.some((category) => categories.includes(category)) || source.some((text) => text.includes(term));
         });
-      }).slice(0, 12);
+      }));
   }, [effectiveShops, tagSearch]);
 
   const resultShops = useMemo(() => {
@@ -618,26 +624,81 @@ export default function KioskSearchApp() {
   }, [mode, voiceState]);
 
   const startVoice = () => {
+    cancelVoiceRef.current?.();
     setVoiceState("listening");
     setTranscript("");
+    setQuery("");
     const SpeechRecognition = (window as typeof window & { webkitSpeechRecognition?: new () => any; SpeechRecognition?: new () => any }).SpeechRecognition
       || (window as typeof window & { webkitSpeechRecognition?: new () => any }).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      window.setTimeout(() => setVoiceState("error"), 900);
+      setVoiceState("error");
       return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = { ko: "ko-KR", en: "en-US", vi: "vi-VN" }[language];
-    recognition.interimResults = true;
-    recognition.onresult = (event: any) => {
-      const text = Array.from(event.results).map((result: any) => result[0].transcript).join("");
-      setTranscript(text);
-      setVoiceState(event.results[event.results.length - 1].isFinal ? "confirmed" : "recognizing");
-      if (event.results[event.results.length - 1].isFinal) setQuery(text);
+    let silenceTimer: number | undefined;
+    let latestText = "";
+    let stopping = false;
+    let cancelled = false;
+    const clearSilenceTimer = () => {
+      window.clearTimeout(silenceTimer);
+      silenceTimer = undefined;
     };
-    recognition.onerror = () => setVoiceState("error");
-    recognition.onend = () => setVoiceState((current) => current === "listening" ? "error" : current);
-    recognition.start();
+    const confirmTranscript = () => {
+      setQuery(latestText);
+      setVoiceState(latestText.trim() ? "confirmed" : "error");
+    };
+    const scheduleSilenceStop = () => {
+      clearSilenceTimer();
+      if (stopping || cancelled) return;
+      silenceTimer = window.setTimeout(() => {
+        silenceTimer = undefined;
+        stopping = true;
+        recognition.stop();
+        confirmTranscript();
+      }, VOICE_SILENCE_TIMEOUT_MS);
+    };
+    const cancel = () => {
+      cancelled = true;
+      clearSilenceTimer();
+      recognition.abort();
+      if (cancelVoiceRef.current === cancel) cancelVoiceRef.current = null;
+    };
+    cancelVoiceRef.current = cancel;
+    recognition.lang = { ko: "ko-KR", en: "en-US", vi: "vi-VN" }[language];
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onstart = scheduleSilenceStop;
+    recognition.onspeechstart = clearSilenceTimer;
+    recognition.onspeechend = scheduleSilenceStop;
+    recognition.onresult = (event: any) => {
+      if (cancelled) return;
+      const text = Array.from(event.results).map((result: any) => result[0].transcript).join("");
+      latestText = text;
+      setTranscript(text);
+      if (stopping) confirmTranscript();
+      else {
+        setVoiceState("recognizing");
+        scheduleSilenceStop();
+      }
+    };
+    recognition.onerror = () => {
+      if (cancelled) return;
+      stopping = true;
+      clearSilenceTimer();
+      setVoiceState("error");
+    };
+    recognition.onend = () => {
+      clearSilenceTimer();
+      if (cancelled) return;
+      if (cancelVoiceRef.current === cancel) cancelVoiceRef.current = null;
+      if (!stopping) confirmTranscript();
+    };
+    try {
+      recognition.start();
+    } catch {
+      cancel();
+      setVoiceState("error");
+    }
   };
 
   const submit = () => {
@@ -654,7 +715,7 @@ export default function KioskSearchApp() {
 
   const searchTag = (tag: { name: string; keywords: string }) => {
     setQuery("");
-    setTagSearch(tag);
+    setTagSearch({ ...tag });
     setSelectedShopId(null);
     setResultSortMode("relevance");
     setResultPage(1);
@@ -669,6 +730,7 @@ export default function KioskSearchApp() {
   };
 
   const clearInput = () => {
+    cancelVoiceRef.current?.();
     setQuery("");
     setTranscript("");
     setVoiceState("idle");
@@ -797,7 +859,7 @@ export default function KioskSearchApp() {
 
                 {mode === "voice" ? (
                   <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
-                    <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={() => setVoiceState("idle")} />
+                    <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={clearInput} />
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
                       <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
                       <PrimaryButton disabled={voiceState !== "confirmed" || !query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
