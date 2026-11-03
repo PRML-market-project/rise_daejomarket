@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Shop } from "../../types/shop";
 import { mapBackgroundUrl, mapLabelsUrl, mapShopLabels } from "../../data/mapShopLabels";
+import { CORE_MAP_SIZE, MAP_BACKGROUND_COLOR, mapUnderlayAssets, mapOverlayAssets, replacedCoreLandmarks, SUBWAY_LINE } from "../../data/mapArtwork";
 import { CURRENT_LOCATION, ORIGINAL_LOCATION_TIP, LOCATION_LABEL, getLocalMapPoint, reflectPointAcrossCenter, type MarkerPosition, type MarkerAxis } from "./locationMarker";
 import { useKioskLocale } from "../../features/kiosk/i18n";
-import { constrainCoveredMapCenter, getMapOverviewCamera, getResultMapMarkerLayouts } from "./mapOverview";
+import { MAP_SIZE, constrainCoveredMapCenter, getMapOverviewCamera, getResultMapMarkerLayouts } from "./mapOverview";
 
 interface Point { x: number; y: number }
 interface IconCell { x: number; y: number; width: number; height: number }
@@ -11,8 +12,6 @@ interface HitArea { x: number; y: number; width: number; height: number }
 interface RotatedIconCell extends IconCell { rotation: number; originX: number; originY: number }
 type MapViewProps = { shops?: Shop[]; iconShops?: Shop[]; selectedShop?: Shop | null; onSelectShop?: (id: string) => void; showRoute?: boolean; selectedViewportY?: number; bottomOverlayHeight?: number; topOverlayHeight?: number; initialOverview?: boolean; overviewBottomPadding?: number; numberedShops?: Array<{ shop: Shop; number: number }> };
 
-const MAP_WIDTH = 6807;
-const MAP_HEIGHT = 10577;
 const MAIN_AISLE_X = 4920;
 const ROUTE_ORIGIN: Point = { x: MAIN_AISLE_X, y: 4291.5 };
 const SOUTH_AISLE_Y = 9247.5;
@@ -393,6 +392,7 @@ export function getRouteDirectionForShop(shop: Shop): RouteGuidanceDirection {
 
 export function MapView({ shops = [], iconShops = shops, selectedShop = null, onSelectShop, showRoute = false, selectedViewportY = 0.5, bottomOverlayHeight = 0, topOverlayHeight = 0, initialOverview = false, overviewBottomPadding = 0, numberedShops = [] }: MapViewProps) {
   const { t } = useKioskLocale();
+  const coreMapMaskId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const locationBubbleRef = useRef<HTMLDivElement>(null);
   const markerPositionsRef = useRef<Record<string, MarkerPosition>>({});
@@ -411,13 +411,13 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   }, [selectedShop, showRoute]);
   const mapScale = (labelPt * CSS_PIXELS_PER_POINT) / SOURCE_LABEL_HEIGHT;
   const visibleBottomOverlayHeight = bottomOverlayHeight + overviewBottomPadding;
-  const overviewCamera = getMapOverviewCamera(containerSize, 0, bottomOverlayHeight);
+  const overviewCamera = getMapOverviewCamera(containerSize, topOverlayHeight, visibleBottomOverlayHeight);
   const minLabelPt = initialOverview ? Math.min(MIN_LABEL_PT, overviewCamera.scale * SOURCE_LABEL_HEIGHT / CSS_PIXELS_PER_POINT) : MIN_LABEL_PT;
   const mapScaleRef = useRef(mapScale);
   mapScaleRef.current = mapScale;
   const viewWidth = containerSize.width / mapScale;
   const viewHeight = containerSize.height / mapScale;
-  const constrainedCenter = constrainCoveredMapCenter(center, mapScale, containerSize, 0, bottomOverlayHeight);
+  const constrainedCenter = constrainCoveredMapCenter(center, mapScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
   const viewBox = `${constrainedCenter.x - viewWidth / 2} ${constrainedCenter.y - viewHeight / 2} ${viewWidth} ${viewHeight}`;
   // The current-location overlay keeps its screen size at every map zoom level.
   const bubbleSize = locationBubbleSize;
@@ -467,7 +467,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     if (!selectedMarker) {
       if (initialOverview && containerSize.width > 1 && containerSize.height > 1) {
         cancelCameraAnimation();
-        const overview = getMapOverviewCamera(containerSize, 0, bottomOverlayHeight);
+        const overview = getMapOverviewCamera(containerSize, topOverlayHeight, visibleBottomOverlayHeight);
         setCenter(overview.center);
         setLabelPt(overview.scale * SOURCE_LABEL_HEIGHT / CSS_PIXELS_PER_POINT);
       }
@@ -478,7 +478,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     if (!showRoute || !routePoints || containerSize.width <= 1 || containerSize.height <= 1) {
       const initialMapScale = INITIAL_LABEL_PT * CSS_PIXELS_PER_POINT / SOURCE_LABEL_HEIGHT;
       const targetCenter = { x: selectedMarker.x - 120, y: selectedMarker.y + (0.5 - selectedViewportY) * containerSize.height / initialMapScale };
-      setCenter(constrainCoveredMapCenter(targetCenter, initialMapScale, containerSize, 0, bottomOverlayHeight));
+      setCenter(constrainCoveredMapCenter(targetCenter, initialMapScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight));
       setLabelPt(INITIAL_LABEL_PT);
       return;
     }
@@ -489,7 +489,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     }, 0);
     const duration = clamp(2200 + routeLength * 0.45, 2600, 6200);
     const panelOffsetY = bottomOverlayHeight / (2 * mapScaleRef.current);
-    const cameraCenterFor = (point: Point) => constrainCoveredMapCenter({ x: point.x, y: point.y + panelOffsetY }, mapScaleRef.current, containerSize, 0, bottomOverlayHeight);
+    const cameraCenterFor = (point: Point) => constrainCoveredMapCenter({ x: point.x, y: point.y + panelOffsetY }, mapScaleRef.current, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (prefersReducedMotion) {
@@ -524,7 +524,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       else {
         const nextScale = next * CSS_PIXELS_PER_POINT / SOURCE_LABEL_HEIGHT;
         const offsetChange = (visibleBottomOverlayHeight - topOverlayHeight) / 2 * (1 / nextScale - 1 / mapScale);
-        setCenter(current => constrainCoveredMapCenter({ ...current, y: current.y + offsetChange }, nextScale, containerSize, 0, bottomOverlayHeight));
+        setCenter(current => constrainCoveredMapCenter({ ...current, y: current.y + offsetChange }, nextScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight));
       }
     }
   }, [cancelCameraAnimation, initialOverview, minLabelPt, overviewCamera.center.x, overviewCamera.center.y, visibleBottomOverlayHeight, bottomOverlayHeight, topOverlayHeight, mapScale, containerSize]);
@@ -537,10 +537,10 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   }, [changeZoom, labelPt]);
 
   const panBy = useCallback((deltaX: number, deltaY: number) => setCenter((current) => {
-    const bounded = constrainCoveredMapCenter(current, mapScale, containerSize, 0, bottomOverlayHeight);
+    const bounded = constrainCoveredMapCenter(current, mapScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
     const next = { x: bounded.x - deltaX / mapScale, y: bounded.y - deltaY / mapScale };
-    return constrainCoveredMapCenter(next, mapScale, containerSize, 0, bottomOverlayHeight);
-  }), [mapScale, bottomOverlayHeight, containerSize]);
+    return constrainCoveredMapCenter(next, mapScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
+  }), [mapScale, topOverlayHeight, visibleBottomOverlayHeight, containerSize]);
   const updateGesture = useCallback(() => {
     const pointers = [...pointersRef.current.values()];
     if (pointers.length < 2) { gestureRef.current = pointers[0] ? { midpoint: pointers[0], distance: 0 } : null; return; }
@@ -578,7 +578,18 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name} · 대조시장 안내 지도` : "대조시장 안내 지도"}>
       <style>{`.route-static-arrow{display:none}@media (prefers-reduced-motion:reduce){.route-moving-arrow{display:none}.route-static-arrow{display:block}}`}</style>
-      <image href={mapBackgroundUrl} x="0" y="0" width={MAP_WIDTH} height={MAP_HEIGHT} preserveAspectRatio="none" pointerEvents="none" />
+      <g aria-hidden="true" pointerEvents="none">
+        <rect x="0" y="0" width={MAP_SIZE.width} height={MAP_SIZE.height} fill={MAP_BACKGROUND_COLOR} />
+        {mapUnderlayAssets.map(asset => <image key={asset.nodeId} href={asset.url} x={asset.x} y={asset.y} width={asset.width} height={asset.height} />)}
+        <defs><mask id={coreMapMaskId} maskUnits="userSpaceOnUse" x="0" y="0" width={CORE_MAP_SIZE.width} height={CORE_MAP_SIZE.height} style={{ maskType: "luminance" }}>
+          <rect x="0" y="0" width={CORE_MAP_SIZE.width} height={CORE_MAP_SIZE.height} fill="white" />
+          {replacedCoreLandmarks.map(region => <rect key={region.nodeId} x={region.x} y={region.y} width={region.width} height={region.height} fill="black" />)}
+        </mask></defs>
+        {replacedCoreLandmarks.map(region => <rect key={region.nodeId} x={region.x} y={region.y} width={region.width} height={region.height} fill={region.fill} />)}
+        <image href={mapBackgroundUrl} x="0" y="0" width={CORE_MAP_SIZE.width} height={CORE_MAP_SIZE.height} mask={`url(#${coreMapMaskId})`} />
+        <rect x={SUBWAY_LINE.x} y={SUBWAY_LINE.y} width={SUBWAY_LINE.width} height={SUBWAY_LINE.height} fill={SUBWAY_LINE.fill} />
+        {mapOverlayAssets.map(asset => <image key={asset.nodeId} href={asset.url} x={asset.x} y={asset.y} width={asset.width} height={asset.height} />)}
+      </g>
       <g aria-hidden="true" pointerEvents="none">
         {mapShopLabels.filter(label => label.shopId !== selectedShop?.id).map(label => (
           <use key={label.shopId} href={`${mapLabelsUrl}#${label.symbolId}`} data-shop-label={label.shopId} />

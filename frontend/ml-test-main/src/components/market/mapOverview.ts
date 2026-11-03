@@ -4,7 +4,10 @@ type Point = { x: number; y: number };
 type Size = { width: number; height: number };
 type Rect = Point & Size;
 
-export const MAP_SIZE = { width: 6807, height: 10577 };
+export const MAP_SIZE = { width: 9833, height: 12973 };
+// Center the market corridor, not the extra scenery below it. All shop and
+// route coordinates remain in the original Figma coordinate system.
+export const MAP_OVERVIEW_FOCUS = { x: MAP_SIZE.width / 2, y: (1579 + 9695) / 2 };
 export const RESULT_TAG_SIZE = { width: 62, height: 37 };
 type NumberedTarget = Point & { id: string; number: number; candidates?: [Point, Point]; preferredAxis?: MarkerAxis };
 
@@ -12,7 +15,8 @@ type NumberedTarget = Point & { id: string; number: number; candidates?: [Point,
 export function getMapOverviewCamera(viewport: Size, top: number, bottom: number) {
   const availableHeight = Math.max(1, viewport.height - top - bottom);
   const scale = Math.max(viewport.width / MAP_SIZE.width, availableHeight / MAP_SIZE.height);
-  return { scale, center: { x: MAP_SIZE.width / 2, y: MAP_SIZE.height / 2 + (bottom - top) / (2 * scale) } };
+  const center = { x: MAP_OVERVIEW_FOCUS.x, y: MAP_OVERVIEW_FOCUS.y + (bottom - top) / (2 * scale) };
+  return { scale, center: constrainCoveredMapCenter(center, scale, viewport, top, bottom) };
 }
 
 /** Keep the map covering the viewport while panning or changing zoom. */

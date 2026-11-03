@@ -21,6 +21,7 @@ try {
   await copyFile(path.join(mapSource, "locationMarker.ts"), path.join(mapComponentDestination, "locationMarker.ts"));
   await copyFile(path.join(mapSource, "mapOverview.ts"), path.join(mapComponentDestination, "mapOverview.ts"));
   await copyFile(path.join(path.dirname(source), "mapShopLabels.ts"), path.resolve(adminRoot, "src/data/mapShopLabels.ts"));
+  await copyFile(path.join(path.dirname(source), "mapArtwork.ts"), path.resolve(adminRoot, "src/data/mapArtwork.ts"));
   const fontsSource = path.resolve(adminRoot, "../frontend/ml-test-main/public/fonts");
   const fontsDestination = path.resolve(adminRoot, "public/fonts");
   await mkdir(fontsDestination, { recursive: true });
@@ -39,6 +40,9 @@ try {
   await mkdir(iconsDestination, { recursive: true });
   await mkdir(mapDestination, { recursive: true });
   for (const file of await readdir(iconsSource)) {
+    if (/^(map-(extended-|additional-)|subway-).*\.svg$/.test(file)) {
+      await copyFile(path.join(iconsSource, file), path.join(mapDestination, file));
+    }
     if (/^figma-.*-icon\.svg$/.test(file)) {
       await copyFile(path.join(iconsSource, file), path.join(iconsDestination, file));
       await copyFile(path.join(iconsSource, file), path.join(mapDestination, file));

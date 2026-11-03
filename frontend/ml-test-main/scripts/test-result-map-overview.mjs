@@ -12,7 +12,7 @@ async function loadModule(path, dependencies = {}) {
   return import(url);
 }
 const { getLocationMarkerPosition, CURRENT_LOCATION, ORIGINAL_LOCATION_TIP } = await loadModule("../src/components/market/locationMarker.ts");
-const { MAP_SIZE, getMapOverviewCamera, constrainCoveredMapCenter, getNumberedMarkerLayouts, getResultMapMarkerLayouts } = await loadModule("../src/components/market/mapOverview.ts", { "./locationMarker": "../src/components/market/locationMarker.ts" });
+const { MAP_SIZE, MAP_OVERVIEW_FOCUS, getMapOverviewCamera, constrainCoveredMapCenter, getNumberedMarkerLayouts, getResultMapMarkerLayouts } = await loadModule("../src/components/market/mapOverview.ts", { "./locationMarker": "../src/components/market/locationMarker.ts" });
 const { getSearchResultPresentation, getSearchResultPage } = await loadModule("../src/features/kiosk/searchResultPresentation.ts");
 const { figmaMapShops } = await loadModule("../src/data/figma-map-shops.ts");
 // Load the real map geometry without starting React or loading browser-only imports.
@@ -55,8 +55,16 @@ for (const size of [viewport, { width: 800, height: 1700 }, { width: 1440, heigh
   // Zooming keeps the centre of the unobscured area on the same map point.
   const nextScale = camera.scale * 1.2;
   const next = { scale: nextScale, center: { ...camera.center, y: camera.center.y + (bottom - top) / 2 * (1 / nextScale - 1 / camera.scale) } };
-  const visibleCentre = project({ x: MAP_SIZE.width / 2, y: MAP_SIZE.height / 2 }, next, size);
+  const visibleCentre = project(MAP_OVERVIEW_FOCUS, next, size);
   assert.ok(Math.abs(visibleCentre.y - (top + size.height - bottom) / 2) < 1e-8);
+  for (const answerPadding of [0, 144]) {
+    const firstSearch = getMapOverviewCamera(size, top, bottom + answerPadding);
+    const focus = project(MAP_OVERVIEW_FOCUS, firstSearch, size);
+    const mainAisle = project({ x: 4920, y: MAP_OVERVIEW_FOCUS.y }, firstSearch, size);
+    assert.ok(Math.abs(focus.x - size.width / 2) < 1e-8, "market focus is horizontally centered");
+    assert.ok(Math.abs(focus.y - (top + size.height - bottom - answerPadding) / 2) < 1e-8, "center respects the answer and results overlays");
+    assert.ok(Math.abs(mainAisle.x - size.width / 2) < 1, "the market corridor no longer sits against the right edge");
+  }
 }
 const shops = Array.from({ length: 14 }, (_, index) => ({ id: String(index), name: `Shop ${index}`, distance: Math.floor(index / 2) * 10 }));
 const relevance = getSearchResultPresentation(shops, "relevance", shop => shop.distance);
