@@ -1,5 +1,7 @@
 export type OperationMode = "DIRECTIONS" | "PROMOTION";
 
+export const MAX_PROMOTIONS = 30;
+
 export type PromotionContent = {
   id: number;
   name: string;

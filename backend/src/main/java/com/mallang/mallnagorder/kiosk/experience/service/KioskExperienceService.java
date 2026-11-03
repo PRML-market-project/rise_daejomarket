@@ -20,6 +20,7 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class KioskExperienceService {
+    private static final int MAX_PROMOTIONS = 30;
     private static final Set<String> MODES = Set.of("DIRECTIONS", "PROMOTION");
     private final KioskExperienceRepository repository;
     private final ObjectMapper objectMapper;
@@ -41,6 +42,9 @@ public class KioskExperienceService {
     @Transactional
     public KioskExperienceResponse updatePromotions(List<PromotionContentDto> promotions) {
         List<PromotionContentDto> safePromotions = promotions == null ? List.of() : promotions;
+        if (safePromotions.size() > MAX_PROMOTIONS) {
+            throw new IllegalArgumentException("홍보 콘텐츠는 최대 " + MAX_PROMOTIONS + "개까지 등록할 수 있습니다.");
+        }
         safePromotions.stream()
                 .filter(item -> "image".equals(item.getType()))
                 .forEach(item -> {

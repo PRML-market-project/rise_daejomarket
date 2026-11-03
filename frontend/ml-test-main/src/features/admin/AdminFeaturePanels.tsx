@@ -4,7 +4,7 @@
 import { ChangeEvent, ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { searchTagIcons } from "../../data/search-tag-icons";
-import { absoluteAssetUrl, getKioskExperience, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "./kioskExperienceApi";
+import { absoluteAssetUrl, getKioskExperience, MAX_PROMOTIONS, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "./kioskExperienceApi";
 
 type ButtonProps = { children: React.ReactNode; kind?: "primary" | "secondary" | "danger" | "outline"; disabled?: boolean; className?: string; onClick?: () => void };
 function Button({ children, kind = "primary", disabled, className = "", onClick }: ButtonProps) {
@@ -39,6 +39,7 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
   const [selected, setSelected] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState<"delete" | "leave" | "applying" | "mode-error" | null>(null);
   const [pendingTarget, setPendingTarget] = useState<"store" | "tags">("store");
@@ -57,7 +58,29 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
 
   const navigate = (target: "store" | "tags") => { if (dirty) { setPendingTarget(target); setDialog("leave"); } else onNavigate(target); };
   const move = (index: number, delta: number) => { const next = [...items]; const to = index + delta; if (to < 0 || to >= next.length) return; [next[index], next[to]] = [next[to], next[index]]; setItems(next); setDirty(true); };
-  const addMedia = async (event: ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; setMessage("파일을 업로드하고 있습니다."); try { const uploaded = await uploadPromotion(file); const next: MediaItem = { id: Date.now(), name: uploaded.name, type: uploaded.type, url: uploaded.url, durationSeconds: 10, fit: "contain" }; setItems((all) => [...all, next]); setSelected(next.id); setDirty(true); setMessage("업로드가 완료되었습니다. 콘텐츠 저장을 눌러주세요."); } catch (error) { setMessage((error as Error).message); } finally { event.target.value = ""; } };
+  const addMedia = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    if (!file) return;
+    if (uploading || items.length >= MAX_PROMOTIONS) {
+      if (!uploading) setMessage(`홍보 콘텐츠는 최대 ${MAX_PROMOTIONS}개까지 등록할 수 있습니다.`);
+      input.value = "";
+      return;
+    }
+    setUploading(true);
+    setMessage("파일을 업로드하고 있습니다.");
+    try {
+      const uploaded = await uploadPromotion(file);
+      const next: MediaItem = { id: Date.now(), name: uploaded.name, type: uploaded.type, url: uploaded.url, durationSeconds: 10, fit: "contain" };
+      setItems((all) => [...all, next]); setSelected(next.id); setDirty(true);
+      setMessage("업로드가 완료되었습니다. 콘텐츠 저장을 눌러주세요.");
+    } catch (error) {
+      setMessage((error as Error).message);
+    } finally {
+      input.value = "";
+      setUploading(false);
+    }
+  };
   const persist = async () => { try { const config = await savePromotions(items); setItems(config.promotions); setBaseline(config.promotions); setDirty(false); setMessage("콘텐츠를 저장했습니다."); } catch (error) { setMessage((error as Error).message); } };
   const applyMode = async () => {
     setDialog("applying");
@@ -83,8 +106,8 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
     </section>
     <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[360px_minmax(500px,852px)_minmax(480px,596px)] gap-[24px]">
       <aside className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5">
-        <div className="flex"><h2 className="flex-1 text-[20px] font-bold">재생 목록</h2><span className="text-[14px]">{items.length}개</span></div>
-        <Button kind="secondary" className="w-full" onClick={() => fileRef.current?.click()}>+ 이미지·영상 추가</Button><input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={addMedia} />
+        <div className="flex"><h2 className="flex-1 text-[20px] font-bold">재생 목록</h2><span className="text-[14px]">{items.length} / {MAX_PROMOTIONS}개</span></div>
+        <Button kind="secondary" className="w-full" disabled={loading || uploading || items.length >= MAX_PROMOTIONS} onClick={() => fileRef.current?.click()}>+ 이미지·영상 추가</Button><input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={addMedia} />
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">{items.length ? items.map((item, index) => <div key={item.id} className={`w-full rounded-[14px] border p-3 text-left ${selected === item.id ? "border-[#116543] bg-[#cfeadb]" : "border-[#ebebeb]"}`}>
           <button type="button" onClick={() => setSelected(item.id)} className="flex w-full gap-3 text-left"><span className="h-20 w-[46px] overflow-hidden rounded-md"><Poster video={item.type === "video"} src={item.url} fit={item.fit} /></span><span><strong className="text-[16px]">{String(index + 1).padStart(2, "0")}　{item.name}</strong><span className="mt-1 block text-[12px]">{item.type === "image" ? `이미지 · ${item.durationSeconds}초` : "영상 · 재생 종료 후 다음"}</span></span></button>
           <div className="mt-3 flex gap-2"><Button kind="secondary" disabled={index === 0} className="h-8 flex-1 px-2 text-[14px]" onClick={() => move(index, -1)}>위로</Button><Button kind="secondary" disabled={index === items.length - 1} className="h-8 flex-1 px-2 text-[14px]" onClick={() => move(index, 1)}>아래로</Button><Button kind="secondary" className="h-8 flex-1 px-2 text-[14px]" onClick={() => { setSelected(item.id); setDialog("delete"); }}>삭제</Button></div>
