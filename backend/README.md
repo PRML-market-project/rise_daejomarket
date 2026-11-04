@@ -57,6 +57,5 @@ classloader problems with Korean checkout paths. Frontend checks:
 `node scripts/test-kiosk-i18n.mjs`, `node scripts/test-category-chips.mjs`,
 and `npm run build`.
 
-The maintenance script `frontend/ml-test-main/scripts/translate-kiosk-seed.mjs`
-prints a missing-only snapshot from the local server without editing files.
-`--all` explicitly regenerates every entry; review before replacing the snapshot.
+Translation seed files live under `src/main/resources/translations`.
+The backend retries missing translations through the local Argos service.

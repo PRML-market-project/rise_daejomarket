@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.request import urlopen
 
 
-MAP_SOURCE = Path(__file__).resolve().parents[2] / "frontend/ml-test-main/src/data/figma-map-shops.ts"
+MAP_SOURCE = Path(__file__).resolve().parents[2] / "frontend/src/data/figma-map-shops.ts"
 EXPERIENCE_URL = os.getenv("KIOSK_EXPERIENCE_URL", "http://127.0.0.1:8080/api/kiosk-experience")
 FIELD = re.compile(r'([a-zA-Z]+):\s*(?:"((?:[^"\\]|\\.)*)"|(-?\d+(?:\.\d+)?))')
 

@@ -1,7 +1,26 @@
+param([switch] $ExposeTunnels)
+
 $ErrorActionPreference = "Stop"
 $env:PYTHONIOENCODING = "utf-8"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$env:PATH = (Join-Path $root 'ai-server\.llama-cpp') + ';' + $env:PATH
+foreach ($relative in @(
+    'ai-server\models\gemma-4-12b-it-UD-Q6_K_XL.gguf',
+    'ai-server\.llama-cpp\llama-server.exe',
+    'ai-server\qwen-tts-server\runtime\tts-server.exe',
+    'ai-server\qwen-tts-server\models\qwen-talker-0.6b-base-Q8_0.gguf',
+    'ai-server\qwen-tts-server\models\qwen-tokenizer-12hz-Q8_0.gguf',
+    'ai-server\qwen-tts-server\voices\friendly-female-reference.wav',
+    'ai-server\qwen-tts-server\voices\friendly-female-reference.txt',
+    'ai-server\.venv\Scripts\python.exe',
+    'ai-server\argos-translate-server\.venv\Scripts\python.exe',
+    'frontend\package.json', 'admin-frontend\package.json'
+)) {
+    if (-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) {
+        throw "Missing runtime file: $relative. See README.md."
+    }
+}
 $logDir = Join-Path $root ".local-service-logs"
 $runStamp = Get-Date -Format "yyyyMMdd-HHmmss"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
@@ -82,7 +101,17 @@ function Stop-ServiceTree {
     }
 
     Write-Host "Stopping $Name (PID $($Process.Id))..."
-    & taskkill.exe /PID $Process.Id /T /F *> $null
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $killOutput = & taskkill.exe /PID $Process.Id /T /F 2>&1
+        $killExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($killExitCode -ne 0 -and -not $Process.HasExited) {
+        Write-Warning "Could not stop $Name (PID $($Process.Id)): $killOutput"
+    }
 }
 
 $services = @(
@@ -96,14 +125,14 @@ $services = @(
     @{
         Name = "local-llm"
         Path = "ai-server"
-        Command = "& .\.llama-cpp\llama-server.exe -m .\gemma-4-26B_q4_0-it.gguf --host 127.0.0.1 --port 8010 -ngl all -c 8192 --parallel 1 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
+        Command = "& .\.llama-cpp\llama-server.exe -m .\models\gemma-4-12b-it-UD-Q6_K_XL.gguf --alias local-gemma --host 127.0.0.1 --port 8010 -ngl all -c 8192 --parallel 1 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
         Url = "http://localhost:8010"
         ReadyUrl = "http://127.0.0.1:8010/health"
     },
     @{
         Name = "qwen-tts"
         Path = "ai-server\qwen-tts-server"
-        Command = "& .\qwentts.cpp\build\Release\tts-server.exe --model .\models\qwen-talker-0.6b-base-Q8_0.gguf --codec .\models\qwen-tokenizer-12hz-Q8_0.gguf --alias qwen3-tts-0.6b-base-q8 --host 127.0.0.1 --port 8020 --lang korean --no-fa --clamp-fp16"
+        Command = "& .\runtime\tts-server.exe --model .\models\qwen-talker-0.6b-base-Q8_0.gguf --codec .\models\qwen-tokenizer-12hz-Q8_0.gguf --alias qwen3-tts-0.6b-base-q8 --host 127.0.0.1 --port 8020 --lang korean --no-fa --clamp-fp16"
         Url = "http://localhost:8020"
         ReadyUrl = "http://127.0.0.1:8020/health"
     },
@@ -130,7 +159,7 @@ $services = @(
     },
     @{
         Name = "frontend"
-        Path = "frontend\ml-test-main"
+        Path = "frontend"
         Command = "npm.cmd run dev"
         Url = "http://localhost:5173"
         ReadyUrl = "http://localhost:5173"
@@ -188,6 +217,30 @@ try {
 
     Write-Host ""
     Write-Host "All local services are running."
+    if ($ExposeTunnels) {
+        $cloudflared = Get-Command cloudflared -ErrorAction SilentlyContinue
+        if (-not $cloudflared) {
+            Write-Warning 'cloudflared is not installed. Services are available locally.'
+        } else {
+            foreach ($tunnel in @(@{ Name = 'backend-tunnel'; Port = 8080; Variable = 'VITE_API_URL' }, @{ Name = 'ai-tunnel'; Port = 8000; Variable = 'VITE_GPT_API_URL' })) {
+                $log = Join-Path $logDir "$runStamp-$($tunnel.Name).log"
+                $errorLog = Join-Path $logDir "$runStamp-$($tunnel.Name).error.log"
+                $executable = $cloudflared.Source.Replace("'", "''")
+                $process = Start-HiddenService -Name $tunnel.Name -WorkingDirectory $root `
+                    -Command "& '$executable' tunnel --url http://localhost:$($tunnel.Port)" -LogPath $log -ErrorLogPath $errorLog
+                $startedServices += [pscustomobject]@{ Name = $tunnel.Name; Process = $process }
+                $deadline = (Get-Date).AddSeconds(45)
+                $match = [regex]::Match('', 'https://[a-zA-Z0-9-]+\.trycloudflare\.com')
+                while ((Get-Date) -lt $deadline -and -not $process.HasExited) {
+                    $output = @($log, $errorLog) | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { Get-Content -LiteralPath $_ -Raw }
+                    $match = [regex]::Match(($output -join "`n"), 'https://[a-zA-Z0-9-]+\.trycloudflare\.com')
+                    if ($match.Success) { Write-Host "$($tunnel.Variable)=$($match.Value)"; break }
+                    Start-Sleep -Milliseconds 500
+                }
+                if (-not $match.Success) { Write-Warning "Check tunnel logs: $errorLog" }
+            }
+        }
+    }
     Write-Host "translation:    http://localhost:17834"
     Write-Host "local-llm:      http://localhost:8010"
     Write-Host "backend:        http://localhost:8080"
