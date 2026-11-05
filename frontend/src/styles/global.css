@@ -22,7 +22,8 @@
   src: url('/fonts/NotoSansKR.ttf') format('truetype');
   font-style: normal;
   font-weight: 100 900;
-  font-display: swap;
+  /* Don't flash the system-installed Noto Sans KR (different build: wider spacing, no 500) while loading. */
+  font-display: block;
 }
 
 @font-face {
@@ -49,7 +50,8 @@
 
   body {
     margin: 0;
-    font-family: 'Noto Sans KR', 'Pretendard', system-ui, sans-serif;
+    /* Bundled variable font (100-900): installed Noto Sans KR only ships 400/700. */
+    font-family: 'Kiosk Result Noto', 'Noto Sans KR', sans-serif;
   }
 
   button,

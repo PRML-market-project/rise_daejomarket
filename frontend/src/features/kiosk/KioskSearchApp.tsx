@@ -108,18 +108,21 @@ function PrimaryButton({
   disabled = false,
   onClick,
   className = "",
+  typography = "text-[40px] font-normal leading-[52px]",
 }: {
   children: React.ReactNode;
   disabled?: boolean;
   onClick?: () => void;
   className?: string;
+  /** Font size/weight/line-height. Kept separate so it replaces (not competes with) the default. */
+  typography?: string;
 }) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`flex h-[120px] min-h-[112px] items-center justify-center rounded-full px-[24px] text-[40px] font-normal transition active:scale-[0.99] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1] ${className}`}
+      className={`flex h-[120px] min-h-[112px] items-center justify-center rounded-full px-[24px] ${typography} transition active:scale-[0.99] disabled:bg-[#ebebeb] disabled:text-[#a1a1a1] ${className}`}
       style={!disabled ? { backgroundImage: GREEN, color: "white" } : undefined}
     >
       {children}
@@ -201,7 +204,7 @@ function CategoryChips({ onChoose, configuredTags }: { onChoose: (tag: { name: s
           type="button"
           key={id}
           onClick={() => onChoose({ name: label, keywords: keywords || label })}
-          className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] text-[#19211c]"
+          className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] leading-[40px] text-[#19211c]"
         >
           <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full" style={{ backgroundColor: color }}>
             <img src={icon} alt="" style={{ width: size, height: size }} />
@@ -253,9 +256,9 @@ function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange:
         </div>
       ))}
       <div className="flex justify-center gap-[8px]">
-        <button type="button" aria-pressed={shifted} onClick={() => setShifted((current) => !current)} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px] ${shifted ? "bg-[#d8e8df] text-[#116543]" : ""}`}><span className="text-[24px]">⇧</span><span>{t(shiftLabel)}</span></button>
+        <button type="button" aria-pressed={shifted} onClick={() => setShifted((current) => !current)} className={`${keyClass} w-[133.6px] gap-[8px] text-[24px] leading-[36px] ${shifted ? "bg-[#d8e8df] text-[#116543]" : ""}`}><span className="text-[24px]">⇧</span><span>{t(shiftLabel)}</span></button>
         {rows[2].map((key) => <button type="button" key={key} onClick={() => append(key)} className={`${keyClass} w-[86.4px]`}>{key}</button>)}
-        <button type="button" onClick={() => onChange(deleteLastKeyboardCharacter(value))} className={`${keyClass} w-[133.6px] gap-[4px] text-[20px] leading-[32px]`}><span className="text-[24px]">⌫</span><span>{t("삭제")}</span></button>
+        <button type="button" onClick={() => onChange(deleteLastKeyboardCharacter(value))} className={`${keyClass} w-[133.6px] gap-[8px] text-[24px] leading-[36px]`}><span className="text-[24px]">⌫</span><span>{t("삭제")}</span></button>
       </div>
       <div className="flex justify-center gap-[8px]">
         <button type="button" aria-pressed={layout === "number"} onClick={toggleNumbers} className={`${keyClass} w-[124px] text-[24px] leading-[36px]`}>{layout === "number" ? (alphaLayout === "ko" ? "가나다" : "ABC") : "123"}</button>
@@ -746,7 +749,7 @@ export default function KioskSearchApp() {
   const canvas = (
     <div className="fixed inset-0 overflow-hidden bg-[#e8ece9]">
       <div
-        className="absolute left-1/2 top-1/2 h-[1920px] w-[1080px] origin-center overflow-hidden bg-[#f8fbf8] font-['Noto_Sans_KR',sans-serif] text-[#19211c]"
+        className="absolute left-1/2 top-1/2 h-[1920px] w-[1080px] origin-center overflow-hidden bg-[#f8fbf8] font-['Kiosk_Result_Noto','Noto_Sans_KR',sans-serif] text-[#19211c]"
         style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
       >
         {!(["results", "directions", "map"] as Screen[]).includes(screen) && (
@@ -765,7 +768,7 @@ export default function KioskSearchApp() {
           <main className="relative isolate flex h-[1800px] flex-col items-center overflow-hidden bg-[#f8fbf8] pt-[220px]">
             <div className="z-10 text-center text-[#0a3825]">
               <h1 className="text-[64px] font-bold leading-[1.4]">{t("가게를 찾고계신가요?")}<br />{t("화면을 터치해보세요")}</h1>
-              <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px] text-[36px] font-medium">{t("대조시장 길 찾기")}</PrimaryButton>
+              <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px]" typography="text-[36px] font-medium leading-[44px]">{t("대조시장 길 찾기")}</PrimaryButton>
             </div>
             <DesignMotion name="welcome" className="absolute bottom-0 left-0 h-[1920px] w-full mix-blend-darken" />
             <div role="img" aria-label="RISE · DOL³ · WDKY" className="pointer-events-none absolute left-1/2 top-[1704px] z-10 flex h-[48px] -translate-x-1/2 items-center gap-[14px] whitespace-nowrap text-white drop-shadow-[0_0_12px_rgba(0,0,0,0.4)]">
@@ -861,7 +864,7 @@ export default function KioskSearchApp() {
                   <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
                     <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={clearInput} />
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
-                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
+                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] leading-[52px]">{t("지우기")}</button>
                       <PrimaryButton disabled={voiceState !== "confirmed" || !query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                     </div>
                   </div>
@@ -872,7 +875,7 @@ export default function KioskSearchApp() {
                     <div className="mt-auto">
                       <TouchKeyboard key={language} value={query} onChange={setQuery} onSubmit={submit} />
                       <div className="mt-[40px] flex gap-[24px]">
-                        <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
+                        <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] leading-[52px]">{t("지우기")}</button>
                         <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                       </div>
                     </div>
@@ -884,7 +887,7 @@ export default function KioskSearchApp() {
                       <HandwritingPad key={handwritingResetKey} language={language} recognized={Boolean(query.trim())} onRecognized={setQuery} />
                     </div>
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
-                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("지우기")}</button>
+                      <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] leading-[52px]">{t("지우기")}</button>
                       <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                     </div>
                   </div>
