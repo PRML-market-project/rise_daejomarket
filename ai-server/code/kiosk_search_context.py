@@ -59,6 +59,27 @@ def load_kiosk_context(fetch_experience=True):
     return shops, [tag for tag in experience.get("searchTags", []) if tag.get("visible")]
 
 
+def is_all_shop_listing(question):
+    """Recognize plain catalog requests without swallowing filters or instructions."""
+    query = re.sub(r"\s+", "", unicodedata.normalize("NFKC", question).lower())
+    query = query.strip("?!.,！？。")
+    market = r"(?:대조시장(?:의|에있는|에등록된)?|시장(?:의|에있는)?)?"
+    every = r"(?:모든|전체|전부|모두|다)"
+    shops = r"(?:점포|가게|상점|매장)(?:들)?(?:을|를|은|는|이|가)?"
+    action = (r"(?:목록)?(?:을|를)?(?:다|모두|전부|전체)?(?:좀)?"
+              r"(?:보여줘요?|보여주세요|알려줘요?|알려주세요|찾아줘요?|찾아주세요|"
+              r"보고싶어(?:요)?|안내해줘요?|안내해주세요)?")
+    if re.fullmatch(market + r"(?:" + every + shops + "|" + shops + every + ")" + action, query):
+        return True
+    english = (r"(?:please)?(?:(?:show|list|find)(?:me)?)?all(?:the)?(?:shops|stores)"
+               r"(?:(?:in|at)(?:the)?daejomarket)?(?:please)?")
+    if re.fullmatch(english, query):
+        return True
+    vietnamese = (r"(?:chotoixem|choxem|hienthi|lietke)?tatca(?:cac)?(?:cuahang|gianhang)"
+                  r"(?:(?:o|tai)?chodaejo)?")
+    return bool(re.fullmatch(vietnamese, _normalize(query)))
+
+
 def select_shops(question, shops, tags, limit=None):
     query = _normalize(question)
     words = [_normalize(word) for word in re.split(r"[\s,，?!]+", question) if len(_normalize(word)) > 1]
@@ -152,6 +173,8 @@ def is_recommendation_question(question):
 
 
 def select_search_candidates(question, shops, tags):
+    if is_all_shop_listing(question):
+        return list(shops)
     broad = broad_category_shops(question, shops)
     if broad:
         return broad

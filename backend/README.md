@@ -14,7 +14,6 @@ Backend environment variables:
 - `ARGOS_TRANSLATOR_ENABLED`: default `true`.
 - `ARGOS_TRANSLATOR_TIMEOUT_SECONDS`: default `120`, for CPU inference.
 - `ARGOS_KIOSK_BACKFILL_ON_STARTUP`: default `true`; fills missing kiosk translations.
-- `ARGOS_TRANSLATOR_BACKFILL_ON_STARTUP`: default `false`; optional legacy menu backfill.
 
 Restart the backend after changing these settings. Start the translator before
 the backend, or save content again to retry any missing translations.
@@ -43,8 +42,6 @@ images/videos is not translated.
 
 Development uses Hibernate `ddl-auto=update`. Otherwise run the one-time SQL in
 `src/main/resources/db/manual/add_kiosk_translation_cache.sql`.
-Legacy menu Vietnamese columns use `add_vietnamese_translation_columns.sql`.
-The legacy `POST /api/admin/translations/vi/backfill` endpoint also uses Argos.
 
 ## Verification
 

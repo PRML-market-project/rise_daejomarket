@@ -23,7 +23,8 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
 from tts_voice_reference import build_voice_reference
-from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, load_kiosk_context, parse_model_response, required_recommendation_shops, select_search_candidates
+from qa_log import append_qa_log, summarize_answer
+from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_all_shop_listing, load_kiosk_context, parse_model_response, required_recommendation_shops, select_search_candidates
 
 
 # ==========================================
@@ -55,7 +56,10 @@ class Timer:
 # ==========================================
 load_dotenv()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Keep speech recognition off the 16GB GPU unless explicitly configured otherwise.
+stt_device = os.getenv("STT_DEVICE", "cpu")
+device = torch.device("cuda" if stt_device == "auto" and torch.cuda.is_available() else
+                      "cpu" if stt_device == "auto" else stt_device)
 
 # 로그 설정
 logging.basicConfig(filename="gpt_api_logs.log", level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -100,8 +104,11 @@ print("OPENAI fallback enabled:", bool(client))
 
 # Whisper 모델 로딩
 try:
-    model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-tiny").to(device)
-    processor = WhisperProcessor.from_pretrained("openai/whisper-tiny")
+    bundled_whisper = Path(__file__).resolve().parents[2] / "data/models/whisper-tiny"
+    whisper_source = os.getenv("WHISPER_MODEL_PATH") or (
+        str(bundled_whisper) if bundled_whisper.is_dir() else "openai/whisper-tiny")
+    model = WhisperForConditionalGeneration.from_pretrained(whisper_source).to(device)
+    processor = WhisperProcessor.from_pretrained(whisper_source)
     print("🔥 Whisper 모델 로딩 완료")
 except Exception as e:
     print(f"❌ Whisper 모델 로딩 실패: {e}")
@@ -286,6 +293,19 @@ def replace_phrases(text, admin_id, threshold=2):
 def answer_from_current_kiosk_data(intent, text, language):
     """Return the kiosk's JSON contract using only current map/admin shop data."""
     shops, tags = load_kiosk_context()
+    if is_all_shop_listing(text):
+        # The catalog already contains the complete answer. Generating every ID
+        # costs thousands of tokens, can omit shops, and blocks other searches.
+        items = [{"target_id": shop["id"], "target_name": shop["name"]} for shop in shops]
+        random.shuffle(items)
+        message = {
+            "en": f"Here are all {len(items)} registered shops. Select a shop to see its location.",
+            "vi": f"Đây là tất cả {len(items)} cửa hàng đã đăng ký. Chọn cửa hàng để xem vị trí.",
+        }.get(language, f"등록된 전체 점포 {len(items)}곳을 보여드릴게요. 가게를 선택하면 위치를 확인할 수 있어요.")
+        return json.dumps({
+            "user_message": text, "chat_message": message,
+            "result": {"status": "success", "intent": "get_store", "items": items},
+        }, ensure_ascii=False)
     candidates = select_search_candidates(text, shops, tags)
     raw = generate_json_response(
         build_search_prompt(intent, text, language, shops, tags), text,
@@ -618,6 +638,12 @@ def stt():
 @app.route('/gpt', methods=['POST'])
 def gpt():
     timer = Timer()
+    # Filled in as the request progresses so every exit path logs what is known.
+    qa = {}
+
+    def log_qa(status, timings, **fields):
+        append_qa_log({**qa, "status": status, **fields, "total_ms": timings.get("total_ms")})
+
     try:
         timer.mark("request_received")
 
@@ -625,14 +651,19 @@ def gpt():
         timer.mark("parsed_json")
 
         if not data or 'text' not in data or 'kiosk_id' not in data or 'admin_id' not in data:
-            return jsonify({"error": "Missing required parameters.", "timings": timer.result()}), 400
+            timings = timer.result()
+            log_qa("bad_request", timings, error="Missing required parameters.")
+            return jsonify({"error": "Missing required parameters.", "timings": timings}), 400
 
         text = data['text']
         kiosk_id = int(data['kiosk_id'])
         admin_id = int(data['admin_id'])
+        qa.update(question=text, requested_language=data.get('language'),
+                  kiosk_id=kiosk_id, admin_id=admin_id)
 
         language = response_language_for_question(text, data.get('language'))
         timer.mark("language_detected")
+        qa["language"] = language
 
         print(
             f"\n[AI REQUEST] admin_id={admin_id} kiosk_id={kiosk_id} "
@@ -640,8 +671,11 @@ def gpt():
             flush=True,
         )
 
-        intent = detect_intent(text)
+        # A plain catalog request must also bypass the single-slot LLM's intent
+        # queue, so it stays responsive while another search is generating.
+        intent = 1 if is_all_shop_listing(text) else detect_intent(text)
         timer.mark("intent_detected")
+        qa["intent"] = intent
         print(f"[AI INTENT] {intent}", flush=True)
 
         gpt_raw_response = get_response_by_intent(intent, text, admin_id, kiosk_id, language)
@@ -649,7 +683,9 @@ def gpt():
         print(f"[AI RAW RESPONSE]\n{gpt_raw_response}", flush=True)
 
         if isinstance(gpt_raw_response, dict) and "error" in gpt_raw_response:
-            return jsonify({**gpt_raw_response, "timings": timer.result()}), 500
+            timings = timer.result()
+            log_qa("error", timings, error=gpt_raw_response.get("error"))
+            return jsonify({**gpt_raw_response, "timings": timings}), 500
 
         cleaned_response = re.sub(
             r"^```(?:json)?\s*|`\s*```$",
@@ -668,7 +704,9 @@ def gpt():
             timer.mark("json_parsed")
         except json.JSONDecodeError as e:
             logging.error(f"JSON Parsing Error: {e}\nResponse: {cleaned_response}")
-            return jsonify({"error": "Failed to parse GPT response", "raw": cleaned_response, "timings": timer.result()}), 500
+            timings = timer.result()
+            log_qa("parse_error", timings, error="Failed to parse GPT response", raw_response=cleaned_response)
+            return jsonify({"error": "Failed to parse GPT response", "raw": cleaned_response, "timings": timings}), 500
 
         if "result" in result_json:
             result_json["result"]["kiosk_id"] = kiosk_id
@@ -683,6 +721,8 @@ def gpt():
             f"[AI TIMING] total={timings['total_ms']}ms",
             flush=True,
         )
+        status = "error" if "error" in result_json else "success"
+        log_qa(status, timings, error=result_json.get("error"), **summarize_answer(result_json))
 
         return jsonify(result_json)
 
@@ -691,34 +731,8 @@ def gpt():
         print(f"[AI ERROR] {e}", flush=True)
         traceback.print_exc()
         logging.exception(f"[GPT] Endpoint Error timings={timings}")
+        log_qa("error", timings, error=str(e))
         return jsonify({"error": str(e), "timings": timings}), 500
-
-
-
-@app.route('/upload_jsons', methods=['POST'])
-def upload_jsons():
-    """Retain the legacy endpoint without storing obsolete menu/price payloads."""
-    try:
-        files = request.files.getlist('files')
-        results = []
-
-        for file in files:
-            data = file.read().decode('utf-8')
-            try:
-                json_data = json.loads(data)
-            except Exception as e:
-                return jsonify({"error": f"Invalid JSON in file {file.filename}: {str(e)}"}), 400
-
-            admin_id = json_data.get('admin_id')
-            if not admin_id:
-                return jsonify({"error": f"admin_id not found in file {file.filename}"}), 400
-
-            results.append({"admin_id": admin_id, "status": "ignored_legacy_payload"})
-
-        return jsonify({"results": results})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':

@@ -2,22 +2,33 @@
 
 키보드·음성·손글씨로 가게를 검색하고 시장 지도로 안내합니다. 한국어·영어·베트남어와 관리자 화면을 제공합니다.
 
+## 새 PC로 이전
+
+준비된 **`transfer-ready` 폴더 전체**를 새 Windows 11 PC의 **`C:\daejo`** 같은 짧은 영문 경로로 복사합니다.
+인터넷 연결과 NVIDIA 드라이버를 준비한 뒤 **`setup.cmd` → `start.cmd`** 순서로 실행합니다.
+`check.cmd`는 파일·GPU·서비스 상태를 확인합니다. [이전 안내](deployment/README.md)를 참고하세요.
+이전본에는 Node·JDK·.NET SDK·Python·MySQL, 모델, DB SQL 백업, 업로드 파일과 운영 설정을 포함합니다.
+패키지 의존성은 첫 설치 때 인터넷에서 받습니다. 기존 DB가 있으면 덮어쓰지 않습니다.
+
 ## 실행
 
 Windows PowerShell에서 프로젝트 루트를 기준으로 실행합니다.
+
+준비된 실행 환경이 있으면 `start.cmd`로도 실행할 수 있습니다.
+새 PC 번들은 전역 PATH를 변경하지 않으므로 **`start.cmd`를 사용**합니다. 아래 npm 명령은 Node가 PATH에 등록된 개발 환경용입니다.
 
 ```powershell
 npm.cmd run dev:local
 ```
 
-번역 → Gemma → TTS → 백엔드 → AI → 손글씨 → 프런트엔드 순서로 준비 상태를 확인합니다. 기존 서비스는 재사용하며 새로 실행한 서비스는 `Ctrl+C`로 함께 종료합니다. 로그는 `.local-service-logs/`에 생성됩니다.
+번역 → Gemma → TTS → 백엔드 → AI → 손글씨 → 프런트엔드 순서로 준비 상태를 확인합니다. 관리자 화면은 키오스크 프런트엔드의 `/dashboard`에 포함되어 있으므로, 별도 Next.js 관리자 앱(포트 3000)은 `npm.cmd run dev:admin`(`run-all.ps1 -WithAdmin`)으로 실행할 때만 함께 띄웁니다. 기존 서비스는 재사용하며 새로 실행한 서비스는 `Ctrl+C`로 함께 종료합니다. 로그는 `.local-service-logs/`에 생성됩니다.
 
 Cloudflare 터널로 로컬 백엔드와 AI 서버를 연결하려면 `cloudflared`를 설치하고 `npm.cmd run dev:server`를 실행합니다. 출력된 `VITE_API_URL`, `VITE_GPT_API_URL`을 Vercel에 설정한 뒤 재배포합니다. 이 모드도 같은 통합 실행기를 사용합니다.
 
 | 경로 | 역할 |
 | --- | --- |
 | `frontend/` | Vite 키오스크와 공용 관리자 UI |
-| `admin-frontend/` | 공용 UI를 직접 사용하는 별도 Next.js 관리자 앱 |
+| `admin-frontend/` | 공용 UI를 직접 사용하는 별도 Next.js 관리자 앱 (선택, `-WithAdmin`) |
 | `backend/` | Spring Boot API, 인증, 가게·홍보·번역 관리 |
 | `ai-server/code/` | Flask API, 검색 프롬프트·가게 데이터 연동·TTS 프록시 |
 | `ai-server/models/` | 선택한 Gemma 12B UD-Q6_K_XL 가중치 |
@@ -31,7 +42,7 @@ Cloudflare 터널로 로컬 백엔드와 AI 서버를 연결하려면 `cloudflar
 | --- | --- |
 | 키오스크 | http://localhost:5173 |
 | 키오스크 관리자 | http://localhost:5173/dashboard |
-| 별도 관리자 | http://localhost:3000 |
+| 별도 관리자 (`-WithAdmin`일 때만) | http://localhost:3000 |
 | 백엔드 | http://localhost:8080 |
 | AI | http://localhost:8000 |
 | Gemma | http://localhost:8010 |
@@ -43,11 +54,12 @@ Cloudflare 터널로 로컬 백엔드와 AI 서버를 연결하려면 `cloudflar
 
 ## 필수 환경과 설치
 
+`setup.cmd` 이전본에는 아래 실행 환경이 포함돼 있으므로 개별 전역 설치 없이 설치기를 사용합니다.
 Node.js/npm, Java 20, MySQL, Python, .NET SDK와 Windows 손글씨 인식 환경이 필요합니다. 백엔드의 `application.yml`, 각 서비스의 `.env`, Python 가상환경과 번역 모델은 로컬 운영 파일입니다.
 
 ```powershell
 npm.cmd --prefix frontend ci
-npm.cmd --prefix admin-frontend ci
+npm.cmd --prefix admin-frontend ci   # 별도 관리자 앱을 쓸 때만
 ai-server/.venv/Scripts/python.exe -m pip install -r ai-server/requirements.txt
 ai-server/argos-translate-server/.venv/Scripts/python.exe -m pip install -r ai-server/argos-translate-server/requirements.txt
 ```

@@ -1,9 +1,15 @@
-param([switch] $ExposeTunnels)
+param(
+    [switch] $ExposeTunnels,
+    # The kiosk frontend already serves the admin UI at /dashboard; the standalone Next.js app is opt-in.
+    [switch] $WithAdmin,
+    [ValidateSet('f16', 'q8_0')] [string] $KvCacheType = 'f16'
+)
 
 $ErrorActionPreference = "Stop"
 $env:PYTHONIOENCODING = "utf-8"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+. (Join-Path $root 'scripts\use-local-runtime.ps1')
 $env:PATH = (Join-Path $root 'ai-server\.llama-cpp') + ';' + $env:PATH
 foreach ($relative in @(
     'ai-server\models\gemma-4-12b-it-UD-Q6_K_XL.gguf',
@@ -15,7 +21,7 @@ foreach ($relative in @(
     'ai-server\qwen-tts-server\voices\friendly-female-reference.txt',
     'ai-server\.venv\Scripts\python.exe',
     'ai-server\argos-translate-server\.venv\Scripts\python.exe',
-    'frontend\package.json', 'admin-frontend\package.json'
+    'frontend\package.json'
 )) {
     if (-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) {
         throw "Missing runtime file: $relative. See README.md."
@@ -51,6 +57,15 @@ function Start-HiddenService {
 function Test-ServiceReady {
     param([string] $Url)
 
+    if ($Url.StartsWith('tcp://')) {
+        $address = [Uri] $Url
+        $client = New-Object Net.Sockets.TcpClient
+        try {
+            $task = $client.ConnectAsync($address.Host, $address.Port)
+            return ($task.Wait(500) -and $client.Connected)
+        } catch { return $false }
+        finally { $client.Dispose() }
+    }
     try {
         Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2 | Out-Null
         return $true
@@ -101,6 +116,10 @@ function Stop-ServiceTree {
     }
 
     Write-Host "Stopping $Name (PID $($Process.Id))..."
+    if ($Name -eq 'mysql') {
+        & (Join-Path $root '.runtime\python\python.exe') -X utf8 (Join-Path $root 'scripts\portable.py') stop-db
+        if ($LASTEXITCODE -eq 0 -and $Process.WaitForExit(15000)) { return }
+    }
     $previousPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
@@ -125,7 +144,7 @@ $services = @(
     @{
         Name = "local-llm"
         Path = "ai-server"
-        Command = "& .\.llama-cpp\llama-server.exe -m .\models\gemma-4-12b-it-UD-Q6_K_XL.gguf --alias local-gemma --host 127.0.0.1 --port 8010 -ngl all -c 8192 --parallel 1 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui"
+        Command = "& .\.llama-cpp\llama-server.exe -m .\models\gemma-4-12b-it-UD-Q6_K_XL.gguf --alias local-gemma --host 127.0.0.1 --port 8010 -ngl all -c 8192 --parallel 1 -b 256 -ub 256 -t 12 --reasoning off --jinja --no-webui --flash-attn on --cache-type-k $KvCacheType --cache-type-v $KvCacheType --no-mmap"
         Url = "http://localhost:8010"
         ReadyUrl = "http://127.0.0.1:8010/health"
     },
@@ -139,7 +158,7 @@ $services = @(
     @{
         Name = "backend"
         Path = "backend"
-        Command = "& .\gradlew.bat bootRun"
+        Command = "& .\gradlew.bat --no-daemon bootRun"
         Url = "http://localhost:8080"
         ReadyUrl = "http://127.0.0.1:8080/api/kiosk-experience"
     },
@@ -163,15 +182,34 @@ $services = @(
         Command = "npm.cmd run dev"
         Url = "http://localhost:5173"
         ReadyUrl = "http://localhost:5173"
-    },
-    @{
+    }
+)
+
+if ($WithAdmin) {
+    if (-not (Test-Path -LiteralPath (Join-Path $root 'admin-frontend\package.json') -PathType Leaf)) {
+        throw "Missing runtime file: admin-frontend\package.json. See README.md."
+    }
+    $services += @{
         Name = "admin-frontend"
         Path = "admin-frontend"
         Command = "npm.cmd run dev -- --port 3000"
         Url = "http://localhost:3000"
         ReadyUrl = "http://127.0.0.1:3000/login"
     }
-)
+}
+
+if (Test-Path -LiteralPath (Join-Path $root 'deployment\portable-db.json')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $root 'deployment\mysql.ini'))) {
+        throw 'Run setup.cmd before starting the portable MySQL database.'
+    }
+    $dbConfig = Get-Content -LiteralPath (Join-Path $root 'deployment\portable-db.json') -Raw | ConvertFrom-Json
+    $services = @(@{
+        Name = 'mysql'
+        Path = '.'
+        Command = '& .\.runtime\mysql\bin\mysqld.exe --defaults-file=.\deployment\mysql.ini --console'
+        ReadyUrl = "tcp://127.0.0.1:$($dbConfig.port)"
+    }) + $services
+}
 
 $startedServices = @()
 
@@ -248,8 +286,8 @@ try {
     Write-Host "qwen-tts:       http://localhost:8020"
     Write-Host "handwriting:    http://localhost:17832"
     Write-Host "frontend:       http://localhost:5173"
-    Write-Host "admin-frontend: http://localhost:3000"
-    Write-Host "admin (shared frontend URL): http://localhost:5173/dashboard"
+    Write-Host "admin:          http://localhost:5173/dashboard"
+    if ($WithAdmin) { Write-Host "admin-frontend: http://localhost:3000" }
     Write-Host "Service logs:   $logDir"
     Write-Host ""
     Write-Host "Press Ctrl+C to stop every service started by dev:local."

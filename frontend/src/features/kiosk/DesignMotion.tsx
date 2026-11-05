@@ -40,7 +40,7 @@ export function DesignMotion({ name, className = "", loop = true, onEnded }: {
   };
   return <span aria-hidden="true" className={`pointer-events-none block ${className}`}>
     <img src={`/design-assets/${name}.png`} alt="" className={`absolute inset-0 h-full w-full object-contain ${playing && !failed && !reducedMotion ? "opacity-0" : "opacity-100"}`} />
-    {!failed && !reducedMotion && <video ref={videoRef} src={`/design-assets/${name}.${name === "welcome" ? "mp4" : "webm"}`}
+    {!failed && !reducedMotion && <video ref={videoRef} src={`/design-assets/${name}.mp4`}
       autoPlay muted playsInline loop={loop} preload="auto"
       className={`absolute inset-0 h-full w-full object-contain ${playing ? "opacity-100" : "opacity-0"}`}
       onPlaying={showVideo} onWaiting={waitForVideo}

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_recommendation_question, parse_model_response, required_recommendation_shops, select_search_candidates
+from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_all_shop_listing, is_recommendation_question, parse_model_response, required_recommendation_shops, select_search_candidates
 
 
 class KioskSearchOrderTests(unittest.TestCase):
@@ -32,6 +32,7 @@ class KioskSearchOrderTests(unittest.TestCase):
             "parse_model_response": parse_model_response,
             "build_search_prompt": build_search_prompt,
             "is_recommendation_question": is_recommendation_question,
+            "is_all_shop_listing": is_all_shop_listing,
             "format_chat_message": format_chat_message,
             "generate_json_response": self.generate,
         }
