@@ -1,5 +1,5 @@
 import { KioskLocaleContext, createTranslator, useKioskLocale } from "./i18n";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getSearchTagIcon } from "@/data/search-tag-icons";
 import { getRouteDirectionForShop, getRouteDistanceForShop, MapView } from "@/components/market/MapView";
 import { figmaMapShops as marketShops } from "@/data/figma-map-shops";
@@ -101,6 +101,32 @@ function Header({ language, onMap, onLanguage }: { language: Language; onMap: ()
       </div>
     </header>
   );
+}
+
+/**
+ * Figma's 24px × 1px white logo divider. The kiosk canvas is scaled to the window, so a 1 CSS px line
+ * becomes a sub-pixel line whose blur depends on where it lands; two dividers then look different.
+ * Keep it at least one device pixel wide and shift it onto a device-pixel boundary so every divider
+ * renders identically.
+ */
+function LogoDivider({ scale }: { scale: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const snap = () => {
+      element.style.transform = "";
+      const left = element.getBoundingClientRect().left * dpr;
+      element.style.transform = `translateX(${(Math.round(left) - left) / dpr / scale}px)`;
+    };
+    snap();
+    let active = true;
+    // Text widths before the divider change once the web font finishes loading.
+    void document.fonts?.ready.then(() => { if (active) snap(); });
+    return () => { active = false; };
+  });
+  return <span ref={ref} className="block h-[24px] shrink-0 bg-white" style={{ width: Math.max(1, 1 / (scale * dpr)) }} />;
 }
 
 function PrimaryButton({
@@ -773,16 +799,10 @@ export default function KioskSearchApp() {
             <DesignMotion name="welcome" className="absolute bottom-0 left-0 h-[1920px] w-full mix-blend-darken" />
             <div role="img" aria-label="RISE · DOL³ · WDKY" className="pointer-events-none absolute left-1/2 top-[1704px] z-10 flex h-[48px] -translate-x-1/2 items-center gap-[14px] whitespace-nowrap text-white drop-shadow-[0_0_12px_rgba(0,0,0,0.4)]">
               <span className="shrink-0 font-['Kiosk_Map_Pretendard',sans-serif] text-[48px] font-bold leading-none">RISE</span>
-              <span className="flex h-[24px] w-0 shrink-0 items-center justify-center">
-                <img src="/figma/woodikey-divider.svg" alt="" className="block max-w-none shrink-0 rotate-90" />
-              </span>
+              <LogoDivider scale={scale} />
               <img src="/figma/woodikey-dol3.png" alt="" className="h-[40px] w-[109px] shrink-0 object-cover" />
-              <span className="flex h-[24px] w-0 shrink-0 items-center justify-center">
-                <img src="/figma/woodikey-divider.svg" alt="" className="block max-w-none shrink-0 rotate-90" />
-              </span>
-              <span className="flex h-[40px] w-[109px] shrink-0 items-center justify-center">
-                <img src="/figma/woodikey-wdky.svg" alt="" className="block max-w-none shrink-0" />
-              </span>
+              <LogoDivider scale={scale} />
+              <img src="/figma/woodikey-wdky.svg" alt="" className="block h-[40px] w-[105px] max-w-none shrink-0" />
             </div>
           </main>
         )}

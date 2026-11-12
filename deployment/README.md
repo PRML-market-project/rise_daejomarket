@@ -8,7 +8,7 @@
 3. 인터넷에 연결한 뒤 **`setup.cmd`를 더블클릭**합니다. 필요 시 Microsoft Visual C++ 설치에 대한 관리자 권한 창이 열립니다.
    다시 설치할 때는 먼저 `start.cmd` 실행 창에서 `Ctrl+C`로 프로그램을 종료합니다.
 4. Windows 설정 → 시간 및 언어 → 언어 및 지역 → 한국어 → 언어 옵션에서 **필기**를 설치합니다. 영어·베트남어 필기가 필요하면 해당 언어의 제공되는 필기 기능도 준비합니다.
-5. **`start.cmd`를 더블클릭**합니다. 모든 서비스가 준비되면 `http://localhost:5173`을 엽니다. 종료는 실행 창에서 `Ctrl+C`입니다.
+5. **`start.cmd`를 더블클릭**합니다. 모든 서비스가 준비되면 `http://localhost:5173`을 엽니다. 종료는 실행 창에서 `Ctrl+C`이며, 창을 닫았거나 서비스가 남아 있으면 **`end.cmd`**를 더블클릭해 모두 정리합니다.
 6. **`check.cmd`**로 파일·GPU 드라이버·서비스 상태를 확인합니다. 전체 파일 SHA256 확인은 `powershell -ExecutionPolicy Bypass -File scripts/check-windows.ps1 -Full`입니다.
 
 ## 포함된 것과 설치 과정
