@@ -26,6 +26,8 @@ type Language = "ko" | "en" | "vi";
 const DESIGN_WIDTH = 1080;
 const DESIGN_HEIGHT = 1920;
 const INACTIVITY_TIMEOUT_MS = 30_000;
+// Auto operation mode: idle time on the welcome screen before the promotion playlist starts.
+const AUTO_PROMOTION_IDLE_MS = 60_000;
 const VOICE_SILENCE_TIMEOUT_MS = 2_000;
 const GREEN = "linear-gradient(105deg, #289064 0%, #116543 82%)";
 
@@ -513,6 +515,7 @@ export default function KioskSearchApp() {
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
   const [languageReturnScreen, setLanguageReturnScreen] = useState<Screen>("welcome");
   const [experience, setExperience] = useState<KioskExperience | null>(null);
+  const [autoPromoting, setAutoPromoting] = useState(false);
   const t = useMemo(() => createTranslator(language, experience?.translations), [language, experience?.translations]);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
   const updateExperience = useCallback((value: KioskExperience) => {
@@ -621,6 +624,28 @@ export default function KioskSearchApp() {
       activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetTimeout));
     };
   }, [returnToWelcome, screen, isSpeechActive]);
+
+  const autoPromotionReady = experience?.operationMode === "AUTO" && (experience?.promotions.length ?? 0) > 0;
+  useEffect(() => {
+    if (!autoPromotionReady) setAutoPromoting(false);
+  }, [autoPromotionReady]);
+  useEffect(() => {
+    if (!autoPromotionReady || autoPromoting || screen !== "welcome" || isSpeechActive) return;
+
+    const start = () => setAutoPromoting(true);
+    let timeoutId = window.setTimeout(start, AUTO_PROMOTION_IDLE_MS);
+    const resetTimeout = () => {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(start, AUTO_PROMOTION_IDLE_MS);
+    };
+    const activityEvents: Array<keyof WindowEventMap> = ["pointerdown", "pointermove", "keydown", "wheel"];
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, resetTimeout, { passive: true }));
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, resetTimeout));
+    };
+  }, [autoPromotionReady, autoPromoting, screen, isSpeechActive]);
 
   useEffect(() => {
     if (screen !== "processing") return;
@@ -922,6 +947,9 @@ export default function KioskSearchApp() {
 
   if (experience?.operationMode === "PROMOTION" && experience.promotions.length > 0) {
     return <KioskLocaleContext.Provider value={{ language, t }}><KioskPromotionPlayer contents={experience.promotions} /></KioskLocaleContext.Provider>;
+  }
+  if (autoPromotionReady && autoPromoting && experience) {
+    return <KioskLocaleContext.Provider value={{ language, t }}><KioskPromotionPlayer contents={experience.promotions} onExit={() => setAutoPromoting(false)} /></KioskLocaleContext.Provider>;
   }
   return <KioskLocaleContext.Provider value={{ language, t }}>{canvas}</KioskLocaleContext.Provider>;
 }

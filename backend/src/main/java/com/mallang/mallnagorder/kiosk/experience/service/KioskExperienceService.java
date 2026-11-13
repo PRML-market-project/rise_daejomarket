@@ -21,7 +21,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class KioskExperienceService {
     private static final int MAX_PROMOTIONS = 30;
-    private static final Set<String> MODES = Set.of("DIRECTIONS", "PROMOTION");
+    // AUTO: the kiosk plays promotions after the welcome screen has been idle, and a touch returns to it.
+    private static final Set<String> MODES = Set.of("DIRECTIONS", "PROMOTION", "AUTO");
     private final KioskExperienceRepository repository;
     private final ObjectMapper objectMapper;
     private final KioskTranslationService translations;

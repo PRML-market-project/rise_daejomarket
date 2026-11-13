@@ -10,11 +10,12 @@ import {
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
 import AdminLogo from "./AdminLogo";
-import { absoluteAssetUrl, getKioskExperience, saveManagedShops, saveOperationMode, uploadPromotion } from "./kioskExperienceApi";
+import { absoluteAssetUrl, getKioskExperience, OPERATION_MODE_LABELS, operationModeFromLabel, operationModeLabel, saveManagedShops, saveOperationMode, uploadPromotion } from "./kioskExperienceApi";
+import type { OperationModeLabel } from "./kioskExperienceApi";
 import { figmaMapShops } from "./mapShops";
 import { MapView, getRouteDistanceForShop } from "../../components/market/MapView";
 
-type OperationMode = "길찾기" | "홍보";
+type OperationMode = OperationModeLabel;
 type DialogState = "session" | "unsaved" | "invalid-move" | "saving" | "save-error" | "upload" | "upload-error" | null;
 type IconOption = { label: string; Icon: ComponentType<{ size?: number; strokeWidth?: number }> };
 type ShopForm = { name: string; description: string; keywords: string };
@@ -78,7 +79,7 @@ function OperationPanel({ current, selected, onSelect, onApply }: { current: Ope
         <div className="flex flex-col gap-[8px]">
           <span className="text-[14px] font-medium leading-[20px]">모드 변경하기</span>
           <div className="flex gap-[8px]">
-            {(["길찾기", "홍보"] as OperationMode[]).map((mode) => <PillButton key={mode} kind={selected === mode ? "primary" : "secondary"} className="w-[128px]" onClick={() => onSelect(mode)}>{mode}</PillButton>)}
+            {OPERATION_MODE_LABELS.map((mode) => <PillButton key={mode} kind={selected === mode ? "primary" : "secondary"} className="w-[128px]" onClick={() => onSelect(mode)}>{mode}</PillButton>)}
           </div>
         </div>
       </div>
@@ -279,7 +280,7 @@ export default function AdminStoreManager() {
     const page = new URLSearchParams(window.location.search).get("page");
     if (page === "promotion" || page === "tags") setActivePage(page);
     getKioskExperience().then((config) => {
-      const mode: OperationMode = config.operationMode === "PROMOTION" ? "홍보" : "길찾기";
+      const mode: OperationMode = operationModeLabel(config.operationMode);
       setCurrentMode(mode); setSelectedMode(mode);
       const canonicalId = (shop: typeof config.shops[number]) => shops.find((candidate) => candidate.id === shop.id)?.id
         ?? (shops.filter((candidate) => candidate.name === shop.name).length === 1 ? shops.find((candidate) => candidate.name === shop.name)?.id : undefined)
@@ -334,7 +335,7 @@ export default function AdminStoreManager() {
       {activePage === "tags" && <SearchTagManager onBack={() => setActivePage("store")} />}
       {activePage === "store" && <>
       <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
-      <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(selectedMode === "홍보" ? "PROMOTION" : "DIRECTIONS"); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
+      <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(operationModeFromLabel(selectedMode)); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
       <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
         <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} thumbnailsByShopId={thumbnailsByShopId} onSelect={selectShop} /><MarketMap selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon, thumbnailUrl) => { setThumbnailsByShopId((current) => ({ ...current, [shopId]: thumbnailUrl })); setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
       </div>

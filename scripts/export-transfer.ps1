@@ -25,7 +25,7 @@ foreach ($folder in @('frontend', 'admin-frontend', 'backend', 'ai-server',
     if ($LASTEXITCODE -ge 8) { throw "Transfer copy failed: $folder (robocopy $LASTEXITCODE)" }
 }
 foreach ($file in @('README.md', 'package.json', 'run-all.ps1', 'run-server.ps1',
-                    'setup.cmd', 'start.cmd', 'check.cmd', '.gitignore')) {
+                    'setup.cmd', 'start.cmd', 'end.cmd', 'check.cmd', '.gitignore')) {
     Copy-Item -LiteralPath (Join-Path $root $file) -Destination (Join-Path $target $file) -Force
 }
 Write-Host "Transfer package ready: $target" -ForegroundColor Green

@@ -4,7 +4,8 @@
 import { ChangeEvent, ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { searchTagIcons } from "../../data/search-tag-icons";
-import { absoluteAssetUrl, getKioskExperience, MAX_PROMOTIONS, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "./kioskExperienceApi";
+import { absoluteAssetUrl, AUTO_PROMOTION_IDLE_SECONDS, getKioskExperience, MAX_PROMOTIONS, OPERATION_MODE_LABELS, operationModeFromLabel, operationModeLabel, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "./kioskExperienceApi";
+import type { OperationModeLabel } from "./kioskExperienceApi";
 
 type ButtonProps = { children: React.ReactNode; kind?: "primary" | "secondary" | "danger" | "outline"; disabled?: boolean; className?: string; onClick?: () => void };
 function Button({ children, kind = "primary", disabled, className = "", onClick }: ButtonProps) {
@@ -33,7 +34,7 @@ function Poster({ video = false, src, fit = "contain" }: { video?: boolean; src?
   </div>;
 }
 
-export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (target: "store" | "tags") => void; onModeApply: (mode: "길찾기" | "홍보") => void }) {
+export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (target: "store" | "tags") => void; onModeApply: (mode: OperationModeLabel) => void }) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [baseline, setBaseline] = useState<MediaItem[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -43,15 +44,15 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
   const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState<"delete" | "leave" | "applying" | "mode-error" | null>(null);
   const [pendingTarget, setPendingTarget] = useState<"store" | "tags">("store");
-  const [currentMode, setCurrentMode] = useState<"길찾기" | "홍보">("길찾기");
-  const [selectedMode, setSelectedMode] = useState<"길찾기" | "홍보">("길찾기");
+  const [currentMode, setCurrentMode] = useState<OperationModeLabel>("길찾기");
+  const [selectedMode, setSelectedMode] = useState<OperationModeLabel>("길찾기");
   const fileRef = useRef<HTMLInputElement>(null);
   const active = items.find((item) => item.id === selected) ?? null;
 
   useEffect(() => {
     getKioskExperience().then((config) => {
       setItems(config.promotions); setBaseline(config.promotions); setSelected(config.promotions[0]?.id ?? null);
-      const mode = config.operationMode === "PROMOTION" ? "홍보" : "길찾기";
+      const mode = operationModeLabel(config.operationMode);
       setCurrentMode(mode); setSelectedMode(mode);
     }).catch((error: Error) => setMessage(error.message)).finally(() => setLoading(false));
   }, []);
@@ -86,12 +87,14 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
     setDialog("applying");
     try {
       const saved = await savePromotions(items);
-      const requestedMode = selectedMode === "홍보" && saved.promotions.length ? "PROMOTION" : "DIRECTIONS";
+      // Promotion and auto modes both need content; without it the kiosk keeps directions.
+      const needsContent = selectedMode !== "길찾기";
+      const requestedMode = needsContent && !saved.promotions.length ? "DIRECTIONS" : operationModeFromLabel(selectedMode);
       const applied = await saveOperationMode(requestedMode);
-      const appliedMode = applied.operationMode === "PROMOTION" ? "홍보" : "길찾기";
+      const appliedMode = operationModeLabel(applied.operationMode);
       setItems(saved.promotions); setBaseline(saved.promotions); setDirty(false); setDialog(null);
       setCurrentMode(appliedMode); setSelectedMode(appliedMode); onModeApply(appliedMode);
-      setMessage(selectedMode === "홍보" && !saved.promotions.length ? "등록된 콘텐츠가 없어 길찾기 모드를 유지합니다." : `${appliedMode} 모드를 적용했습니다.`);
+      setMessage(needsContent && !saved.promotions.length ? "등록된 콘텐츠가 없어 길찾기 모드를 유지합니다." : `${appliedMode} 모드를 적용했습니다.`);
     } catch (error) { setMessage((error as Error).message); setDialog("mode-error"); }
   };
 
@@ -101,7 +104,7 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
       <Button kind="outline" onClick={() => navigate("tags")}>검색 태그 관리하기 〉</Button>
     </div>
     <section className="mt-[20px] flex h-[115px] items-center justify-between rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
-      <div className="flex gap-[40px]"><div className="w-[280px]"><span className="text-[14px]">현재 운영 중</span><strong className="mt-[16px] flex items-center gap-1 text-[24px] text-[#116543]"><i className="h-2 w-2 rounded-full bg-[#168259]" />{currentMode} 서비스</strong></div><div><span className="text-[14px]">모드 변경하기</span><div className="mt-2 flex gap-2"><Button kind={selectedMode === "길찾기" ? "primary" : "secondary"} className="w-[128px]" onClick={() => setSelectedMode("길찾기")}>길찾기</Button><Button kind={selectedMode === "홍보" ? "primary" : "secondary"} className="w-[128px]" onClick={() => setSelectedMode("홍보")}>홍보</Button></div></div></div>
+      <div className="flex gap-[40px]"><div className="w-[280px]"><span className="text-[14px]">현재 운영 중</span><strong className="mt-[16px] flex items-center gap-1 text-[24px] text-[#116543]"><i className="h-2 w-2 rounded-full bg-[#168259]" />{currentMode} 서비스</strong></div><div><span className="text-[14px]">모드 변경하기</span><div className="mt-2 flex gap-2">{OPERATION_MODE_LABELS.map((mode) => <Button key={mode} kind={selectedMode === mode ? "primary" : "secondary"} className="w-[128px]" onClick={() => setSelectedMode(mode)}>{mode}</Button>)}</div></div></div>
       <Button className="w-[180px]" disabled={loading} onClick={applyMode}>운영 모드 적용</Button>
     </section>
     <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[360px_minmax(500px,852px)_minmax(480px,596px)] gap-[24px]">
@@ -114,14 +117,14 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
         </div>) : <div className="flex h-full flex-col items-center justify-center text-center"><strong>등록된 콘텐츠가 없습니다.</strong><span className="mt-2 text-[14px] text-[#a1a1a1]">이미지나 영상을 추가해주세요.</span></div>}</div>
         <p className="text-[12px] text-[#a1a1a1]">목록 순서대로 자동 재생합니다.<br />마지막 콘텐츠가 끝나면 처음부터 반복합니다.</p>
       </aside>
-      <section className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5"><div className="flex"><h2 className="flex-1 text-[20px] font-bold">키오스크 노출 미리보기</h2><span className="rounded-full bg-[#ebebeb] px-3 py-1 text-[14px]">{active ? active.type === "image" ? `이미지 · ${active.durationSeconds}초` : "영상 · 전체 미리보기" : "콘텐츠 없음"}</span></div><div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[16px] bg-[#ebebeb] p-4">{active ? <Poster video={active.type === "video"} src={active.url} fit={active.fit} /> : <span className="text-[#a1a1a1]">추가한 콘텐츠가 여기에 표시됩니다.</span>}</div><p className="text-[14px] text-[#a1a1a1]">{active ? "홍보 모드에서는 다른 UI 없이 이미지·영상만 전체 화면으로 표시됩니다." : "콘텐츠가 없으면 키오스크는 기존 대기화면을 표시합니다."}</p></section>
+      <section className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5"><div className="flex"><h2 className="flex-1 text-[20px] font-bold">키오스크 노출 미리보기</h2><span className="rounded-full bg-[#ebebeb] px-3 py-1 text-[14px]">{active ? active.type === "image" ? `이미지 · ${active.durationSeconds}초` : "영상 · 전체 미리보기" : "콘텐츠 없음"}</span></div><div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[16px] bg-[#ebebeb] p-4">{active ? <Poster video={active.type === "video"} src={active.url} fit={active.fit} /> : <span className="text-[#a1a1a1]">추가한 콘텐츠가 여기에 표시됩니다.</span>}</div><p className="text-[14px] text-[#a1a1a1]">{active ? `홍보 모드에서는 다른 UI 없이 이미지·영상만 전체 화면으로 표시됩니다. 자동 모드에서는 대기화면에서 ${AUTO_PROMOTION_IDLE_SECONDS / 60}분 동안 입력이 없을 때 재생하고, 화면을 터치하면 대기화면으로 돌아갑니다.` : "콘텐츠가 없으면 키오스크는 기존 대기화면을 표시합니다."}</p></section>
       <section className="flex min-h-0 flex-col gap-10 rounded-[20px] border border-[#ebebeb] bg-white p-5"><h2 className="text-[32px] font-bold">선택한 콘텐츠 설정</h2>{active ? <div className="min-h-0 flex-1 space-y-4 overflow-y-auto"><label className="block text-[14px] font-bold">선택한 파일<input readOnly value={active.name} className="mt-2 min-h-12 w-full rounded-xl border border-[#ebebeb] p-3 text-[16px] font-medium" /></label>{active.type === "image" && <label className="block rounded-xl bg-[#f6f6f6] p-3 text-[14px] font-bold">이미지 노출 시간<select value={active.durationSeconds} onChange={(e) => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, durationSeconds: Number(e.target.value) } : x)); setDirty(true); }} className="mt-2 h-12 w-full rounded-xl border border-[#ebebeb] bg-white p-3 text-[16px]">{[5, 10, 15, 20, 25, 30].map((seconds) => <option key={seconds} value={seconds}>{seconds}초</option>)}</select><span className="mt-2 block font-medium text-[#a1a1a1]">이미지는 지정 시간 후, 영상은 재생 종료 후 다음 콘텐츠로 넘어갑니다.</span></label>}<div className="rounded-xl bg-[#f6f6f6] p-3"><strong className="text-[14px]">화면 표시 방식</strong><div className="mt-2 flex gap-2"><Button className="flex-1" kind={active.fit === "contain" ? "primary" : "secondary"} onClick={() => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, fit: "contain" } : x)); setDirty(true); }}>전체 보이기</Button><Button className="flex-1" kind={active.fit === "cover" ? "primary" : "secondary"} onClick={() => { setItems((all) => all.map((x) => x.id === active.id ? { ...x, fit: "cover" } : x)); setDirty(true); }}>화면 채우기</Button></div><p className="mt-2 text-[14px] text-[#a1a1a1]">전체 보이기: 원본 비율을 유지하고 잘리지 않게 표시합니다.</p></div><div className="rounded-xl bg-[#f6f6f6] p-4 text-[14px]"><strong>재생 규칙</strong><p className="mt-2">목록 순서대로 다음 콘텐츠 전환<br />마지막 콘텐츠 종료 후 처음부터 반복</p></div></div> : <p className="flex-1 text-[#a1a1a1]">콘텐츠를 추가하면 설정할 수 있습니다.</p>}
         <div><p className="mb-2 text-[14px] text-[#116543]">{message || (dirty ? "저장하지 않은 변경이 있습니다." : "저장한 내용이 키오스크에 반영됩니다.")}</p><div className="flex gap-3"><Button kind="secondary" disabled={!dirty} className="h-14 w-36" onClick={() => { setItems(baseline); setSelected(baseline[0]?.id ?? null); setDirty(false); setMessage(""); }}>변경 취소</Button><Button disabled={!dirty} className="h-14 flex-1" onClick={persist}>콘텐츠 저장</Button></div></div>
       </section>
     </div>
     {dialog === "delete" && active && <Modal title="이 콘텐츠를 목록에서 삭제할까요?" onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>취소</Button><Button kind="danger" className="h-14 flex-1" onClick={() => { setItems((all) => all.filter((x) => x.id !== active.id)); setSelected(items.find((x) => x.id !== active.id)?.id ?? null); setDirty(true); setDialog(null); }}>목록에서 삭제</Button></>}><p>“{active.name}” 콘텐츠를 삭제합니다.<br />삭제 후 콘텐츠 저장을 눌러야 키오스크에 반영됩니다.</p></Modal>}
     {dialog === "leave" && <Modal title="변경 내용을 저장할까요?" onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => { setItems(baseline); setDirty(false); setDialog(null); onNavigate(pendingTarget); }}>저장 안 함</Button><Button className="h-14 flex-1" onClick={async () => { await persist(); setDialog(null); onNavigate(pendingTarget); }}>저장하고 이동</Button></>}><p>저장하지 않은 홍보 콘텐츠 변경 내용이 있습니다.</p></Modal>}
-    {dialog === "applying" && <Modal title="홍보 모드를 적용하고 있어요."><p>키오스크의 적용 완료를 확인하고 있습니다.<br />확인 전까지 현재 운영 중인 길찾기 서비스를 유지합니다.</p><div className="mt-5 flex justify-center"><i className="admin-spin h-8 w-8 rounded-full border-[3px] border-[#cfeadb] border-t-[#116543]" /></div></Modal>}
+    {dialog === "applying" && <Modal title={`${selectedMode} 모드를 적용하고 있어요.`}><p>키오스크의 적용 완료를 확인하고 있습니다.<br />확인 전까지 현재 운영 중인 길찾기 서비스를 유지합니다.</p><div className="mt-5 flex justify-center"><i className="admin-spin h-8 w-8 rounded-full border-[3px] border-[#cfeadb] border-t-[#116543]" /></div></Modal>}
     {dialog === "mode-error" && <Modal title="운영 모드를 바꾸지 못했어요." onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>돌아가기</Button><Button className="h-14 flex-1" onClick={applyMode}>다시 적용</Button></>}><p>현재 길찾기 서비스가 계속 운영됩니다.<br />키오스크 연결을 확인한 뒤 다시 시도해주세요.</p></Modal>}
   </>;
 }

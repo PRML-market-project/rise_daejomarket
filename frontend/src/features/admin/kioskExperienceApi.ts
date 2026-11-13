@@ -1,4 +1,13 @@
-export type OperationMode = "DIRECTIONS" | "PROMOTION";
+/** AUTO: promotions play after the kiosk welcome screen is idle; a touch returns to the welcome screen. */
+export type OperationMode = "DIRECTIONS" | "PROMOTION" | "AUTO";
+export type OperationModeLabel = "길찾기" | "홍보" | "자동";
+
+const MODE_LABELS: Record<OperationMode, OperationModeLabel> = { DIRECTIONS: "길찾기", PROMOTION: "홍보", AUTO: "자동" };
+export const OPERATION_MODE_LABELS = Object.values(MODE_LABELS);
+export const operationModeLabel = (mode: string): OperationModeLabel => MODE_LABELS[mode as OperationMode] ?? "길찾기";
+export const operationModeFromLabel = (label: OperationModeLabel): OperationMode =>
+  (Object.keys(MODE_LABELS) as OperationMode[]).find((mode) => MODE_LABELS[mode] === label) ?? "DIRECTIONS";
+export const AUTO_PROMOTION_IDLE_SECONDS = 60;
 
 export const MAX_PROMOTIONS = 30;
 

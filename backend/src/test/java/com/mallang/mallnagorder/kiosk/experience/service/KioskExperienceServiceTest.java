@@ -46,6 +46,29 @@ class KioskExperienceServiceTest {
     }
 
     @Test
+    void savesAutoOperationMode() {
+        var config = new KioskExperience();
+        when(repository.findAll()).thenReturn(List.of(config));
+        when(repository.save(any(KioskExperience.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(translations.withSeeds(anyMap())).thenReturn(Map.of());
+        when(translations.sources(anyList(), anyList())).thenReturn(Set.of());
+        when(translations.missing(anySet(), anyMap())).thenReturn(List.of());
+
+        var response = service.updateMode("AUTO");
+
+        assertThat(response.getOperationMode()).isEqualTo("AUTO");
+        verify(repository).save(config);
+    }
+
+    @Test
+    void rejectsUnknownOperationMode() {
+        assertThatThrownBy(() -> service.updateMode("SLEEP"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("지원하지 않는 운영 모드입니다.");
+        verifyNoInteractions(repository, translations);
+    }
+
+    @Test
     void rejectsThirtyOneContentsWithoutChangingSavedPlaylist() {
         assertThatThrownBy(() -> service.updatePromotions(contents(31)))
                 .isInstanceOf(IllegalArgumentException.class)
