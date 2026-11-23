@@ -8,6 +8,14 @@ $ErrorActionPreference = 'Stop'
 $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $rootKey = $root.ToLowerInvariant()
 
+# Close local kiosk/admin tabs while their titles still identify them, before stopping
+# HTTP services. Closing the final tab also closes that Chrome/Edge window naturally.
+$browserTabScript = Join-Path $PSScriptRoot 'kiosk-browser-tabs.ps1'
+if (Test-Path -LiteralPath $browserTabScript -PathType Leaf) {
+    . $browserTabScript
+    Close-KioskBrowserTabs
+}
+
 # translation, Gemma, TTS, backend, AI, handwriting, kiosk frontend, standalone admin
 $ports = @(17834, 8010, 8020, 8080, 8000, 17832, 5173, 3000)
 $dbPort = $null
@@ -132,6 +140,16 @@ foreach ($listener in Get-Listeners) {
         continue
     }
     Add-Target (Get-TopProcess $process) "port $($listener.LocalPort)"
+}
+
+# Full-screen kiosk browser opened by start.cmd (run-all.ps1 -OpenKiosk); identified by its own profile folder.
+$kioskProfile = (Join-Path $root '.runtime\kiosk-browser').ToLowerInvariant()
+foreach ($process in $table.Values) {
+    if (@('chrome.exe', 'msedge.exe') -contains $process.Name.ToLowerInvariant() -and
+        ([string] $process.CommandLine).ToLowerInvariant().Contains($kioskProfile) -and
+        -not (([string] $process.CommandLine) -match '--type=')) {
+        Add-Target $process 'kiosk browser'
+    }
 }
 
 # Cloudflare quick tunnels opened by npm run dev:server.

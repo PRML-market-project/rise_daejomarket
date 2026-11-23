@@ -13,6 +13,7 @@ import {
 } from "./KioskResultScreens";
 import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
 import { searchKioskWithAi } from "./kioskAiSearch";
+import { recordKioskEvent } from "./kioskAnalytics";
 import { useKioskSpeech } from "./useKioskSpeech";
 import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
 import { CompatibleMotion, DesignMotion, VoiceMotionButton } from "./DesignMotion";
@@ -496,6 +497,17 @@ export default function KioskSearchApp() {
   const [language, setLanguage] = useState<Language>("ko");
   const [scale, setScale] = useState(1);
   const [screen, setScreen] = useState<Screen>("welcome");
+  const analyticsSession = useRef<string | null>(null);
+  const searchEventId = useRef("");
+  const startSession = () => {
+    analyticsSession.current = crypto.randomUUID();
+    recordKioskEvent(analyticsSession.current, "START", language);
+    setScreen("search");
+  };
+  const trackShopSelection = (id: string) => {
+    if (id !== selectedShopId) recordKioskEvent(analyticsSession.current, "SELECT", language, "touch", [id]);
+    setSelectedShopId(id);
+  };
   const [mode, setMode] = useState<InputMode>("voice");
   const [query, setQuery] = useState("");
   const [tagSearch, setTagSearch] = useState<{ name: string; keywords: string } | null>(null);
@@ -589,6 +601,7 @@ export default function KioskSearchApp() {
   );
 
   const returnToWelcome = useCallback(() => {
+    analyticsSession.current = null;
     setScreen("welcome");
     setMode("voice");
     setQuery("");
@@ -650,6 +663,7 @@ export default function KioskSearchApp() {
   useEffect(() => {
     if (screen !== "processing") return;
     if (tagSearch) {
+      recordKioskEvent(analyticsSession.current, "SEARCH", language, "tag", tagResultShops.map(shop => shop.id), searchEventId.current);
       setScreen(tagResultShops.length ? "results" : "no-results");
       return;
     }
@@ -661,6 +675,7 @@ export default function KioskSearchApp() {
       if (!active || controller.signal.aborted) return;
       const knownIds = new Set(marketShops.map((shop) => shop.id));
       const ids = answer.shopIds.filter((id) => knownIds.has(id));
+      recordKioskEvent(analyticsSession.current, "SEARCH", language, mode, ids, searchEventId.current);
       setAiShopIds(ids);
       setAiAnswer(answer.message);
       setScreen(ids.length ? "results" : answer.intent === "get_menu" || answer.intent === "get_total_price" ? "answer" : "no-results");
@@ -668,7 +683,7 @@ export default function KioskSearchApp() {
       if (active && (!controller.signal.aborted || timedOut)) setScreen("error");
     }).finally(() => window.clearTimeout(timeoutId));
     return () => { active = false; window.clearTimeout(timeoutId); controller.abort(); };
-  }, [language, query, screen, tagResultShops.length, tagSearch]);
+  }, [language, mode, query, screen, tagResultShops, tagSearch]);
 
   const title = useMemo(() => {
     if (mode === "handwriting") return ["가게 정보를", "손가락으로 적어주세요."];
@@ -757,6 +772,7 @@ export default function KioskSearchApp() {
 
   const submit = () => {
     if (!query.trim()) return;
+    searchEventId.current = crypto.randomUUID();
     prepareSpeech();
     setTagSearch(null);
     setSelectedShopId(null);
@@ -768,6 +784,7 @@ export default function KioskSearchApp() {
   };
 
   const searchTag = (tag: { name: string; keywords: string }) => {
+    searchEventId.current = crypto.randomUUID();
     setQuery("");
     setTagSearch({ ...tag });
     setSelectedShopId(null);
@@ -819,7 +836,7 @@ export default function KioskSearchApp() {
           <main className="relative isolate flex h-[1800px] flex-col items-center overflow-hidden bg-[#f8fbf8] pt-[220px]">
             <div className="z-10 text-center text-[#0a3825]">
               <h1 className="text-[64px] font-bold leading-[1.4]">{t("가게를 찾고계신가요?")}<br />{t("화면을 터치해보세요")}</h1>
-              <PrimaryButton onClick={() => setScreen("search")} className="mx-auto mt-[56px] w-[660px]" typography="text-[36px] font-medium leading-[44px]">{t("대조시장 길 찾기")}</PrimaryButton>
+              <PrimaryButton onClick={startSession} className="mx-auto mt-[56px] w-[660px]" typography="text-[36px] font-medium leading-[44px]">{t("대조시장 길 찾기")}</PrimaryButton>
             </div>
             <DesignMotion name="welcome" className="absolute bottom-0 left-0 h-[1920px] w-full mix-blend-darken" />
             <div role="img" aria-label="RISE · DOL³ · WDKY" className="pointer-events-none absolute left-1/2 top-[1704px] z-10 flex h-[48px] -translate-x-1/2 items-center gap-[14px] whitespace-nowrap text-white drop-shadow-[0_0_12px_rgba(0,0,0,0.4)]">
@@ -851,7 +868,7 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={visibleResults.map(result => result.shop)} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} selectedViewportY={0.3} bottomOverlayHeight={1128} topOverlayHeight={208} initialOverview overviewBottomPadding={!tagSearch && aiAnswer ? 144 : 0} numberedShops={visibleResults} />
+            <MapView shops={visibleResults.map(result => result.shop)} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} selectedViewportY={0.3} bottomOverlayHeight={1128} topOverlayHeight={208} initialOverview overviewBottomPadding={!tagSearch && aiAnswer ? 144 : 0} numberedShops={visibleResults} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <ResultsPanel
               results={orderedResults}
@@ -861,16 +878,16 @@ export default function KioskSearchApp() {
               onPageChange={changeResultPage}
               answer={tagSearch ? "" : aiAnswer}
               selectedId={selectedShopId}
-              onSelect={setSelectedShopId}
+              onSelect={trackShopSelection}
               onSearchAgain={openSearch}
-              onDirections={() => selectedShop && setScreen("directions")}
+              onDirections={() => { if (selectedShop) { recordKioskEvent(analyticsSession.current, "DIRECTIONS", language, "touch", [selectedShop.id]); setScreen("directions"); } }}
             />
           </main>
         )}
 
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} showRoute bottomOverlayHeight={604} topOverlayHeight={208} />
+            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} showRoute bottomOverlayHeight={604} topOverlayHeight={208} />
             <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
             <DirectionsPanel shopName={selectedShop.name} direction={getRouteDirectionForShop(selectedShop)} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
           </main>
@@ -878,7 +895,7 @@ export default function KioskSearchApp() {
 
         {screen === "map" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={setSelectedShopId} bottomOverlayHeight={420} topOverlayHeight={208} />
+            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} bottomOverlayHeight={420} topOverlayHeight={208} />
             <FloatingSearchBar onClick={openSearch} />
             <MarketMapPanel onHome={returnToWelcome} onSearch={openSearch} />
           </main>

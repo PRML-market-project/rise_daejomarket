@@ -15,7 +15,7 @@ foreach ($folder in @('frontend', 'admin-frontend', 'backend', 'ai-server',
     $excluded = @((Join-Path $root 'data\mysql'), (Join-Path $root '.runtime\gradle-cache'),
         (Join-Path $root '.runtime\nuget-packages'), (Join-Path $root '.runtime\pip-cache'),
         (Join-Path $root '.runtime\npm-cache'), (Join-Path $root '.runtime\dotnet-home'),
-        (Join-Path $root '.runtime\smoke-venv'))
+        (Join-Path $root '.runtime\smoke-venv'), (Join-Path $root '.runtime\kiosk-browser'))
     if ($folder -ne '.runtime') {
         $excluded += @('node_modules', '.venv', '.gradle', '.next', '__pycache__', 'build', 'dist')
     }

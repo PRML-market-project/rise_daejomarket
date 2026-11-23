@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
 import AdminLogo from "./AdminLogo";
+import AdminDashboard, { DashboardDialog } from "./AdminDashboard";
+import { shutdownKiosk } from "./kioskControlApi";
 import { absoluteAssetUrl, getKioskExperience, OPERATION_MODE_LABELS, operationModeFromLabel, operationModeLabel, saveManagedShops, saveOperationMode, uploadPromotion } from "./kioskExperienceApi";
 import type { OperationModeLabel } from "./kioskExperienceApi";
 import { figmaMapShops } from "./mapShops";
@@ -52,14 +54,15 @@ function PillButton({ children, kind = "primary", disabled, className = "", onCl
   return <button type="button" disabled={disabled} onClick={onClick} className={`flex h-[48px] items-center justify-center rounded-full px-[20px] text-[16px] font-medium leading-[23px] transition hover:brightness-[.98] disabled:cursor-default disabled:opacity-50 ${colors} ${className}`}>{children}</button>;
 }
 
-function Header({ mode, onLogout }: { mode: OperationMode; onLogout: () => void }) {
+function Header({ mode, onLogout, onShutdown, stopping }: { mode: OperationMode; onLogout: () => void; onShutdown: () => void; stopping: boolean }) {
   return (
-    <header className="flex h-[80px] shrink-0 items-center gap-[32px] border-b border-[#ebebeb] bg-white px-[32px]">
+    <header className="flex h-[80px] shrink-0 items-center gap-[16px] border-b border-[#ebebeb] bg-white px-[32px]">
       <div className="flex items-center gap-[20px]">
         <AdminLogo />
         <strong className="text-[16px] leading-[23px]">관리자</strong>
       </div>
       <div className="flex-1" />
+      <PillButton kind="secondary" className="w-[112px] shrink-0" disabled={stopping} onClick={onShutdown}>{stopping ? "종료 중…" : "종료하기"}</PillButton>
       <div className="flex h-[47px] items-center gap-[6px] rounded-full bg-[#cfeadb] px-[24px] text-[16px] font-medium">
         <span className="h-[8px] w-[8px] rounded-full bg-[#168259]" /> {mode} 운영 중
       </div>
@@ -150,7 +153,7 @@ function IconPicker({ open, selected, onToggle, onSelect }: { open: boolean; sel
   </section>;
 }
 
-function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail, onSavedShop }: { shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void; onSavedShop: (shopId: string, name: string, icon: string, thumbnailUrl: string) => void }) {
+function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, saved, setSaved, iconOpen, setIconOpen, thumbnail, setThumbnail, onSavedShop, saveRef }: { saveRef: React.RefObject<(() => Promise<boolean>) | null>; shopId: string; form: ShopForm; setForm: React.Dispatch<React.SetStateAction<ShopForm>>; baseline: ShopForm; setBaseline: (form: ShopForm) => void; setDialog: (state: DialogState) => void; saved: boolean; setSaved: (value: boolean) => void; iconOpen: boolean; setIconOpen: (value: boolean) => void; thumbnail: string; setThumbnail: (value: string) => void; onSavedShop: (shopId: string, name: string, icon: string, thumbnailUrl: string) => void }) {
   const [tags, setTags] = useState(["닭강정", "옛날통닭", "포장"]);
   const [editingTagIndex, setEditingTagIndex] = useState<number | null>(null);
   const [selectedIcon, setSelectedIcon] = useState(4);
@@ -194,7 +197,7 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
   };
 
   const save = async () => {
-    if (!form.name.trim()) { setNameError("가게명을 입력해주세요."); return; }
+    if (!form.name.trim()) { setNameError("가게명을 입력해주세요."); setDialog(null); return false; }
     setNameError(""); setDialog("saving");
     try {
       const config = await getKioskExperience();
@@ -204,8 +207,10 @@ function StoreEditor({ shopId, form, setForm, baseline, setBaseline, setDialog, 
       await saveManagedShops([...config.shops.filter((shop) => shop.id !== managed.id && !(uniqueOriginalName && shop.name === originalName && !shops.some((candidate) => candidate.id === shop.id))), managed]);
       onSavedShop(managed.id, managed.name, managed.icon, managed.thumbnailUrl);
       setBaseline(form); setSaved(true); setDialog(null); setIconOpen(false);
-    } catch { setDialog("save-error"); }
+      return true;
+    } catch { setDialog("save-error"); return false; }
   };
+  useEffect(() => { saveRef.current = save; });
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -249,6 +254,20 @@ function ConfirmDialog({ state, progress, onClose, onPrimary, onSecondary }: { s
 }
 
 export default function AdminStoreManager() {
+  const shutdownRequested = useRef(false);
+  const [shutdownState, setShutdownState] = useState<"idle" | "requesting" | "stopping" | "error">("idle");
+  const [shutdownError, setShutdownError] = useState("");
+  const requestShutdown = async () => {
+    if (shutdownRequested.current) return;
+    shutdownRequested.current = true;
+    setShutdownState("requesting"); setShutdownError("");
+    try { await shutdownKiosk(); setShutdownState("stopping"); }
+    catch (error) {
+      shutdownRequested.current = false;
+      setShutdownError(error instanceof Error && error.message && error.name !== "TypeError" && error.name !== "TimeoutError" ? error.message : "종료 서버에 연결하지 못했습니다. 다시 시도하거나 end.cmd를 실행해주세요.");
+      setShutdownState("error");
+    }
+  };
   const [currentMode, setCurrentMode] = useState<OperationMode>("길찾기");
   const [selectedMode, setSelectedMode] = useState<OperationMode>("길찾기");
   const [form, setForm] = useState(initialForm);
@@ -258,12 +277,14 @@ export default function AdminStoreManager() {
   const [saved, setSaved] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
   const [thumbnail, setThumbnail] = useState("/figma/search-result-food.png");
-  const [activePage, setActivePage] = useState<"store" | "promotion" | "tags">("store");
+  const [activePage, setActivePage] = useState<"store" | "promotion" | "tags" | "dashboard">("store");
+  const storeSaveRef = useRef<(() => Promise<boolean>) | null>(null);
+  const [standaloneExport, setStandaloneExport] = useState(false);
   const [selectedShopId, setSelectedShopId] = useState("585:28772");
   const [iconByShopId, setIconByShopId] = useState<Record<string, string>>({});
   const [namesByShopId, setNamesByShopId] = useState<Record<string, string>>({});
   const [thumbnailsByShopId, setThumbnailsByShopId] = useState<Record<string, string>>({});
-  const [pendingPage, setPendingPage] = useState<"store" | "promotion" | "tags">("promotion");
+  const [pendingPage, setPendingPage] = useState<"store" | "promotion" | "tags" | "dashboard">("promotion");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
 
   useEffect(() => {
@@ -278,7 +299,8 @@ export default function AdminStoreManager() {
     if (state === "icon-open") setIconOpen(true);
     if (state === "saved") { setSaved(true); setBaseline(initialForm); }
     const page = new URLSearchParams(window.location.search).get("page");
-    if (page === "promotion" || page === "tags") setActivePage(page);
+    if (page === "promotion" || page === "tags" || page === "dashboard") setActivePage(page);
+    setStandaloneExport(new URLSearchParams(window.location.search).get("export") === "1");
     getKioskExperience().then((config) => {
       const mode: OperationMode = operationModeLabel(config.operationMode);
       setCurrentMode(mode); setSelectedMode(mode);
@@ -298,7 +320,8 @@ export default function AdminStoreManager() {
   }, [dialog]);
 
   const logout = () => { localStorage.removeItem("accessToken"); localStorage.removeItem("refreshToken"); document.cookie = "accessToken=; Max-Age=0; path=/"; window.location.href = "/login"; };
-  const requestNavigation = (page: "store" | "promotion" | "tags") => {
+  const requestNavigation = (page: "store" | "promotion" | "tags" | "dashboard") => {
+    if (page === activePage) return;
     setPendingPage(page);
     if (!form.name.trim()) setDialog("invalid-move");
     else if (dirty) setDialog("unsaved");
@@ -315,11 +338,11 @@ export default function AdminStoreManager() {
     setIconOpen(false);
   };
   const closeDialog = () => setDialog(null);
-  const primaryDialogAction = () => {
+  const primaryDialogAction = async () => {
     if (dialog === "session") { logout(); return; }
-    if (dialog === "unsaved") { setBaseline(form); setSaved(true); setDialog(null); setActivePage(pendingPage); return; }
+    if (dialog === "unsaved") { if (await storeSaveRef.current?.()) setActivePage(pendingPage); return; }
     if (dialog === "invalid-move") { setForm(baseline); setDialog(null); setActivePage(pendingPage); return; }
-    if (dialog === "save-error") { setDialog("saving"); window.setTimeout(() => { setBaseline(form); setSaved(true); setDialog(null); }, 900); return; }
+    if (dialog === "save-error") { await storeSaveRef.current?.(); return; }
     if (dialog === "upload-error") { setDialog("upload"); }
   };
   const secondaryDialogAction = () => {
@@ -328,19 +351,24 @@ export default function AdminStoreManager() {
     setDialog(null);
   };
 
+  if (standaloneExport) return <AdminDashboard standaloneExport onNavigate={setActivePage} />;
+
   return <main className="min-h-screen min-w-[1400px] bg-[#f8fbf8]">
-    <Header mode={currentMode} onLogout={logout} />
+    <Header mode={currentMode} onLogout={logout} onShutdown={requestShutdown} stopping={shutdownState === "requesting" || shutdownState === "stopping"} />
     <div className="px-[32px] pb-[24px] pt-[24px]">
+      {activePage === "dashboard" && <AdminDashboard onNavigate={setActivePage} />}
       {activePage === "promotion" && <PromotionManager onNavigate={setActivePage} onModeApply={(mode) => { setCurrentMode(mode); setSelectedMode(mode); }} />}
       {activePage === "tags" && <SearchTagManager onBack={() => setActivePage("store")} />}
       {activePage === "store" && <>
-      <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
+      <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button><button type="button" onClick={() => requestNavigation("dashboard")} className="font-medium text-[#c3c3c3]">대시보드</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
       <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(operationModeFromLabel(selectedMode)); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
       <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
-        <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} thumbnailsByShopId={thumbnailsByShopId} onSelect={selectShop} /><MarketMap selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon, thumbnailUrl) => { setThumbnailsByShopId((current) => ({ ...current, [shopId]: thumbnailUrl })); setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
+        <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} thumbnailsByShopId={thumbnailsByShopId} onSelect={selectShop} /><MarketMap selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor saveRef={storeSaveRef} shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon, thumbnailUrl) => { setThumbnailsByShopId((current) => ({ ...current, [shopId]: thumbnailUrl })); setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
       </div>
       </>}
     </div>
-    {dialog && <ConfirmDialog state={dialog} progress={progress} onClose={closeDialog} onPrimary={primaryDialogAction} onSecondary={secondaryDialogAction} />}
+    {(shutdownState === "requesting" || shutdownState === "stopping") && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgba(15,33,23,.32)] p-[24px]" role="status" aria-live="polite"><div className="w-[640px] rounded-[20px] bg-white p-[32px]"><h2 className="text-[24px] font-bold text-[#0a3825]">키오스크를 종료하고 있습니다.</h2><p className="mt-[24px] text-[16px] leading-[24px]">실행 중인 서비스와 키오스크 창을 모두 종료합니다.<br />다시 사용하려면 start.cmd를 실행해주세요.</p></div></div>}
+    {shutdownState === "error" && <DashboardDialog title="종료하지 못했습니다." onClose={() => setShutdownState("idle")}><p role="alert" className="text-[16px] leading-[24px]">{shutdownError}</p><div className="mt-[24px] flex gap-[12px]"><PillButton kind="secondary" className="h-[56px] flex-1" onClick={() => setShutdownState("idle")}>돌아가기</PillButton><PillButton className="h-[56px] flex-1" onClick={requestShutdown}>다시 종료</PillButton></div></DashboardDialog>}
+    {dialog === "unsaved" ? <DashboardDialog title={pendingPage === "dashboard" ? "대시보드로 이동할까요?" : "변경 내용을 저장할까요?"} onClose={closeDialog}><p className="text-[16px] font-medium">저장하지 않은 변경 내용이 있습니다.</p><div className="mt-[24px] flex gap-[12px]"><PillButton kind="secondary" className="h-[56px] flex-1" onClick={closeDialog}>계속 편집</PillButton><PillButton kind="secondary" className="h-[56px] flex-1" onClick={secondaryDialogAction}>저장하지 않고 이동</PillButton><PillButton className="h-[56px] flex-1" onClick={primaryDialogAction}>저장 후 이동</PillButton></div></DashboardDialog> : dialog && <ConfirmDialog state={dialog} progress={progress} onClose={closeDialog} onPrimary={primaryDialogAction} onSecondary={secondaryDialogAction} />}
   </main>;
 }

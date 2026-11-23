@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import AdminLogin from './AdminLogin';
 import AdminStoreManager from './AdminStoreManager';
 import './admin.css';
+import { kioskBrowserTitle } from '../kiosk/kioskBrowserTitle';
 
 export default function AdminApp() {
   const isLogin = window.location.pathname === '/login';
@@ -12,7 +13,7 @@ export default function AdminApp() {
 
   useEffect(() => {
     document.documentElement.classList.add('admin-page');
-    document.title = '대조시장 관리자';
+    document.title = kioskBrowserTitle('대조시장 관리자');
     if (redirectTo) window.location.replace(redirectTo);
     return () => document.documentElement.classList.remove('admin-page');
   }, [redirectTo]);
