@@ -35,7 +35,7 @@ export function DashboardDialog({ title, children, onClose, wide = false }: { ti
     return () => { document.removeEventListener("keydown", keydown); previous?.focus(); };
   }, [onClose]);
   return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(15,33,23,.32)] p-[24px]" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={`${card} max-h-[90vh] overflow-y-auto ${wide ? "w-[1512px]" : "w-[640px] p-[32px]"}`}>
+    <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={`${card} max-h-[calc(var(--admin-viewport-height,100vh)*0.9)] overflow-y-auto ${wide ? "w-[1512px]" : "w-[640px] p-[32px]"}`}>
       <div className={`flex items-center justify-between ${wide ? "border-b border-[#ebebeb] px-[24px] py-[13px]" : "mb-[24px]"}`}><h2 className="text-[24px] font-bold text-[#0a3825]">{title}</h2><button type="button" aria-label="닫기" onClick={onClose}>{wide ? <span className="block rounded-full border border-[#91bca1] px-[23px] py-[8px] text-[16px] font-bold">닫기</span> : <img src="/figma/dashboard/close.svg" alt="" />}</button></div>
       {children}
     </div>

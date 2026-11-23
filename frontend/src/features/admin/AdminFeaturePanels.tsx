@@ -4,8 +4,9 @@
 import { ChangeEvent, ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 import { searchTagIcons } from "../../data/search-tag-icons";
-import { absoluteAssetUrl, AUTO_PROMOTION_IDLE_SECONDS, getKioskExperience, MAX_PROMOTIONS, OPERATION_MODE_LABELS, operationModeFromLabel, operationModeLabel, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "./kioskExperienceApi";
+import { absoluteAssetUrl, AUTO_PROMOTION_IDLE_SECONDS, getKioskExperience, MAX_PROMOTIONS, operationModeFromLabel, operationModeLabel, PromotionContent, saveOperationMode, savePromotions, saveSearchTags, SearchTag as ApiSearchTag, uploadPromotion, uploadSearchIcon } from "./kioskExperienceApi";
 import { DashboardDialog } from "./AdminDashboard";
+import AdminOperationPanel from "./AdminOperationPanel";
 import type { OperationModeLabel } from "./kioskExperienceApi";
 
 type ButtonProps = { children: React.ReactNode; kind?: "primary" | "secondary" | "danger" | "outline"; disabled?: boolean; className?: string; onClick?: () => void };
@@ -35,27 +36,37 @@ function Poster({ video = false, src, fit = "contain" }: { video?: boolean; src?
   </div>;
 }
 
-export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (target: "store" | "tags" | "dashboard") => void; onModeApply: (mode: OperationModeLabel) => void }) {
+export function PromotionManager({ onNavigate, currentMode, selectedMode, onModeSelect, onModeApply, modeLoadFailed, onRetryMode }: {
+  onNavigate: (target: "store" | "tags" | "dashboard") => void;
+  currentMode: OperationModeLabel | null;
+  selectedMode: OperationModeLabel | null;
+  onModeSelect: (mode: OperationModeLabel) => void;
+  onModeApply: (mode: OperationModeLabel) => void;
+  modeLoadFailed: boolean;
+  onRetryMode: () => void;
+}) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [baseline, setBaseline] = useState<MediaItem[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState<"delete" | "leave" | "applying" | "mode-error" | null>(null);
   const [pendingTarget, setPendingTarget] = useState<"store" | "tags" | "dashboard">("store");
-  const [currentMode, setCurrentMode] = useState<OperationModeLabel>("길찾기");
-  const [selectedMode, setSelectedMode] = useState<OperationModeLabel>("길찾기");
   const fileRef = useRef<HTMLInputElement>(null);
   const active = items.find((item) => item.id === selected) ?? null;
 
   useEffect(() => {
+    let active = true;
     getKioskExperience().then((config) => {
+      if (!active) return;
       setItems(config.promotions); setBaseline(config.promotions); setSelected(config.promotions[0]?.id ?? null);
-      const mode = operationModeLabel(config.operationMode);
-      setCurrentMode(mode); setSelectedMode(mode);
-    }).catch((error: Error) => setMessage(error.message)).finally(() => setLoading(false));
+    }).catch((error: Error) => {
+      if (active) { setMessage(error.message); setLoadFailed(true); }
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
 
   const navigate = (target: "store" | "tags" | "dashboard") => { if (dirty) { setPendingTarget(target); setDialog("leave"); } else onNavigate(target); };
@@ -85,6 +96,7 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
   };
   const persist = async () => { try { const config = await savePromotions(items); setItems(config.promotions); setBaseline(config.promotions); setDirty(false); setMessage("콘텐츠를 저장했습니다."); return true; } catch (error) { setMessage((error as Error).message); return false; } };
   const applyMode = async () => {
+    if (currentMode === null || selectedMode === null || loading || loadFailed || uploading || dialog === "applying") return;
     setDialog("applying");
     try {
       const saved = await savePromotions(items);
@@ -94,7 +106,7 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
       const applied = await saveOperationMode(requestedMode);
       const appliedMode = operationModeLabel(applied.operationMode);
       setItems(saved.promotions); setBaseline(saved.promotions); setDirty(false); setDialog(null);
-      setCurrentMode(appliedMode); setSelectedMode(appliedMode); onModeApply(appliedMode);
+      onModeApply(appliedMode);
       setMessage(needsContent && !saved.promotions.length ? "등록된 콘텐츠가 없어 길찾기 모드를 유지합니다." : `${appliedMode} 모드를 적용했습니다.`);
     } catch (error) { setMessage((error as Error).message); setDialog("mode-error"); }
   };
@@ -104,11 +116,8 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
       <div className="flex gap-[32px] text-[40px] leading-[60px]"><button className="font-medium text-[#c3c3c3]" onClick={() => navigate("store")}>가게 관리</button><strong className="text-[#0a3825]">홍보 관리</strong><button className="font-medium text-[#c3c3c3]" onClick={() => navigate("dashboard")}>대시보드</button></div>
       <Button kind="outline" onClick={() => navigate("tags")}>검색 태그 관리하기 〉</Button>
     </div>
-    <section className="mt-[20px] flex h-[115px] items-center justify-between rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
-      <div className="flex gap-[40px]"><div className="w-[280px]"><span className="text-[14px]">현재 운영 중</span><strong className="mt-[16px] flex items-center gap-1 text-[24px] text-[#116543]"><i className="h-2 w-2 rounded-full bg-[#168259]" />{currentMode} 서비스</strong></div><div><span className="text-[14px]">모드 변경하기</span><div className="mt-2 flex gap-2">{OPERATION_MODE_LABELS.map((mode) => <Button key={mode} kind={selectedMode === mode ? "primary" : "secondary"} className="w-[128px]" onClick={() => setSelectedMode(mode)}>{mode}</Button>)}</div></div></div>
-      <Button className="w-[180px]" disabled={loading} onClick={applyMode}>운영 모드 적용</Button>
-    </section>
-    <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[360px_minmax(500px,852px)_minmax(480px,596px)] gap-[24px]">
+    <div className="mt-[20px]"><AdminOperationPanel current={currentMode} selected={selectedMode} onSelect={onModeSelect} onApply={applyMode} disabled={loading || loadFailed || uploading || dialog === "applying"} hasPendingChanges={dirty} loadFailed={modeLoadFailed} onRetry={onRetryMode} /></div>
+    <div className="mt-[20px] grid h-[calc(var(--admin-viewport-height,100vh)-343px)] min-h-[737px] grid-cols-[360px_minmax(500px,852px)_minmax(480px,596px)] gap-[24px]">
       <aside className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5">
         <div className="flex"><h2 className="flex-1 text-[20px] font-bold">재생 목록</h2><span className="text-[14px]">{items.length} / {MAX_PROMOTIONS}개</span></div>
         <Button kind="secondary" className="w-full" disabled={loading || uploading || items.length >= MAX_PROMOTIONS} onClick={() => fileRef.current?.click()}>+ 이미지·영상 추가</Button><input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={addMedia} />
@@ -125,8 +134,8 @@ export function PromotionManager({ onNavigate, onModeApply }: { onNavigate: (tar
     </div>
     {dialog === "delete" && active && <Modal title="이 콘텐츠를 목록에서 삭제할까요?" onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>취소</Button><Button kind="danger" className="h-14 flex-1" onClick={() => { setItems((all) => all.filter((x) => x.id !== active.id)); setSelected(items.find((x) => x.id !== active.id)?.id ?? null); setDirty(true); setDialog(null); }}>목록에서 삭제</Button></>}><p>“{active.name}” 콘텐츠를 삭제합니다.<br />삭제 후 콘텐츠 저장을 눌러야 키오스크에 반영됩니다.</p></Modal>}
     {dialog === "leave" && <DashboardDialog title={pendingTarget === "dashboard" ? "대시보드로 이동할까요?" : "변경 내용을 저장할까요?"} onClose={() => setDialog(null)}><p>저장하지 않은 변경 내용이 있습니다.</p><div className="mt-[24px] flex gap-[12px]"><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>계속 편집</Button><Button kind="secondary" className="h-14 flex-1" onClick={() => { setItems(baseline); setDirty(false); setDialog(null); onNavigate(pendingTarget); }}>저장하지 않고 이동</Button><Button className="h-14 flex-1" onClick={async () => { if (await persist()) { setDialog(null); onNavigate(pendingTarget); } }}>저장 후 이동</Button></div><p role="status" className="mt-3 text-[14px] text-[#b3261e]">{message}</p></DashboardDialog>}
-    {dialog === "applying" && <Modal title={`${selectedMode} 모드를 적용하고 있어요.`}><p>키오스크의 적용 완료를 확인하고 있습니다.<br />확인 전까지 현재 운영 중인 길찾기 서비스를 유지합니다.</p><div className="mt-5 flex justify-center"><i className="admin-spin h-8 w-8 rounded-full border-[3px] border-[#cfeadb] border-t-[#116543]" /></div></Modal>}
-    {dialog === "mode-error" && <Modal title="운영 모드를 바꾸지 못했어요." onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>돌아가기</Button><Button className="h-14 flex-1" onClick={applyMode}>다시 적용</Button></>}><p>현재 길찾기 서비스가 계속 운영됩니다.<br />키오스크 연결을 확인한 뒤 다시 시도해주세요.</p></Modal>}
+    {dialog === "applying" && <Modal title={`${selectedMode} 모드를 적용하고 있어요.`}><p>키오스크의 적용 완료를 확인하고 있습니다.<br />확인 전까지 현재 운영 중인 {currentMode} 서비스를 유지합니다.</p><div className="mt-5 flex justify-center"><i className="admin-spin h-8 w-8 rounded-full border-[3px] border-[#cfeadb] border-t-[#116543]" /></div></Modal>}
+    {dialog === "mode-error" && <Modal title="운영 모드를 바꾸지 못했어요." onClose={() => setDialog(null)} footer={<><Button kind="secondary" className="h-14 flex-1" onClick={() => setDialog(null)}>돌아가기</Button><Button className="h-14 flex-1" onClick={applyMode}>다시 적용</Button></>}><p>현재 {currentMode} 서비스가 계속 운영됩니다.<br />키오스크 연결을 확인한 뒤 다시 시도해주세요.</p></Modal>}
   </>;
 }
 
@@ -154,7 +163,7 @@ export function SearchTagManager({ onBack }: { onBack: () => void }) {
   return <>
     <div className="flex h-[60px] items-start justify-between"><div className="flex gap-8 text-[40px] leading-[60px] text-[#c3c3c3]"><button onClick={onBack}>가게 관리</button><button onClick={onBack}>홍보 관리</button></div><Button onClick={onBack}>검색 태그 관리 〉</Button></div>
     <div className="mt-5 rounded-xl bg-[#cfeadb] px-5 py-4 text-[14px]">검색창 아래에 표시되는 공통 태그입니다. 가게별 설명 태그·검색용 키워드와 따로 관리합니다.</div>
-    <div className="mt-5 grid h-[calc(100vh-272px)] min-h-[720px] grid-cols-[360px_minmax(600px,852px)_minmax(480px,596px)] gap-6">
+    <div className="mt-5 grid h-[calc(var(--admin-viewport-height,100vh)-272px)] min-h-[720px] grid-cols-[360px_minmax(600px,852px)_minmax(480px,596px)] gap-6">
       <aside className="flex min-h-0 flex-col gap-4 rounded-[20px] border border-[#ebebeb] bg-white p-5">
         <div className="flex"><h2 className="flex-1 text-[20px] font-bold">검색 태그</h2><span className="text-[14px]">표시 {visibleCount} / 3</span></div>
         <Button kind="secondary" className="w-full" onClick={addTag}>+ 태그 추가</Button>

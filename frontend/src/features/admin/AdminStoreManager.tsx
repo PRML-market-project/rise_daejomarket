@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { ChangeEvent, ComponentType, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, ComponentType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Map as MapIcon,
   Search,
@@ -10,9 +10,11 @@ import {
 } from "lucide-react";
 import { PromotionManager, SearchTagManager } from "./AdminFeaturePanels";
 import AdminLogo from "./AdminLogo";
+import AdminOperationPanel from "./AdminOperationPanel";
+import AdminViewport from "./AdminViewport";
 import AdminDashboard, { DashboardDialog } from "./AdminDashboard";
 import { shutdownKiosk } from "./kioskControlApi";
-import { absoluteAssetUrl, getKioskExperience, OPERATION_MODE_LABELS, operationModeFromLabel, operationModeLabel, saveManagedShops, saveOperationMode, uploadPromotion } from "./kioskExperienceApi";
+import { absoluteAssetUrl, getKioskExperience, operationModeFromLabel, operationModeLabel, saveManagedShops, saveOperationMode, uploadPromotion } from "./kioskExperienceApi";
 import type { OperationModeLabel } from "./kioskExperienceApi";
 import { figmaMapShops } from "./mapShops";
 import { MapView, getRouteDistanceForShop } from "../../components/market/MapView";
@@ -54,7 +56,7 @@ function PillButton({ children, kind = "primary", disabled, className = "", onCl
   return <button type="button" disabled={disabled} onClick={onClick} className={`flex h-[48px] items-center justify-center rounded-full px-[20px] text-[16px] font-medium leading-[23px] transition hover:brightness-[.98] disabled:cursor-default disabled:opacity-50 ${colors} ${className}`}>{children}</button>;
 }
 
-function Header({ mode, onLogout, onShutdown, stopping }: { mode: OperationMode; onLogout: () => void; onShutdown: () => void; stopping: boolean }) {
+function Header({ mode, onLogout, onShutdown, stopping }: { mode: OperationMode | null; onLogout: () => void; onShutdown: () => void; stopping: boolean }) {
   return (
     <header className="flex h-[80px] shrink-0 items-center gap-[16px] border-b border-[#ebebeb] bg-white px-[32px]">
       <div className="flex items-center gap-[20px]">
@@ -64,30 +66,10 @@ function Header({ mode, onLogout, onShutdown, stopping }: { mode: OperationMode;
       <div className="flex-1" />
       <PillButton kind="secondary" className="w-[112px] shrink-0" disabled={stopping} onClick={onShutdown}>{stopping ? "종료 중…" : "종료하기"}</PillButton>
       <div className="flex h-[47px] items-center gap-[6px] rounded-full bg-[#cfeadb] px-[24px] text-[16px] font-medium">
-        <span className="h-[8px] w-[8px] rounded-full bg-[#168259]" /> {mode} 운영 중
+        <span className={`h-[8px] w-[8px] rounded-full ${mode ? "bg-[#168259]" : "bg-[#a1a1a1]"}`} /> {mode ? `${mode} 운영 중` : "운영 상태 확인 중"}
       </div>
       <PillButton kind="secondary" className="w-[112px]" onClick={onLogout}>로그아웃</PillButton>
     </header>
-  );
-}
-
-function OperationPanel({ current, selected, onSelect, onApply }: { current: OperationMode; selected: OperationMode; onSelect: (mode: OperationMode) => void; onApply: () => void }) {
-  return (
-    <section className="flex h-[115px] items-center justify-between rounded-[20px] border border-[#ebebeb] bg-white p-[20px]">
-      <div className="flex gap-[40px]">
-        <div className="flex w-[280px] flex-col gap-[16px]">
-          <span className="text-[14px] font-medium leading-[20px]">현재 운영 중</span>
-          <strong className="flex items-center gap-[4px] text-[24px] leading-[29px] text-[#116543]"><span className="h-[8px] w-[8px] rounded-full bg-[#168259]" />{current} 서비스</strong>
-        </div>
-        <div className="flex flex-col gap-[8px]">
-          <span className="text-[14px] font-medium leading-[20px]">모드 변경하기</span>
-          <div className="flex gap-[8px]">
-            {OPERATION_MODE_LABELS.map((mode) => <PillButton key={mode} kind={selected === mode ? "primary" : "secondary"} className="w-[128px]" onClick={() => onSelect(mode)}>{mode}</PillButton>)}
-          </div>
-        </div>
-      </div>
-      <PillButton kind={selected === current ? "secondary" : "primary"} className="w-[180px]" disabled={selected === current} onClick={onApply}>운영 모드 적용</PillButton>
-    </section>
   );
 }
 
@@ -254,6 +236,10 @@ function ConfirmDialog({ state, progress, onClose, onPrimary, onSecondary }: { s
 }
 
 export default function AdminStoreManager() {
+  return <AdminViewport><AdminStoreManagerContent /></AdminViewport>;
+}
+
+function AdminStoreManagerContent() {
   const shutdownRequested = useRef(false);
   const [shutdownState, setShutdownState] = useState<"idle" | "requesting" | "stopping" | "error">("idle");
   const [shutdownError, setShutdownError] = useState("");
@@ -268,8 +254,13 @@ export default function AdminStoreManager() {
       setShutdownState("error");
     }
   };
-  const [currentMode, setCurrentMode] = useState<OperationMode>("길찾기");
-  const [selectedMode, setSelectedMode] = useState<OperationMode>("길찾기");
+  const [currentMode, setCurrentMode] = useState<OperationMode | null>(null);
+  const [selectedMode, setSelectedMode] = useState<OperationMode | null>(null);
+  const [modeLoadFailed, setModeLoadFailed] = useState(false);
+  const [applyingMode, setApplyingMode] = useState(false);
+  const updateMode = useCallback((mode: OperationMode) => {
+    setCurrentMode(mode); setSelectedMode(mode);
+  }, []);
   const [form, setForm] = useState(initialForm);
   const [baseline, setBaseline] = useState(initialForm);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -287,6 +278,19 @@ export default function AdminStoreManager() {
   const [pendingPage, setPendingPage] = useState<"store" | "promotion" | "tags" | "dashboard">("promotion");
   const dirty = JSON.stringify(form) !== JSON.stringify(baseline) || iconOpen || !saved;
 
+  const loadExperience = useCallback(() => {
+    setModeLoadFailed(false);
+    return getKioskExperience().then((config) => {
+      updateMode(operationModeLabel(config.operationMode));
+      const canonicalId = (shop: typeof config.shops[number]) => shops.find((candidate) => candidate.id === shop.id)?.id
+        ?? (shops.filter((candidate) => candidate.name === shop.name).length === 1 ? shops.find((candidate) => candidate.name === shop.name)?.id : undefined)
+        ?? shop.id;
+      setIconByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.icon])));
+      setNamesByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.name])));
+      setThumbnailsByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.thumbnailUrl])));
+    }).catch(() => setModeLoadFailed(true));
+  }, [updateMode]);
+
   useEffect(() => {
     const state = new URLSearchParams(window.location.search).get("state");
     if (state === "session-expired") setDialog("session");
@@ -301,17 +305,8 @@ export default function AdminStoreManager() {
     const page = new URLSearchParams(window.location.search).get("page");
     if (page === "promotion" || page === "tags" || page === "dashboard") setActivePage(page);
     setStandaloneExport(new URLSearchParams(window.location.search).get("export") === "1");
-    getKioskExperience().then((config) => {
-      const mode: OperationMode = operationModeLabel(config.operationMode);
-      setCurrentMode(mode); setSelectedMode(mode);
-      const canonicalId = (shop: typeof config.shops[number]) => shops.find((candidate) => candidate.id === shop.id)?.id
-        ?? (shops.filter((candidate) => candidate.name === shop.name).length === 1 ? shops.find((candidate) => candidate.name === shop.name)?.id : undefined)
-        ?? shop.id;
-      setIconByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.icon])));
-      setNamesByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.name])));
-      setThumbnailsByShopId(Object.fromEntries(config.shops.map((shop) => [canonicalId(shop), shop.thumbnailUrl])));
-    }).catch(() => undefined);
-  }, []);
+    void loadExperience();
+  }, [loadExperience]);
 
   useEffect(() => {
     if (dialog !== "upload") return;
@@ -350,19 +345,28 @@ export default function AdminStoreManager() {
     if (dialog === "upload-error") { setDialog(null); document.querySelector<HTMLInputElement>('input[type="file"]')?.click(); return; }
     setDialog(null);
   };
+  const applyMode = async () => {
+    if (selectedMode === null || currentMode === null || applyingMode) return;
+    setApplyingMode(true);
+    try {
+      const applied = await saveOperationMode(operationModeFromLabel(selectedMode));
+      updateMode(operationModeLabel(applied.operationMode));
+    } catch { setDialog("save-error"); }
+    finally { setApplyingMode(false); }
+  };
 
   if (standaloneExport) return <AdminDashboard standaloneExport onNavigate={setActivePage} />;
 
-  return <main className="min-h-screen min-w-[1400px] bg-[#f8fbf8]">
+  return <main className="min-h-[var(--admin-viewport-height,100vh)] min-w-[1400px] bg-[#f8fbf8]">
     <Header mode={currentMode} onLogout={logout} onShutdown={requestShutdown} stopping={shutdownState === "requesting" || shutdownState === "stopping"} />
     <div className="px-[32px] pb-[24px] pt-[24px]">
       {activePage === "dashboard" && <AdminDashboard onNavigate={setActivePage} />}
-      {activePage === "promotion" && <PromotionManager onNavigate={setActivePage} onModeApply={(mode) => { setCurrentMode(mode); setSelectedMode(mode); }} />}
+      {activePage === "promotion" && <PromotionManager onNavigate={setActivePage} currentMode={currentMode} selectedMode={selectedMode} onModeSelect={setSelectedMode} onModeApply={updateMode} modeLoadFailed={modeLoadFailed} onRetryMode={loadExperience} />}
       {activePage === "tags" && <SearchTagManager onBack={() => setActivePage("store")} />}
       {activePage === "store" && <>
       <div className="flex h-[60px] items-start justify-between"><div className="flex gap-[32px] text-[40px] leading-[60px]"><button type="button" onClick={() => requestNavigation("store")} className="font-bold text-[#0a3825]">가게 관리</button><button type="button" onClick={() => requestNavigation("promotion")} className="font-medium text-[#c3c3c3]">홍보 관리</button><button type="button" onClick={() => requestNavigation("dashboard")} className="font-medium text-[#c3c3c3]">대시보드</button></div><PillButton kind="outline" onClick={() => requestNavigation("tags")}>검색 태그 관리하기　›</PillButton></div>
-      <div className="mt-[20px]"><OperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={async () => { try { await saveOperationMode(operationModeFromLabel(selectedMode)); setCurrentMode(selectedMode); } catch { setDialog("save-error"); } }} /></div>
-      <div className="mt-[20px] grid h-[calc(100vh-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
+      <div className="mt-[20px]"><AdminOperationPanel current={currentMode} selected={selectedMode} onSelect={setSelectedMode} onApply={applyMode} disabled={applyingMode} loadFailed={modeLoadFailed} onRetry={loadExperience} /></div>
+      <div className="mt-[20px] grid h-[calc(var(--admin-viewport-height,100vh)-343px)] min-h-[737px] grid-cols-[300px_minmax(500px,852px)_minmax(480px,656px)] justify-between gap-[24px]">
         <ShopList selectedId={selectedShopId} namesByShopId={namesByShopId} thumbnailsByShopId={thumbnailsByShopId} onSelect={selectShop} /><MarketMap selectedId={selectedShopId} iconByShopId={iconByShopId} namesByShopId={namesByShopId} onSelect={selectShop} /><StoreEditor saveRef={storeSaveRef} shopId={shops.find((shop) => shop.id === selectedShopId)?.id ?? shops[0].id} form={form} setForm={setForm} baseline={baseline} setBaseline={setBaseline} setDialog={setDialog} saved={saved} setSaved={setSaved} iconOpen={iconOpen} setIconOpen={setIconOpen} thumbnail={thumbnail} setThumbnail={setThumbnail} onSavedShop={(shopId, name, icon, thumbnailUrl) => { setThumbnailsByShopId((current) => ({ ...current, [shopId]: thumbnailUrl })); setNamesByShopId((current) => ({ ...current, [shopId]: name })); setIconByShopId((current) => ({ ...current, [shopId]: icon })); }} />
       </div>
       </>}

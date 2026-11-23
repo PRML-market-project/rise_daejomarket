@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import AdminLogo from "./AdminLogo";
+import AdminViewport from "./AdminViewport";
 
 export default function AdminLogin({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [userId, setUserId] = useState("");
@@ -44,7 +45,7 @@ export default function AdminLogin({ onAuthenticated }: { onAuthenticated: () =>
   };
 
   return (
-    <main className="flex min-h-screen flex-col bg-[#116543]">
+    <AdminViewport><main className="flex min-h-[var(--admin-viewport-height,100vh)] flex-col bg-[#116543]">
       <header className="flex h-[80px] shrink-0 items-center gap-[20px] border-b border-[#ebebeb] bg-white px-[32px]">
         <AdminLogo />
         <strong className="text-[16px] leading-[23px] text-[#19211c]">관리자</strong>
@@ -70,6 +71,6 @@ export default function AdminLogin({ onAuthenticated }: { onAuthenticated: () =>
           <p className="text-[14px] font-medium leading-[21px] text-[#a1a1a1]">등록된 관리자 계정으로 로그인해주세요.</p>
         </form>
       </section>
-    </main>
+    </main></AdminViewport>
   );
 }
