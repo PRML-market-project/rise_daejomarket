@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 /** Keep the still visible until playback actually starts, including stalled loads. */
-export function DesignMotion({ name, className = "", loop = true, onEnded }: {
-  name: string; className?: string; loop?: boolean; onEnded?: () => void;
+export function DesignMotion({ name, format = "mp4", className = "", loop = true, onEnded }: {
+  name: string; format?: "mp4" | "webm"; className?: string; loop?: boolean; onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fallbackTimer = useRef<number | null>(null);
@@ -40,7 +40,7 @@ export function DesignMotion({ name, className = "", loop = true, onEnded }: {
   };
   return <span aria-hidden="true" className={`pointer-events-none block ${className}`}>
     <img src={`/design-assets/${name}.png`} alt="" className={`absolute inset-0 h-full w-full object-contain ${playing && !failed && !reducedMotion ? "opacity-0" : "opacity-100"}`} />
-    {!failed && !reducedMotion && <video ref={videoRef} src={`/design-assets/${name}.mp4`}
+    {!failed && !reducedMotion && <video ref={videoRef} src={`/design-assets/${name}.${format}`} poster={`/design-assets/${name}.png`}
       autoPlay muted playsInline loop={loop} preload="auto"
       className={`absolute inset-0 h-full w-full object-contain ${playing ? "opacity-100" : "opacity-0"}`}
       onPlaying={showVideo} onWaiting={waitForVideo}

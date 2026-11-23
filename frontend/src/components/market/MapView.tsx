@@ -487,7 +487,9 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       const previous = routePoints[index];
       return sum + Math.hypot(point.x - previous.x, point.y - previous.y);
     }, 0);
-    const duration = clamp(2200 + routeLength * 0.45, 2600, 6200);
+    // 길찾기 카메라 이동 속도 배율 (1 = 기존 속도, 0.6 = 기존의 60% 속도)
+    const ROUTE_CAMERA_SPEED = 0.6;
+    const duration = clamp(2200 + routeLength * 0.45, 2600, 6200) / ROUTE_CAMERA_SPEED;
     const panelOffsetY = bottomOverlayHeight / (2 * mapScaleRef.current);
     const cameraCenterFor = (point: Point) => constrainCoveredMapCenter({ x: point.x, y: point.y + panelOffsetY }, mapScaleRef.current, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -528,19 +530,51 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       }
     }
   }, [cancelCameraAnimation, initialOverview, minLabelPt, overviewCamera.center.x, overviewCamera.center.y, visibleBottomOverlayHeight, bottomOverlayHeight, topOverlayHeight, mapScale, containerSize]);
+  // Gestures read the latest camera from refs: several pointer events can
+  // arrive before React re-renders, and stale state would drop pinch steps.
+  const labelPtRef = useRef(labelPt);
+  labelPtRef.current = labelPt;
+  const cameraCenterRef = useRef(constrainedCenter);
+  cameraCenterRef.current = constrainedCenter;
+
+  /** Zoom so the map point under `anchor` ends up under `nextAnchor` (screen/layout pixels). */
+  const zoomAt = useCallback((nextLabelPt: number, anchor: Point, nextAnchor: Point = anchor) => {
+    cancelCameraAnimation();
+    const currentScale = labelPtRef.current * CSS_PIXELS_PER_POINT / SOURCE_LABEL_HEIGHT;
+    const next = clamp(nextLabelPt, minLabelPt, MAX_LABEL_PT);
+    const nextScale = next * CSS_PIXELS_PER_POINT / SOURCE_LABEL_HEIGHT;
+    const half = { x: containerSize.width / 2, y: containerSize.height / 2 };
+    const current = cameraCenterRef.current;
+    const mapPoint = { x: current.x + (anchor.x - half.x) / currentScale, y: current.y + (anchor.y - half.y) / currentScale };
+    const nextCenter = initialOverview && next <= minLabelPt
+      ? overviewCamera.center
+      : constrainCoveredMapCenter({ x: mapPoint.x - (nextAnchor.x - half.x) / nextScale, y: mapPoint.y - (nextAnchor.y - half.y) / nextScale }, nextScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
+    labelPtRef.current = next;
+    cameraCenterRef.current = nextCenter;
+    setLabelPt(next);
+    setCenter(nextCenter);
+  }, [cancelCameraAnimation, containerSize, initialOverview, minLabelPt, overviewCamera.center, topOverlayHeight, visibleBottomOverlayHeight]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const onWheel = (event: WheelEvent) => { event.preventDefault(); changeZoom(labelPt * Math.exp(-event.deltaY * 0.0015)); };
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      // Trackpad pinch arrives as ctrl+wheel with small deltas; zoom around the cursor.
+      const anchor = getLocalMapPoint({ x: event.clientX, y: event.clientY }, container.getBoundingClientRect(), containerSize);
+      zoomAt(labelPtRef.current * Math.exp(-event.deltaY * (event.ctrlKey ? 0.01 : 0.0015)), anchor);
+    };
     container.addEventListener("wheel", onWheel, { passive: false });
     return () => container.removeEventListener("wheel", onWheel);
-  }, [changeZoom, labelPt]);
+  }, [zoomAt, containerSize]);
 
-  const panBy = useCallback((deltaX: number, deltaY: number) => setCenter((current) => {
-    const bounded = constrainCoveredMapCenter(current, mapScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
-    const next = { x: bounded.x - deltaX / mapScale, y: bounded.y - deltaY / mapScale };
-    return constrainCoveredMapCenter(next, mapScale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
-  }), [mapScale, topOverlayHeight, visibleBottomOverlayHeight, containerSize]);
+  const panBy = useCallback((deltaX: number, deltaY: number) => {
+    const scale = labelPtRef.current * CSS_PIXELS_PER_POINT / SOURCE_LABEL_HEIGHT;
+    const current = cameraCenterRef.current;
+    const next = constrainCoveredMapCenter({ x: current.x - deltaX / scale, y: current.y - deltaY / scale }, scale, containerSize, topOverlayHeight, visibleBottomOverlayHeight);
+    cameraCenterRef.current = next;
+    setCenter(next);
+  }, [topOverlayHeight, visibleBottomOverlayHeight, containerSize]);
   const updateGesture = useCallback(() => {
     const pointers = [...pointersRef.current.values()];
     if (pointers.length < 2) { gestureRef.current = pointers[0] ? { midpoint: pointers[0], distance: 0 } : null; return; }
@@ -548,13 +582,68 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
     const midpoint = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
     const distance = Math.hypot(second.x - first.x, second.y - first.y);
     const previous = gestureRef.current;
-    if (previous) { panBy(midpoint.x - previous.midpoint.x, midpoint.y - previous.midpoint.y); if (previous.distance > 0) changeZoom(labelPt * (distance / previous.distance)); }
+    if (previous && previous.distance > 0 && distance > 0) zoomAt(labelPtRef.current * (distance / previous.distance), previous.midpoint, midpoint);
+    else if (previous) panBy(midpoint.x - previous.midpoint.x, midpoint.y - previous.midpoint.y);
     gestureRef.current = { midpoint, distance };
-  }, [panBy, changeZoom, labelPt]);
+  }, [panBy, zoomAt]);
+
+  // A touch counts as a tap (shop/marker selection) until it moves past this
+  // distance or a second finger joins; after that it is a pan/pinch gesture.
+  const TAP_SLOP = 12;
+  const pointerStartRef = useRef(new Map<number, Point>());
+  const gestureActiveRef = useRef(false);
+  const suppressClickRef = useRef(false);
+  const startGesture = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!gestureActiveRef.current) {
+      gestureActiveRef.current = true;
+      suppressClickRef.current = true;
+    }
+    // Explicit capture overrides touch's implicit capture on the shop element.
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId);
+  };
   const pointerPosition = (event: React.PointerEvent<HTMLDivElement>) => getLocalMapPoint({ x: event.clientX, y: event.clientY }, event.currentTarget.getBoundingClientRect(), containerSize);
-  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => { cancelCameraAnimation(); event.currentTarget.setPointerCapture(event.pointerId); pointersRef.current.set(event.pointerId, pointerPosition(event)); setIsDragging(true); updateGesture(); };
-  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => { const previous = pointersRef.current.get(event.pointerId); if (!previous) return; const point = pointerPosition(event); pointersRef.current.set(event.pointerId, point); if (pointersRef.current.size === 1) { panBy(point.x - previous.x, point.y - previous.y); gestureRef.current = { midpoint: point, distance: 0 }; } else updateGesture(); };
-  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => { pointersRef.current.delete(event.pointerId); setIsDragging(pointersRef.current.size > 0); updateGesture(); };
+  const handlePointerDownCapture = () => {
+    // Runs before child handlers, so every new touch sequence starts clean.
+    if (pointersRef.current.size === 0) { gestureActiveRef.current = false; suppressClickRef.current = false; }
+  };
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    cancelCameraAnimation();
+    const point = pointerPosition(event);
+    pointersRef.current.set(event.pointerId, point);
+    pointerStartRef.current.set(event.pointerId, point);
+    setIsDragging(true);
+    if (pointersRef.current.size >= 2) {
+      startGesture(event);
+      gestureRef.current = null;
+    }
+    updateGesture();
+  };
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const previous = pointersRef.current.get(event.pointerId);
+    if (!previous) return;
+    const point = pointerPosition(event);
+    if (!gestureActiveRef.current) {
+      const start = pointerStartRef.current.get(event.pointerId) ?? previous;
+      if (Math.hypot(point.x - start.x, point.y - start.y) < TAP_SLOP) return;
+    }
+    startGesture(event);
+    pointersRef.current.set(event.pointerId, point);
+    if (pointersRef.current.size === 1) { panBy(point.x - previous.x, point.y - previous.y); gestureRef.current = { midpoint: point, distance: 0 }; } else updateGesture();
+  };
+  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    pointersRef.current.delete(event.pointerId);
+    pointerStartRef.current.delete(event.pointerId);
+    setIsDragging(pointersRef.current.size > 0);
+    gestureRef.current = null;
+    updateGesture();
+  };
+  const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    // A drag or pinch that ends over a shop must not select it.
+    if (!suppressClickRef.current) return;
+    suppressClickRef.current = false;
+    event.stopPropagation();
+    event.preventDefault();
+  };
 
   const selectedLabelBubble = selectedShop && selectedMarker ? getShopLabelBubble(selectedShop, selectedMarker) : null;
   const selectedIconAsset = selectedShop ? getShopIconAsset(selectedShop) : undefined;
@@ -575,7 +664,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
   const routeDistanceLabel = `${routeDistance}m`;
   const routeDistanceWidth = Math.max(132, routeDistanceLabel.length * 28 + 36);
 
-  return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd}>
+  return <div ref={containerRef} className={`relative h-full w-full overflow-hidden bg-[#f7f7f7] touch-none select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`} onPointerDownCapture={handlePointerDownCapture} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd} onClickCapture={handleClickCapture}>
     <svg viewBox={viewBox} preserveAspectRatio="xMidYMid slice" className="block h-full w-full" role="img" aria-label={selectedShop ? `${selectedShop.name} · 대조시장 안내 지도` : "대조시장 안내 지도"}>
       <style>{`.route-static-arrow{display:none}@media (prefers-reduced-motion:reduce){.route-moving-arrow{display:none}.route-static-arrow{display:block}}`}</style>
       <g aria-hidden="true" pointerEvents="none">
@@ -608,7 +697,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
           <image href={getShopIconAsset(shop)} x={cell.x + cell.width / 2 - 17} y={cell.y + cell.height / 2 - 17} width="34" height="34" />
         </g>;
       })}
-      {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${shop.name} · 선택`} className="cursor-pointer outline-none" onPointerDown={(event) => event.stopPropagation()} onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{shop.name}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
+      {shops.map((shop) => <g key={shop.id} role="button" tabIndex={0} aria-label={`${shop.name} · 선택`} className="cursor-pointer outline-none" onClick={() => onSelectShop?.(shop.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelectShop?.(shop.id); } }}><title>{shop.name}</title>{getShopHitAreas(shop).map((area, index) => <rect key={index} x={area.x} y={area.y} width={area.width} height={area.height} rx="8" fill="transparent" pointerEvents="all" />)}</g>)}
       {showRoute && routeTarget && routePoints && <g key={selectedShop?.id} pointerEvents="none">
         <polyline points={routePoints.map((point) => `${point.x},${point.y}`).join(" ")} fill="none" stroke="#22A36B" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" />
         {Array.from({ length: movingArrowCount }, (_, index) => <path key={index} className="route-moving-arrow" d={ROUTE_ARROW_PATH} fill="#d8f5e7">
@@ -637,7 +726,7 @@ export function MapView({ shops = [], iconShops = shops, selectedShop = null, on
       const tail = { left: marker.tip.x - Math.cos(tailAngle) * tailRadius - marker.x, top: marker.tip.y - Math.sin(tailAngle) * tailRadius - marker.y, rotation: marker.angle + 225 };
       const shop = numberedShops.find(result => result.shop.id === marker.id)?.shop;
       return <button key={marker.key} type="button" data-result-marker={marker.number} data-marker-side={marker.side} data-marker-offscreen={marker.offscreen} data-marker-tracking={marker.tracking} data-marker-angle={marker.angle} aria-label={`${String(marker.number).padStart(2, "0")} · ${shop ? t(shop.name) : ""}`} aria-pressed={selectedShop?.id === marker.id}
-        onPointerDown={event => event.stopPropagation()} onClick={() => onSelectShop?.(marker.id)}
+        onClick={() => onSelectShop?.(marker.id)}
         className="absolute z-10 rounded-[7.166px] bg-[#22a36b] text-white drop-shadow-[0_0_8px_rgba(0,0,0,0.3)]"
         style={{ left: marker.x, top: marker.y, width: marker.width, height: marker.height }}>
         <span className="relative z-10 block font-['Kiosk_Map_Pretendard',sans-serif] text-[32px] font-semibold leading-[28px] tracking-[-1.6px]">{String(marker.number).padStart(2, "0")}</span>

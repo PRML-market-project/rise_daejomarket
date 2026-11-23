@@ -14,10 +14,13 @@ import {
 import { fetchKioskExperience, KioskExperience, KioskPromotionPlayer, subscribeToKioskExperience } from "./KioskPromotionPlayer";
 import { searchKioskWithAi } from "./kioskAiSearch";
 import { recordKioskEvent } from "./kioskAnalytics";
+import { KIOSK_BOTTOM_INSET, KIOSK_PANEL_HEIGHT, KIOSK_TOUCH_KEYBOARD_HEIGHT } from "./kioskLayout";
 import { useKioskSpeech } from "./useKioskSpeech";
 import { appendHangulKey, deleteLastKeyboardCharacter } from "./hangulKeyboard";
 import { CompatibleMotion, DesignMotion, VoiceMotionButton } from "./DesignMotion";
 import { getSearchResultPage, getSearchResultPresentation, shuffleSearchMatches, type ResultSortMode } from "./searchResultPresentation";
+import { RecognitionConfirmation } from "./RecognitionConfirmation";
+import { useRecognitionCountdown } from "./useRecognitionCountdown";
 
 type InputMode = "keyboard" | "handwriting" | "voice";
 type VoiceState = "idle" | "listening" | "recognizing" | "confirmed" | "error";
@@ -233,7 +236,7 @@ function CategoryChips({ onChoose, configuredTags }: { onChoose: (tag: { name: s
           type="button"
           key={id}
           onClick={() => onChoose({ name: label, keywords: keywords || label })}
-          className="flex h-[76px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] leading-[40px] text-[#19211c]"
+          className="flex h-[72px] items-center gap-[12px] rounded-full border-2 border-[#ebebeb] px-[32px] text-[36px] leading-[40px] text-[#19211c]"
         >
           <span className="flex h-[40px] w-[40px] items-center justify-center rounded-full" style={{ backgroundColor: color }}>
             <img src={icon} alt="" style={{ width: size, height: size }} />
@@ -274,7 +277,7 @@ function TouchKeyboard({ value, onChange, onSubmit }: { value: string; onChange:
   const shiftLabel = layout === "ko" ? "쌍자음" : layout === "en" ? "Shift" : "기호";
 
   return (
-    <div className="flex h-[584px] w-full flex-col gap-[12px] rounded-[24px] bg-[#ebebeb] px-[24px] py-[48px]" style={language === "vi" ? { paddingTop: 20, paddingBottom: 20 } : undefined}>
+    <div className="flex w-full shrink-0 flex-col gap-[12px] rounded-[24px] bg-[#ebebeb] px-[24px] py-[48px]" style={{ height: KIOSK_TOUCH_KEYBOARD_HEIGHT, ...(language === "vi" ? { paddingTop: 20, paddingBottom: 20 } : {}) }}>
       {language === "vi" && <div className="flex h-[44px] shrink-0 justify-center gap-2">
         {["ă", "â", "ê", "ô", "ơ", "ư", "đ"].map(letter => <button type="button" key={letter} onClick={() => append(shifted ? letter.toUpperCase() : letter)} className="w-[64px] rounded-lg bg-[#f8fbf8] text-[28px]">{letter}</button>)}
         {[["á", "\u0301"], ["à", "\u0300"], ["ả", "\u0309"], ["ã", "\u0303"], ["ạ", "\u0323"], ["a", ""]].map(([label, tone]) => <button type="button" key={label} aria-label={`Dấu ${label}`} onClick={() => addVietnameseTone(tone)} className="w-[52px] rounded-lg bg-[#d8e8df] text-[28px]">{label}</button>)}
@@ -306,9 +309,12 @@ type RecognitionResponse = { candidates?: string[]; detail?: string; error?: str
 const HANDWRITING_API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8080").replace(/\/$/, "");
 const HANDWRITING_IDLE_MS = 1500;
 const HANDWRITING_WIDTH = 984;
-const HANDWRITING_HEIGHT = 780;
+const HANDWRITING_HEIGHT = 808;
 
-function HandwritingPad({ language, recognized, onRecognized }: { language: Language; recognized: boolean; onRecognized: (text: string) => void }) {
+function HandwritingPad({ language, recognizing, onRecognizingChange, onRecognized }: {
+  language: Language; recognizing: boolean;
+  onRecognizingChange: (recognizing: boolean) => void; onRecognized: (text: string) => void;
+}) {
   const { t } = useKioskLocale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasInk, setHasInk] = useState(false);
@@ -351,13 +357,15 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
     }
     requestControllerRef.current?.abort();
     requestControllerRef.current = null;
-  }, []);
+    onRecognizingChange(false);
+  }, [onRecognizingChange]);
 
   const recognize = useCallback(async () => {
     if (!strokesRef.current.length) return;
     requestControllerRef.current?.abort();
     const controller = new AbortController();
     requestControllerRef.current = controller;
+    onRecognizingChange(true);
 
     try {
       const response = await fetch(`${HANDWRITING_API_URL}/api/handwriting/recognize`, {
@@ -367,6 +375,7 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
         signal: controller.signal,
       });
       const result = (await response.json()) as RecognitionResponse;
+      if (controller.signal.aborted) return;
       if (!response.ok) throw new Error(result.detail ?? result.error ?? "recognition failed");
       const recognizedWord = result.candidates?.find((candidate) => candidate.trim());
       if (!recognizedWord) {
@@ -380,9 +389,12 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
     } catch (error) {
       if ((error as Error).name === "AbortError") return;
     } finally {
-      if (requestControllerRef.current === controller) requestControllerRef.current = null;
+      if (requestControllerRef.current === controller) {
+        requestControllerRef.current = null;
+        onRecognizingChange(false);
+      }
     }
-  }, [language, onRecognized, redraw]);
+  }, [language, onRecognized, onRecognizingChange, redraw]);
 
   const scheduleRecognition = useCallback(() => {
     if (recognitionTimerRef.current !== null) window.clearTimeout(recognitionTimerRef.current);
@@ -424,14 +436,15 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
   };
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] bg-[#ebebeb]">
-      {!recognized && !hasInk && <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ opacity: 0.15 }}><CompatibleMotion name="handwriting" loopDelayMs={3000} /></div>}
-      {!hasInk && (
-        <p className={`pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] ${recognized ? "text-[#a1a1a1]" : "text-[#0a3825]"}`}>{t("검색할 내용을 손가락으로 적어주세요")}</p>
+    <div className="relative h-full min-h-0 overflow-hidden rounded-[28px] bg-[#ebebeb]" aria-busy={recognizing}>
+      {!hasInk && !recognizing && <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ opacity: 0.15 }}><CompatibleMotion name="handwriting" loopDelayMs={3000} /></div>}
+      {!hasInk && !recognizing && (
+        <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[36px] font-medium leading-[48px] text-[#0a3825]">{t("검색할 내용을 손가락으로 적어주세요")}</p>
       )}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 z-20 h-full w-full touch-none"
+        style={{ opacity: recognizing ? 0 : 1, pointerEvents: recognizing ? "none" : undefined }}
         aria-label={t("손글씨 입력 영역")}
         onPointerDown={(event) => {
           cancelPendingRecognition();
@@ -452,34 +465,35 @@ function HandwritingPad({ language, recognized, onRecognized }: { language: Lang
         onPointerUp={finishStroke}
         onPointerCancel={finishStroke}
       />
+      {recognizing && (
+        <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-[24px]">
+          {/* Keep Figma's 80x16 dot baseline; the padded MOV bounces above it. */}
+          <div className="relative h-[16px] w-[80px] shrink-0">
+            <DesignMotion name="handwriting-loading" format="webm" className="absolute bottom-0 left-[-40px] h-[60px] w-[160px]" />
+          </div>
+          <p className="text-[36px] font-medium leading-[48px] text-[#0a3825]">{t("내용을 확인중이예요")}</p>
+        </div>
+      )}
     </div>
   );
 }
 
-function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard }: { state: VoiceState; transcript: string; onStart: () => void; onRetry: () => void; onKeyboard?: () => void }) {
+function VoicePanel({ state, transcript, onStart, onRetry, onKeyboard, secondsLeft = null }: { state: VoiceState; transcript: string; onStart: () => void; onRetry: () => void; onKeyboard?: () => void; secondsLeft?: number | null }) {
   const { t } = useKioskLocale();
   if (state === "error") {
     return (
-      <div className="flex flex-1 flex-col items-center pt-[240px] text-center">
-        <img src="/figma/voice-error.png" alt="" className="mb-[36px] h-[150px] w-[150px] object-contain" />
-        <h2 className="text-[56px] font-bold text-[#0a3825]">{t("제대로 듣지 못했어요")}</h2>
-        <p className="mt-[12px] text-[32px] text-[#0a3825]">{t("조금 더 가까이에서 천천히 말씀해주세요.")}</p>
+      <div className="flex flex-1 flex-col items-center text-center font-['Kiosk_Result_Noto',sans-serif]" style={{ paddingTop: 320 - 56 }}>
+        <DesignMotion name="voice-error" format="webm" className="relative h-[200px] w-[200px] shrink-0" />
+        <h2 className="mt-[16px] text-[64px] font-bold leading-[1.4] text-[#0a3825]">{t("제대로 듣지 못했어요")}</h2>
+        <p className="mt-[16px] text-[36px] font-medium leading-[44px] text-[#0a3825]">{t("조금 더 가까이에서 천천히 말씀해주세요.")}</p>
         <PrimaryButton onClick={onRetry} className="mt-[80px] w-full">{t("다시 말하기")}</PrimaryButton>
-        <button type="button" onClick={onKeyboard} className="mt-[24px] h-[120px] w-full rounded-full bg-[#ebebeb] text-[40px] text-[#19211c]">{t("키보드로 검색하기")}</button>
+        <button type="button" onClick={onKeyboard} className="mt-[40px] h-[120px] w-full rounded-full bg-[#ebebeb] text-[40px] leading-[52px] text-[#19211c]">{t("키보드로 검색하기")}</button>
       </div>
     );
   }
 
   if (state === "confirmed") {
-    return (
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[28px]">
-        <img src="/figma/voice-confirm-bg.png" alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="relative z-10 text-center text-white">
-          <p className="text-[48px]">“{transcript}”</p>
-          <button type="button" onClick={onRetry} className="mt-[40px] rounded-full border-2 border-[#ebebeb] bg-white/30 px-[32px] py-[16px] text-[32px]">{t("↻ 다시 말하기")}</button>
-        </div>
-      </div>
-    );
+    return <RecognitionConfirmation kind="voice" text={transcript} secondsLeft={secondsLeft} onRetry={onRetry} />;
   }
 
   const active = state === "listening" || state === "recognizing";
@@ -510,6 +524,12 @@ export default function KioskSearchApp() {
   };
   const [mode, setMode] = useState<InputMode>("voice");
   const [query, setQuery] = useState("");
+  const [handwritingRecognized, setHandwritingRecognized] = useState(false);
+  const [handwritingRecognizing, setHandwritingRecognizing] = useState(false);
+  const [autoSearchArmed, setAutoSearchArmed] = useState(false);
+  const onHandwritingRecognized = useCallback((text: string) => {
+    setQuery(text); setHandwritingRecognized(true); setAutoSearchArmed(true);
+  }, []);
   const [tagSearch, setTagSearch] = useState<{ name: string; keywords: string } | null>(null);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -520,6 +540,8 @@ export default function KioskSearchApp() {
   }, [screen, mode, language]);
   const [handwritingResetKey, setHandwritingResetKey] = useState(0);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
+  // Directions can be opened from search results or from the full market map.
+  const [directionsOrigin, setDirectionsOrigin] = useState<"results" | "map">("results");
   const [resultSortMode, setResultSortMode] = useState<ResultSortMode>("relevance");
   const [resultPage, setResultPage] = useState(1);
   const [aiShopIds, setAiShopIds] = useState<string[]>([]);
@@ -600,7 +622,15 @@ export default function KioskSearchApp() {
     language,
   );
 
+  const searchVisible = screen === "search" && !autoPromoting && !(experience?.operationMode === "PROMOTION" && experience.promotions.length > 0);
+  const autoSearchReady = searchVisible && autoSearchArmed && Boolean(query.trim())
+    && ((mode === "voice" && voiceState === "confirmed") || (mode === "handwriting" && handwritingRecognized));
+  const { secondsLeft, cancel: cancelAutoSearch } = useRecognitionCountdown(autoSearchReady, `${mode}:${language}:${query}`, () => submit());
+  useEffect(() => { if (!searchVisible) setAutoSearchArmed(false); }, [searchVisible]);
+
   const returnToWelcome = useCallback(() => {
+    cancelAutoSearch();
+    setAutoSearchArmed(false); setHandwritingRecognized(false);
     analyticsSession.current = null;
     setScreen("welcome");
     setMode("voice");
@@ -611,7 +641,7 @@ export default function KioskSearchApp() {
     setSelectedShopId(null);
     setAiShopIds([]);
     setAiAnswer("");
-  }, []);
+  }, [cancelAutoSearch]);
 
   useEffect(() => {
     const resize = () => setScale(Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT));
@@ -693,6 +723,7 @@ export default function KioskSearchApp() {
   }, [mode, voiceState]);
 
   const startVoice = () => {
+    cancelAutoSearch(); setAutoSearchArmed(false);
     cancelVoiceRef.current?.();
     setVoiceState("listening");
     setTranscript("");
@@ -715,6 +746,7 @@ export default function KioskSearchApp() {
     const confirmTranscript = () => {
       setQuery(latestText);
       setVoiceState(latestText.trim() ? "confirmed" : "error");
+      setAutoSearchArmed(Boolean(latestText.trim()));
     };
     const scheduleSilenceStop = () => {
       clearSilenceTimer();
@@ -771,6 +803,7 @@ export default function KioskSearchApp() {
   };
 
   const submit = () => {
+    cancelAutoSearch(); setAutoSearchArmed(false);
     if (!query.trim()) return;
     searchEventId.current = crypto.randomUUID();
     prepareSpeech();
@@ -801,6 +834,7 @@ export default function KioskSearchApp() {
   };
 
   const clearInput = () => {
+    cancelAutoSearch(); setAutoSearchArmed(false); setHandwritingRecognized(false);
     cancelVoiceRef.current?.();
     setQuery("");
     setTranscript("");
@@ -823,8 +857,9 @@ export default function KioskSearchApp() {
         {!(["results", "directions", "map"] as Screen[]).includes(screen) && (
           <Header
             language={language}
-            onMap={() => setScreen("map")}
+            onMap={() => { cancelAutoSearch(); setAutoSearchArmed(false); setSelectedShopId(null); setScreen("map"); }}
             onLanguage={() => {
+              cancelAutoSearch(); setAutoSearchArmed(false);
               setPendingLanguage(language);
               setLanguageReturnScreen(screen);
               setScreen("language");
@@ -833,7 +868,7 @@ export default function KioskSearchApp() {
         )}
 
         {screen === "welcome" && (
-          <main className="relative isolate flex h-[1800px] flex-col items-center overflow-hidden bg-[#f8fbf8] pt-[220px]">
+          <main className="relative isolate flex h-[1800px] flex-col items-center overflow-hidden bg-[#f8fbf8] pt-[220px]" style={{ paddingBottom: KIOSK_BOTTOM_INSET }}>
             <div className="z-10 text-center text-[#0a3825]">
               <h1 className="text-[64px] font-bold leading-[1.4]">{t("가게를 찾고계신가요?")}<br />{t("화면을 터치해보세요")}</h1>
               <PrimaryButton onClick={startSession} className="mx-auto mt-[56px] w-[660px]" typography="text-[36px] font-medium leading-[44px]">{t("대조시장 길 찾기")}</PrimaryButton>
@@ -868,8 +903,8 @@ export default function KioskSearchApp() {
 
         {screen === "results" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={visibleResults.map(result => result.shop)} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} selectedViewportY={0.3} bottomOverlayHeight={1128} topOverlayHeight={208} initialOverview overviewBottomPadding={!tagSearch && aiAnswer ? 144 : 0} numberedShops={visibleResults} />
-            <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
+            <MapView shops={visibleResults.map(result => result.shop)} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} selectedViewportY={0.3} bottomOverlayHeight={KIOSK_PANEL_HEIGHT.results} topOverlayHeight={208} initialOverview overviewBottomPadding={!tagSearch && aiAnswer ? 144 : 0} numberedShops={visibleResults} />
+            <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} onSearchAgain={openSearch} />
             <ResultsPanel
               results={orderedResults}
               sortMode={resultSortMode}
@@ -880,29 +915,35 @@ export default function KioskSearchApp() {
               selectedId={selectedShopId}
               onSelect={trackShopSelection}
               onSearchAgain={openSearch}
-              onDirections={() => { if (selectedShop) { recordKioskEvent(analyticsSession.current, "DIRECTIONS", language, "touch", [selectedShop.id]); setScreen("directions"); } }}
+              onDirections={() => { if (selectedShop) { recordKioskEvent(analyticsSession.current, "DIRECTIONS", language, "touch", [selectedShop.id]); setDirectionsOrigin("results"); setScreen("directions"); } }}
             />
           </main>
         )}
 
         {screen === "directions" && selectedShop && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} showRoute bottomOverlayHeight={604} topOverlayHeight={208} />
-            <FloatingSearchBar value={tagSearch ? t(tagSearch.name) : query} onClick={openSearch} />
-            <DirectionsPanel shopName={selectedShop.name} direction={getRouteDirectionForShop(selectedShop)} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen("results")} onHome={returnToWelcome} />
+            <MapView shops={directionsOrigin === "map" ? effectiveShops : resultShops} iconShops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} showRoute bottomOverlayHeight={KIOSK_PANEL_HEIGHT.directions} topOverlayHeight={208} />
+            <FloatingSearchBar value={directionsOrigin === "map" ? t(selectedShop.name) : tagSearch ? t(tagSearch.name) : query} onClick={openSearch} onSearchAgain={openSearch} />
+            <DirectionsPanel shopName={selectedShop.name} direction={getRouteDirectionForShop(selectedShop)} distanceMeters={getRouteDistanceForShop(selectedShop)} onBack={() => setScreen(directionsOrigin)} onHome={returnToWelcome} />
           </main>
         )}
 
         {screen === "map" && (
           <main className="relative h-[1920px] bg-white">
-            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} bottomOverlayHeight={420} topOverlayHeight={208} />
-            <FloatingSearchBar onClick={openSearch} />
-            <MarketMapPanel onHome={returnToWelcome} onSearch={openSearch} />
+            <MapView shops={effectiveShops} selectedShop={selectedShop} onSelectShop={trackShopSelection} selectedViewportY={0.4} bottomOverlayHeight={selectedShop ? KIOSK_PANEL_HEIGHT.mapSelected : KIOSK_PANEL_HEIGHT.map} topOverlayHeight={208} />
+            <FloatingSearchBar value={selectedShop ? t(selectedShop.name) : undefined} onClick={openSearch} onSearchAgain={openSearch} />
+            <MarketMapPanel
+              shop={selectedShop}
+              distanceMeters={selectedShop ? getRouteDistanceForShop(selectedShop) : 0}
+              onHome={returnToWelcome}
+              onSearch={openSearch}
+              onDirections={() => { if (selectedShop) { recordKioskEvent(analyticsSession.current, "DIRECTIONS", language, "touch", [selectedShop.id]); setDirectionsOrigin("map"); setScreen("directions"); } }}
+            />
           </main>
         )}
 
         {screen === "search" && (
-          <main className="flex h-[1800px] flex-col px-[48px] pb-[160px] pt-[56px]">
+          <main className="flex h-[1800px] flex-col px-[48px] pt-[56px]" style={{ paddingBottom: KIOSK_BOTTOM_INSET }}>
             {voiceState !== "error" && (
               <section className="shrink-0 text-[#0a3825]">
                 <h1 className="text-[80px] font-bold leading-[1.3]">{language === "ko" ? <>{title[0]}<br />{title[1]}</> : t(title.join(" "))}</h1>
@@ -919,19 +960,19 @@ export default function KioskSearchApp() {
                 onKeyboard={() => { setMode("keyboard"); setVoiceState("idle"); }}
               />
             ) : (
-              <div className="mt-[120px] flex min-h-0 flex-1 flex-col">
+              <div className="mt-[100px] flex min-h-0 flex-1 flex-col">
                 <MethodTabs mode={mode} onChange={changeInputMode} />
 
                 {mode === "voice" ? (
                   <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
-                    <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={clearInput} />
+                    <VoicePanel state={voiceState} transcript={transcript} onStart={startVoice} onRetry={() => { clearInput(); startVoice(); }} secondsLeft={autoSearchReady ? secondsLeft : null} />
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
                       <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] leading-[52px]">{t("지우기")}</button>
                       <PrimaryButton disabled={voiceState !== "confirmed" || !query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                     </div>
                   </div>
                 ) : mode === "keyboard" ? (
-                  <div className="mt-[24px] flex min-h-0 flex-1 flex-col">
+                  <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
                     <SearchField value={query} onChange={setQuery} />
                     <div className="mt-[24px]"><CategoryChips onChoose={searchTag} configuredTags={experience?.searchTags} /></div>
                     <div className="mt-auto">
@@ -943,14 +984,15 @@ export default function KioskSearchApp() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-[24px] flex min-h-0 flex-1 flex-col">
-                    <SearchField value={query} onChange={setQuery} />
-                    <div className="mt-[40px] min-h-0 flex-1">
-                      <HandwritingPad key={handwritingResetKey} language={language} recognized={Boolean(query.trim())} onRecognized={setQuery} />
-                    </div>
+                  <div className="mt-[40px] flex min-h-0 flex-1 flex-col">
+                    {handwritingRecognized ? <RecognitionConfirmation kind="handwriting" text={query} secondsLeft={autoSearchReady ? secondsLeft : null} onRetry={clearInput} /> : (
+                      <div className="min-h-0 flex-1">
+                        <HandwritingPad key={handwritingResetKey} language={language} recognizing={handwritingRecognizing} onRecognizingChange={setHandwritingRecognizing} onRecognized={onHandwritingRecognized} />
+                      </div>
+                    )}
                     <div className="mt-[40px] flex shrink-0 gap-[24px]">
                       <button type="button" onClick={clearInput} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px] leading-[52px]">{t("지우기")}</button>
-                      <PrimaryButton disabled={!query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
+                      <PrimaryButton disabled={!handwritingRecognized || handwritingRecognizing || !query.trim()} onClick={submit} className="flex-1">{t("검색하기")}</PrimaryButton>
                     </div>
                   </div>
                 )}

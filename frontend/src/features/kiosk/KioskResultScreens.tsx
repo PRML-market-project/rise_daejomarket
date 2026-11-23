@@ -3,44 +3,58 @@ import { useEffect, useState } from "react";
 import { getSearchResultPage, type ResultSortMode, type SearchResult } from "./searchResultPresentation";
 import type { Shop } from "@/types/shop";
 import type { RouteGuidanceDirection } from "@/components/market/MapView";
+import { KIOSK_BOTTOM_INSET, KIOSK_PANEL_HEIGHT } from "./kioskLayout";
+import { DesignMotion } from "./DesignMotion";
 
 type Language = "ko" | "en" | "vi";
 
 const GREEN = "linear-gradient(105deg, #289064 0%, #116543 82%)";
 
-export function FloatingSearchBar({ value, onClick }: { value?: string; onClick: () => void }) {
+export function FloatingSearchBar({ value, onClick, onSearchAgain }: { value?: string; onClick: () => void; onSearchAgain?: () => void }) {
   const { t } = useKioskLocale();
+  const showSearchAgain = Boolean(value && onSearchAgain);
   return (
     <div className="absolute left-[48px] right-[48px] top-[56px] z-30">
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex h-[120px] w-full items-center gap-[16px] rounded-full border-2 border-[#ebebeb] bg-white/80 px-[48px] text-left shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
-      >
-        <img src="/figma/search.svg" alt="" className="h-[40px] w-[40px]" />
-        <span className={`text-[40px] leading-[52px] ${value ? "text-[#19211c]" : "text-[#a1a1a1]"}`}>
-          {value || t("검색어를 입력하세요")}
-        </span>
-      </button>
+      <div className={`flex h-[120px] w-full items-center gap-[16px] rounded-full border-2 border-[#ebebeb] bg-white/80 pl-[48px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px] ${showSearchAgain ? "pr-[32px]" : "pr-[48px]"}`}>
+        <button type="button" onClick={onClick} className="flex h-full min-w-0 flex-1 items-center gap-[16px] text-left">
+          <img src="/figma/search.svg" alt="" className="h-[40px] w-[40px] shrink-0" />
+          <span className={`min-w-0 truncate text-[40px] leading-[52px] ${value ? "text-[#19211c]" : "text-[#a1a1a1]"}`}>
+            {value || t("검색어를 입력하세요")}
+          </span>
+        </button>
+        {showSearchAgain && (
+          <button
+            type="button"
+            onClick={onSearchAgain}
+            className="flex shrink-0 items-center justify-center gap-[8px] rounded-[60px] bg-[#ebebeb] px-[32px] py-[16px] text-[28px] font-medium leading-[40px] text-[#696969]"
+          >
+            <img src="/figma/results/search-again.svg" alt="" className="h-[24px] w-[24px] shrink-0" />
+            <span className="whitespace-nowrap">{t("다시 검색")}</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 export type StatusKind = "processing" | "empty" | "connection" | "answer";
 
-const statusCopy: Record<StatusKind, { image: string; title: string; body: string }> = {
+const statusCopy: Record<StatusKind, { image: string; motion?: string; title: string; body: string }> = {
   processing: {
     image: "/figma/searching.png",
+    motion: "search-processing",
     title: "관련 가게를 찾고 있어요",
     body: "입력하신 가게 이름·업종·품목을 확인하고 있어요.",
   },
   empty: {
     image: "/figma/no-results.png",
+    motion: "no-results",
     title: "적절한 가게를 찾지 못했어요",
     body: "다른 이름이나 더 짧은 말로 다시 찾아보세요.",
   },
   connection: {
     image: "/figma/connection-error.png",
+    motion: "connection-error",
     title: "연결이 잠시 끊겼어요",
     body: "입력한 내용을 유지하고 있어요. 잠시 후 다시 시도해주세요.",
   },
@@ -67,8 +81,10 @@ export function SearchStatusScreen({
   const { t } = useKioskLocale();
   const copy = statusCopy[kind];
   return (
-    <main className={`flex h-[1800px] flex-col items-center px-[48px] pb-[160px] pt-[320px] text-center text-[#0a3825] ${kind === "connection" ? "font-['Kiosk_Result_Noto',sans-serif]" : ""}`}>
-      <img src={copy.image} alt="" className="h-[200px] w-[200px] object-contain" />
+    <main className={`flex h-[1800px] flex-col items-center px-[48px] pt-[320px] text-center text-[#0a3825] ${kind === "connection" ? "font-['Kiosk_Result_Noto',sans-serif]" : ""}`} style={{ paddingBottom: KIOSK_BOTTOM_INSET }}>
+      {copy.motion
+        ? <DesignMotion key={copy.motion} name={copy.motion} format="webm" className="relative h-[200px] w-[200px] shrink-0" />
+        : <img src={copy.image} alt="" className="h-[200px] w-[200px] shrink-0 object-contain" />}
       <h1 className="mt-[16px] text-[64px] font-bold leading-[1.4]">{t(copy.title)}</h1>
       <p className="mt-[16px] text-[36px] font-medium leading-[44px]">{message && (kind === "empty" || kind === "answer") ? message : t(copy.body)}</p>
 
@@ -116,7 +132,7 @@ export function LanguageSelectionScreen({
     { value: "vi", title: "Tiếng Việt", subtitle: "베트남어" },
   ];
   return (
-    <main className="flex h-[1800px] flex-col px-[48px] pb-[160px] pt-[320px] text-[#0a3825]">
+    <main className="flex h-[1800px] flex-col px-[48px] pt-[320px] text-[#0a3825]" style={{ paddingBottom: KIOSK_BOTTOM_INSET }}>
       <div className="text-center">
         <h1 className="text-[64px] font-bold leading-[1.4]">{t("사용할 언어를 선택하세요")}</h1>
         <p className="mt-[16px] text-[36px] font-medium">Choose a language · Chọn ngôn ngữ</p>
@@ -145,9 +161,13 @@ export function LanguageSelectionScreen({
   );
 }
 
+function getShopTags(shop: Shop) {
+  return shop.tags?.length ? shop.tags : shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
+}
+
 function ResultCard({ shop, number, distanceMeters, selected, onSelect }: { shop: Shop; number: number; distanceMeters: number; selected: boolean; onSelect: () => void }) {
   const { t } = useKioskLocale();
-  const tags = shop.tags?.length ? shop.tags : shop.id === "14" ? ["닭강정", "옛날통닭"] : shop.id === "21" ? ["한식뷔페"] : [shop.category, shop.section.replace("구역", "")];
+  const tags = getShopTags(shop);
   return (
     <button
       type="button"
@@ -220,13 +240,12 @@ export function ResultsPanel({
   const { t } = useKioskLocale();
   const [answerDismissed, setAnswerDismissed] = useState(false);
   useEffect(() => { setAnswerDismissed(false); }, [answer]);
-  const panelHeight = 1128;
   const { pageCount, visible } = getSearchResultPage(results, page);
 
   return (
     <section
-      className="absolute bottom-0 left-0 right-0 z-30 rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
-      style={{ height: panelHeight }}
+      className="absolute bottom-0 left-0 right-0 z-30 rounded-t-[32px] border-2 border-[#ebebeb] bg-white/90 px-[48px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]"
+      style={{ height: KIOSK_PANEL_HEIGHT.results, paddingBottom: KIOSK_BOTTOM_INSET }}
     >
       {answer && !answerDismissed && <ResultAnswer answer={answer} onDismiss={() => setAnswerDismissed(true)} />}
       <div className="flex h-full flex-col">
@@ -279,7 +298,7 @@ export function DirectionsPanel({ shopName, direction, distanceMeters, onBack, o
   const lastCode = shopName.trim().slice(-1).charCodeAt(0);
   const hasFinalConsonant = lastCode >= 0xac00 && lastCode <= 0xd7a3 && (lastCode - 0xac00) % 28 !== 0;
   return (
-    <section className="absolute bottom-0 left-0 right-0 z-30 flex h-[604px] flex-col justify-end rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
+    <section className="absolute bottom-0 left-0 right-0 z-30 flex flex-col justify-end rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]" style={{ height: KIOSK_PANEL_HEIGHT.directions, paddingBottom: KIOSK_BOTTOM_INSET }}>
       <div className="flex h-[400px] shrink-0 flex-col justify-between">
       <div className="flex min-h-[120px] items-center gap-[32px]">
         <div className="flex h-[120px] w-[120px] shrink-0 items-center justify-center rounded-full bg-[#116543]">
@@ -294,18 +313,53 @@ export function DirectionsPanel({ shopName, direction, distanceMeters, onBack, o
       </div>
       <div className="mx-[-2px] flex gap-[24px]">
         <button type="button" onClick={onBack} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("이전")}</button>
-        <button type="button" onClick={onHome} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>{t("처음으로")}</button>
+        <button type="button" onClick={onHome} className="flex h-[120px] flex-1 items-center justify-center gap-[16px] rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}><img src="/figma/results/home.svg" alt="" className="shrink-0" />{t("처음으로")}</button>
       </div>
       </div>
     </section>
   );
 }
 
-export function MarketMapPanel({ onHome, onSearch }: { onHome: () => void; onSearch: () => void }) {
+/** Figma 1146:135484 — the shop picked on the full market map. */
+function MapShopCard({ shop, distanceMeters }: { shop: Shop; distanceMeters: number }) {
   const { t } = useKioskLocale();
   return (
-    <section className="absolute bottom-0 left-0 right-0 z-30 h-[420px] rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pb-[160px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]">
-      <h2 className="text-[36px] font-medium">{t("대조시장 전체 지도")}</h2>
+    <div className="flex h-[192px] w-full items-center gap-[24px] rounded-[32px] border-2 border-[#a1a1a1] bg-white px-[32px] py-[16px] font-['Kiosk_Result_Noto',sans-serif] tracking-normal shadow-[0_0_8px_rgba(0,0,0,0.2)]">
+      {shop.thumbnailUrl ? (
+        <img src={shop.thumbnailUrl} alt="" className="h-[160px] w-[160px] shrink-0 rounded-[16px] bg-[#a1a1a1] object-cover" />
+      ) : (
+        <div className="flex h-[160px] w-[160px] shrink-0 items-center justify-center rounded-[16px] bg-[#ebebeb]"><img src="/figma/results/shop-placeholder.svg" alt="" /></div>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col gap-[8px]">
+        <div className="flex min-w-0 flex-col gap-[16px]">
+          <strong className="block min-w-0 truncate text-[36px] font-bold leading-[44px] text-[#19211c]" title={t(shop.name)}>{t(shop.name)}</strong>
+          <div className="flex gap-[4px] overflow-hidden">
+            {getShopTags(shop).slice(0, 3).map((tag, index) => <span key={`${tag}-${index}`} className="shrink-0 rounded-[16px] bg-[#ebebeb] px-[12px] py-[4px] text-[18px] font-medium leading-[28px] text-[#6f6f6f]">{t(tag)}</span>)}
+          </div>
+        </div>
+        <span className="block text-[16px] font-medium leading-[28px] text-[#a1a1a1]">{t("현재 위치에서 {distance}m", { distance: distanceMeters })}</span>
+      </div>
+    </div>
+  );
+}
+
+export function MarketMapPanel({ shop, distanceMeters = 0, onHome, onSearch, onDirections }: { shop?: Shop | null; distanceMeters?: number; onHome: () => void; onSearch: () => void; onDirections: () => void }) {
+  const { t } = useKioskLocale();
+  if (shop) {
+    return (
+      <section className="absolute bottom-0 left-0 right-0 z-30 rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]" style={{ height: KIOSK_PANEL_HEIGHT.mapSelected, paddingBottom: KIOSK_BOTTOM_INSET }}>
+        <h2 className="text-[36px] font-medium leading-[48px] text-[#19211c]">{t("대조시장 전체 지도")}</h2>
+        <div className="mt-[56px]"><MapShopCard shop={shop} distanceMeters={distanceMeters} /></div>
+        <div className="mx-[-2px] mt-[48px] flex gap-[24px]">
+          <button type="button" onClick={onHome} className="h-[120px] w-[320px] shrink-0 rounded-full bg-[#ebebeb] text-[40px] leading-[52px] text-[#19211c]">{t("처음으로")}</button>
+          <button type="button" onClick={onDirections} className="h-[120px] flex-1 rounded-full text-[40px] leading-[52px] text-white" style={{ backgroundImage: "linear-gradient(96.26deg, #289064 0%, #116543 74.487%)" }}>{t("길 찾기")}</button>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section className="absolute bottom-0 left-0 right-0 z-30 rounded-t-[32px] border-2 border-[#ebebeb] bg-white/80 px-[48px] pt-[40px] shadow-[4px_4px_32px_rgba(0,0,0,.24)] backdrop-blur-[16px]" style={{ height: KIOSK_PANEL_HEIGHT.map, paddingBottom: KIOSK_BOTTOM_INSET }}>
+      <h2 className="text-[36px] font-medium leading-[48px]">{t("대조시장 전체 지도")}</h2>
       <div className="mt-[48px] flex gap-[24px]">
         <button type="button" onClick={onHome} className="h-[120px] w-[320px] rounded-full bg-[#ebebeb] text-[40px]">{t("처음으로")}</button>
         <button type="button" onClick={onSearch} className="h-[120px] flex-1 rounded-full text-[40px] text-white" style={{ backgroundImage: GREEN }}>{t("검색하기")}</button>
