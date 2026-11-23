@@ -24,7 +24,7 @@ public class KioskAdminBootstrap implements ApplicationRunner {
     public KioskAdminBootstrap(
             AdminRepository admins,
             BCryptPasswordEncoder passwords,
-            @Value("${KIOSK_ADMIN_USERNAME:daejo_admin}") String username,
+            @Value("${KIOSK_ADMIN_USERNAME:daejo}") String username,
             @Value("${KIOSK_ADMIN_PASSWORD:2580}") String password) {
         this.admins = admins;
         this.passwords = passwords;
@@ -35,14 +35,27 @@ public class KioskAdminBootstrap implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        // Create once. Subsequent restarts preserve the account's saved password.
-        if (admins.existsByEmail(username)) return;
-
-        Admin admin = new Admin();
-        admin.setEmail(username);
-        admin.setPassword(passwords.encode(password));
-        admin.setAdminName("대조시장 관리자");
-        admin.setStoreName("대조시장");
-        admins.save(admin);
+        Admin admin = admins.findByEmail(username).orElse(null);
+        // Rename the old default account in place so shops and analytics retain
+        // their existing admin ID. Custom bootstrap accounts are independent.
+        if (admin == null && "daejo".equals(username)) {
+            admin = admins.findByEmail("daejo_admin").orElse(null);
+        }
+        boolean changed = false;
+        if (admin == null) {
+            admin = new Admin();
+            admin.setAdminName("대조시장 관리자");
+            admin.setStoreName("대조시장");
+            changed = true;
+        }
+        if (!username.equals(admin.getEmail())) {
+            admin.setEmail(username);
+            changed = true;
+        }
+        if (admin.getPassword() == null || !passwords.matches(password, admin.getPassword())) {
+            admin.setPassword(passwords.encode(password));
+            changed = true;
+        }
+        if (changed) admins.save(admin);
     }
 }

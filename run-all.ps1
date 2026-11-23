@@ -3,7 +3,7 @@ param(
     # The kiosk frontend already serves the admin UI at /dashboard; the standalone Next.js app is opt-in.
     [switch] $WithAdmin,
     [ValidateSet('f16', 'q8_0')] [string] $KvCacheType = 'f16',
-    # Open the kiosk full screen (browser kiosk mode, no F11) once every service is ready. start.cmd uses this.
+    # Open Chrome full screen, with F11 available to leave full screen. start.cmd uses this.
     [switch] $OpenKiosk
 )
 
@@ -294,29 +294,35 @@ try {
     Write-Host ""
 
     if ($OpenKiosk) {
+        # App Paths also covers Chrome installed outside the usual folders.
+        $registeredChrome = foreach ($key in @(
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe',
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe'
+        )) {
+            if (Test-Path -LiteralPath $key) { (Get-Item -LiteralPath $key).GetValue('') }
+        }
         $browser = @(
+            $registeredChrome
             (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
             (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
-            (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe'),
-            (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
-            (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe')
-        ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+            (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')
+        ) | ForEach-Object { $_ } | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
         if (-not $browser) {
-            Write-Warning 'Chrome or Edge was not found. Open http://localhost:5173 manually.'
+            Write-Warning 'Google Chrome was not found. Install Chrome, then run start.cmd again.'
         } else {
-            # A separate profile forces a new browser instance, so --kiosk applies even when the browser is
-            # already open, and keeps the microphone permission between runs.
+            # Keep this window separate from ordinary Chrome windows and preserve microphone permissions.
+            # Use normal full screen: --kiosk would prevent the user from leaving with F11.
             $profileDir = Join-Path $root '.runtime\kiosk-browser'
             New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
             $kioskArgs = @(
-                '--kiosk', '--edge-kiosk-type=fullscreen', "--user-data-dir=`"$profileDir`"",
+                '--start-fullscreen', '--new-window', "--user-data-dir=`"$profileDir`"",
                 '--no-first-run', '--no-default-browser-check', '--disable-session-crashed-bubble',
                 '--disable-features=Translate', '--autoplay-policy=no-user-gesture-required',
                 'http://localhost:5173'
             )
             $kioskBrowser = Start-Process -FilePath $browser -ArgumentList $kioskArgs -PassThru
             $startedServices += [pscustomobject]@{ Name = 'kiosk-browser'; Process = $kioskBrowser }
-            Write-Host "Kiosk opened full screen in $(Split-Path -Leaf $browser). Close it with Alt+F4 or end.cmd."
+            Write-Host "Kiosk opened full screen in $(Split-Path -Leaf $browser). Press F11 to leave full screen, or Alt+F4 / end.cmd to close."
         }
     }
 

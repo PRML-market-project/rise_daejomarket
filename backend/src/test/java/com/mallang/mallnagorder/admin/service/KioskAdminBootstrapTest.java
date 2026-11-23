@@ -22,34 +22,66 @@ class KioskAdminBootstrapTest {
 
     @Test
     void createdAccountAuthenticatesThroughTheExistingLoginProvider() {
-        new KioskAdminBootstrap(admins, passwords, "daejo_admin", "2580")
+        new KioskAdminBootstrap(admins, passwords, "daejo", "2580")
                 .run(new DefaultApplicationArguments());
         ArgumentCaptor<Admin> saved = ArgumentCaptor.forClass(Admin.class);
         verify(admins).save(saved.capture());
         Admin admin = saved.getValue();
-        assertEquals("daejo_admin", admin.getEmail());
+        assertEquals("daejo", admin.getEmail());
         assertNotEquals("2580", admin.getPassword());
         assertEquals("대조시장", admin.getStoreName());
         assertEquals("대조시장 관리자", admin.getAdminName());
-        when(admins.findByEmail("daejo_admin")).thenReturn(Optional.of(admin));
+        when(admins.findByEmail("daejo")).thenReturn(Optional.of(admin));
 
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(new AdminDetailsService(admins));
         provider.setPasswordEncoder(passwords);
         ProviderManager manager = new ProviderManager(provider);
         assertTrue(manager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated("daejo_admin", "2580"))
+                UsernamePasswordAuthenticationToken.unauthenticated("daejo", "2580"))
                 .isAuthenticated());
         assertThrows(BadCredentialsException.class, () -> manager.authenticate(
-                UsernamePasswordAuthenticationToken.unauthenticated("daejo_admin", "wrong-password")));
+                UsernamePasswordAuthenticationToken.unauthenticated("daejo", "wrong-password")));
     }
 
     @Test
-    void restartDoesNotResetAnExistingPassword() {
-        when(admins.existsByEmail("daejo_admin")).thenReturn(true);
-        new KioskAdminBootstrap(admins, passwords, "daejo_admin", "2580")
+    void restartDoesNotRehashAnUnchangedPassword() {
+        Admin admin = new Admin();
+        admin.setEmail("daejo");
+        admin.setPassword(passwords.encode("2580"));
+        String hash = admin.getPassword();
+        when(admins.findByEmail("daejo")).thenReturn(Optional.of(admin));
+        new KioskAdminBootstrap(admins, passwords, "daejo", "2580")
                 .run(new DefaultApplicationArguments());
         verify(admins, never()).save(any());
+        assertEquals(hash, admin.getPassword());
+    }
+
+    @Test
+    void legacyAccountIsRenamedInPlaceWithoutReplacingShopOwnership() {
+        Admin admin = new Admin();
+        admin.setEmail("daejo_admin");
+        admin.setPassword(passwords.encode("old-password"));
+        admin.setStoreName("existing store");
+        when(admins.findByEmail("daejo_admin")).thenReturn(Optional.of(admin));
+        new KioskAdminBootstrap(admins, passwords, "daejo", "2580")
+                .run(new DefaultApplicationArguments());
+        verify(admins).save(same(admin));
+        assertEquals("daejo", admin.getEmail());
+        assertTrue(passwords.matches("2580", admin.getPassword()));
+        assertEquals("existing store", admin.getStoreName());
+    }
+
+    @Test
+    void existingConfiguredAccountReceivesTheRequestedPassword() {
+        Admin admin = new Admin();
+        admin.setEmail("daejo");
+        admin.setPassword(passwords.encode("old-password"));
+        when(admins.findByEmail("daejo")).thenReturn(Optional.of(admin));
+        new KioskAdminBootstrap(admins, passwords, "daejo", "2580")
+                .run(new DefaultApplicationArguments());
+        verify(admins).save(same(admin));
+        assertTrue(passwords.matches("2580", admin.getPassword()));
     }
 
     @Test
@@ -60,5 +92,6 @@ class KioskAdminBootstrapTest {
         verify(admins).save(saved.capture());
         assertEquals("configured-admin", saved.getValue().getEmail());
         assertTrue(passwords.matches("configured-password", saved.getValue().getPassword()));
+        verify(admins, never()).findByEmail("daejo_admin");
     }
 }

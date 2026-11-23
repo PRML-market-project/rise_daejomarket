@@ -15,7 +15,7 @@ export default function AdminLogin({ onAuthenticated }: { onAuthenticated: () =>
     setError("");
     try {
       const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      if (isLocalhost && userId === "daejo_admin" && password === "2580") {
+      if (isLocalhost && userId === "daejo" && password === "2580") {
         localStorage.setItem("accessToken", "local-admin");
         localStorage.setItem("refreshToken", "local-admin");
         document.cookie = "accessToken=local-admin; path=/; SameSite=Lax";
