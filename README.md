@@ -59,6 +59,8 @@
 
 `start.cmd`는 서비스 준비가 끝나면 Chrome을 일반 전체화면으로 자동 실행합니다. F11을 누르면 전체화면을 해제하거나 다시 켤 수 있으며, Alt+F4 또는 `end.cmd`로 종료할 수 있습니다. Chrome이 설치되어 있어야 합니다. 이전 키오스크 모드로 열린 창은 Alt+F4로 닫은 뒤 다시 실행해야 변경 사항이 적용됩니다.
 
+전용 Chrome 프로필(`.runtime/kiosk-browser`)에는 실행 전에 `http://localhost:5173`과 `http://127.0.0.1:5173`의 마이크 사용을 미리 허용합니다. 마이크 버튼을 눌렀을 때 사이트 권한 확인창 없이 실제 마이크를 사용할 수 있습니다. 다른 주소·포트와 카메라 권한은 기존 설정을 유지합니다. 전용 Chrome 창이 이미 열려 있으면 Alt+F4로 닫은 뒤 `start.cmd`를 다시 실행해야 처음 설정이 반영됩니다. 기존 프로필 설정은 `Default/Preferences.before-kiosk-microphone.bak`에 한 번 백업합니다.
+
 새 PC로 옮길 때는 `transfer-ready` 폴더를 `C:\daejo` 같은 짧은 영문 경로에 두고 `setup.cmd` → `start.cmd` 순서로 실행합니다. 이전본에는 Node·JDK·.NET SDK·Python·MySQL 실행 환경, 모델, DB 백업, 업로드 파일이 포함되어 있어 별도 전역 설치가 필요 없습니다. 자세한 내용은 [이전 안내](deployment/README.md)를 참고하세요.
 
 번역 서버 설치는 [Argos 설치 안내](ai-server/argos-translate-server/README.md), 언어 모델 배치는 [모델 안내](ai-server/models/README.md), 음성 합성 설정은 [Qwen TTS 안내](ai-server/qwen-tts-server/README.md)를 참고하세요.

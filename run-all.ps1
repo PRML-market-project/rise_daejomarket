@@ -314,8 +314,24 @@ try {
             # Use normal full screen: --kiosk would prevent the user from leaving with F11.
             $profileDir = Join-Path $root '.runtime\kiosk-browser'
             New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+            $microphoneSetup = Join-Path $root 'scripts\configure-kiosk-microphone.py'
+            $python = Join-Path $root 'ai-server\.venv\Scripts\python.exe'
+            $profileArgument = '(?i)(?:^|\s)--user-data-dir=(?:"' + [regex]::Escape($profileDir) + '"|' + [regex]::Escape($profileDir) + '(?=\s|$))'
+            $runningKioskChrome = Get-CimInstance Win32_Process -Filter "Name = 'chrome.exe'" | Where-Object {
+                $_.CommandLine -match $profileArgument -and $_.CommandLine -notmatch '(?:^|\s)--type='
+            }
+            if ($runningKioskChrome) {
+                # Chrome keeps preferences in memory. Do not overwrite its live file.
+                & $python -X utf8 $microphoneSetup --check
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Warning 'Close the existing kiosk Chrome window with Alt+F4 and run start.cmd again to pre-allow microphone access.'
+                }
+            } else {
+                & $python -X utf8 $microphoneSetup
+                if ($LASTEXITCODE -ne 0) { throw 'Could not prepare kiosk microphone permissions.' }
+            }
             $kioskArgs = @(
-                '--start-fullscreen', '--new-window', "--user-data-dir=`"$profileDir`"",
+                '--start-fullscreen', '--new-window', "--user-data-dir=`"$profileDir`"", '--profile-directory=Default',
                 '--no-first-run', '--no-default-browser-check', '--disable-session-crashed-bubble',
                 '--disable-features=Translate', '--autoplay-policy=no-user-gesture-required',
                 'http://localhost:5173'
