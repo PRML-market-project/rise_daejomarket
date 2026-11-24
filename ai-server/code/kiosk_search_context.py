@@ -166,10 +166,55 @@ def broad_category_shops(question, shops):
 
 def is_recommendation_question(question):
     query = _normalize(question)
-    return any(_normalize(term) in query for term in (
+    return is_unconstrained_warm_request(question) or any(_normalize(term) in query for term in (
         "추천", "뭐 먹", "뭐먹", "먹을 만", "먹을만", "어디가 좋", "어디가좋",
         "recommend", "suggest", "what to eat", "where should", "gợi ý", "đề xuất",
     ))
+
+
+def is_warm_food_request(question):
+    query = _normalize(question)
+    if any(_normalize(term) in query for term in ("따뜻하지 않", "뜨겁지 않", "차가운", "시원한")):
+        return False
+    return any(_normalize(term) in query for term in ("따뜻", "뜨끈", "뜨거운")) and any(
+        _normalize(term) in query for term in ("음식", "요리", "식사", "먹거리", "먹", "간식", "국물"))
+
+
+def is_unconstrained_warm_request(question):
+    """Only plain warm-meal requests qualify for automatic coverage repair."""
+    if not is_warm_food_request(question):
+        return False
+    query = _normalize(question)
+    neutral = ("비가 오는 날", "비 오는 날", "따뜻한", "따뜻하게", "뜨끈한", "뜨거운",
+               "음식", "요리", "식사", "먹거리", "먹을", "추천해 주세요", "추천해줘요", "추천해줘",
+               "추천", "대조시장", "시장에서", "다양한", "다양하게", "여러 곳", "여러 가게",
+               "많이", "모두", "전체", "전부", "가게", "점포", "좀", "해줘", "주세요")
+    for term in sorted(neutral, key=lambda word: len(_normalize(word)), reverse=True):
+        query = query.replace(_normalize(term), "")
+    return not re.sub(r"[?!.,，]+", "", query)
+
+
+def warm_meal_shops(shops):
+    """Related meal types, not a claim about current serving temperature/stock."""
+    direct = r"만두|순대|칼국수|빈대떡|부침|지짐|국밥|어묵|돈가스|곱창|닭강정|통닭|치킨|족발|호떡|떡갈비|튀김|죽|식사|한\s*끼"
+    result = []
+    for shop in shops:
+        if shop["category"] in ("잡화", "서비스업"):
+            continue
+        description = shop.get("description") or ""
+        # A shop name can contradict generic admin text (e.g. a sausage shop
+        # described as selling uncooked rice). Do not repair coverage on that basis.
+        if re.search(r"식재료|쌀과 곡물|김치|젓갈|반찬", description) and not re.search(direct, description):
+            continue
+        if shop["category"] == "식당" or re.search(direct, shop["name"] + " " + description):
+            result.append(shop)
+    return result
+
+
+def search_response_temperature(intent, question):
+    if intent != 1 or re.search(r"가격|얼마|합계|총액|재고|영업|위치|어디에|price|cost|stock|hours", question, re.I):
+        return 0.0
+    return 0.3 if is_recommendation_question(question) else 0.0
 
 
 def select_search_candidates(question, shops, tags):
@@ -184,14 +229,18 @@ def select_search_candidates(question, shops, tags):
         positive = select_shops(exclusion[1], shops, tags)
         if excluded_categories and positive:
             return [shop for shop in positive if shop["category"] not in excluded_categories]
-    semantic = is_recommendation_question(question) or any(term in question.lower() for term in (
+    named = any(_normalize(shop["name"]) in _normalize(question) for shop in shops if shop["name"])
+    constrained_scope = re.search(r"알레르기|채식|비건|재료|가격|얼마|요리법|조리법|만들|옷|의류|미용|약|수선|문구|잡화|숙박", unicodedata.normalize("NFKC", question))
+    if is_warm_food_request(exclusion[-1]) and not named and not constrained_scope:
+        return warm_meal_shops(shops)
+    semantic = is_recommendation_question(question) or is_warm_food_request(question) or any(term in question.lower() for term in (
         "먹", "마실", "선물", "살 수", "사고 싶", "파는", "구매", "what to eat"))
     if semantic:
         # Situation-based recommendations may have no literal keyword match.
         # Let the LLM judge the map catalog, with direct matches listed first.
         query = _normalize(question)
         food_query = any(_normalize(term) in query for term in (
-            "먹", "식당", "음식", "식사", "간식", "브런치", "restaurant", "what to eat", "nhà hàng", "quán ăn"))
+            "먹", "식당", "음식", "요리", "식사", "간식", "브런치", "restaurant", "what to eat", "nhà hàng", "quán ăn"))
         mixed_request = any(_normalize(term) in query for term in ("옷", "의류", "미용", "약", "수선", "문구", "잡화", "숙박"))
         # Broad food alternatives can include ready-to-eat shops categorized as
         # meat/fish/groceries, but a salon or pharmacy is never a meal alternative.
@@ -207,28 +256,12 @@ def warm_food_recommendation_priorities(question, shops):
     rainy_day = any(_normalize(term) in query for term in ("비 오는 날", "비가 오는 날"))
     if not is_recommendation_question(question) or not rainy_day or _normalize("따뜻") not in query:
         return []
-    # Curated market examples: dumplings, porridge, pancakes, and noodles.
-    # Resolve against current map/admin data so renamed or removed shops are
-    # never represented with a stale name or an invented ID.
-    preferred_ids = ("585:28762", "585:28790", "585:28803", "585:28874")
-    by_id = {shop["id"]: shop for shop in shops}
-    return [by_id[shop_id] for shop_id in preferred_ids if shop_id in by_id]
+    return warm_meal_shops(shops)
 
 
 def required_recommendation_shops(question, shops):
-    """Repair omissions only for the existing unconstrained rainy/warm-food guide.
-
-    Any leftover constraint/product/count leaves selection entirely to the model.
-    """
-    preferred = warm_food_recommendation_priorities(question, shops)
-    if not preferred:
-        return []
-    query = _normalize(question)
-    terms = ("비가 오는 날", "비 오는 날", "따뜻한", "따뜻하게", "음식", "먹거리", "먹을", "추천해 주세요",
-             "추천해줘요", "추천해줘", "추천", "대조시장", "시장에서", "좀", "해줘", "주세요")
-    for term in sorted(terms, key=lambda value: len(_normalize(value)), reverse=True):
-        query = query.replace(_normalize(term), "")
-    return [] if re.sub(r"[?!.,，]+", "", query) else preferred
+    """Include all evidenced warm-meal alternatives, never override a constraint."""
+    return warm_meal_shops(shops) if is_unconstrained_warm_request(question) else []
 
 
 def format_chat_message(message):
@@ -308,7 +341,7 @@ def build_search_prompt(intent, question, language, shops, tags):
         evidence["tags"] = [tag for tag in shop.get("tags") or [] if _normalize(tag) not in existing]
         evidence["clues"] = ",".join(filter(None, [evidence["keywords"], *evidence["tags"]]))
         rows.append([evidence.get(key) or "" for key in fields])
-    priorities = [shop["id"] for shop in warm_food_recommendation_priorities(question, candidates)]
+    priorities = [shop["id"] for shop in required_recommendation_shops(question, candidates)]
     result_intent = {1: "get_store", 2: "get_menu", 3: "get_location", 4: "get_total_price"}.get(intent, "get_store")
     contract = {"user_message": question, "chat_message": "answer", "result": {
         "status": "success", "intent": result_intent, "items": [{"target_id": "map ID"}]}}
@@ -318,7 +351,7 @@ def build_search_prompt(intent, question, language, shops, tags):
         "Required intent: " + result_intent,
         "JSON schema example: " + json.dumps(contract, ensure_ascii=False),
         "[Visible search tags] " + json.dumps(tags, ensure_ascii=False, separators=(",", ":")),
-        "[Rainy-day warm-food priority shops] " + json.dumps(priorities),
+        "[Unconstrained warm-meal coverage IDs] " + json.dumps(priorities),
         "[Shop row fields] " + json.dumps(fields),
         "[Candidate rows] " + json.dumps(rows, ensure_ascii=False, separators=(",", ":")),
     ))

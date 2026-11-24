@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_all_shop_listing, is_recommendation_question, parse_model_response, required_recommendation_shops, select_search_candidates
+from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_all_shop_listing, is_recommendation_question, parse_model_response, required_recommendation_shops, search_response_temperature, select_search_candidates
 
 
 class KioskSearchOrderTests(unittest.TestCase):
@@ -29,6 +29,7 @@ class KioskSearchOrderTests(unittest.TestCase):
             "select_search_candidates": select_search_candidates,
             "broad_category_shops": broad_category_shops,
             "required_recommendation_shops": required_recommendation_shops,
+            "search_response_temperature": search_response_temperature,
             "parse_model_response": parse_model_response,
             "build_search_prompt": build_search_prompt,
             "is_recommendation_question": is_recommendation_question,
@@ -39,7 +40,7 @@ class KioskSearchOrderTests(unittest.TestCase):
         exec(compile(ast.Module(body=[function], type_ignores=[]), str(source), "exec"), namespace)
         self.answer = namespace[function.name]
 
-    def respond(self, ids, question="따뜻한 음식 추천해줘", intent=1):
+    def respond(self, ids, question="먹을 곳 추천해줘", intent=1):
         self.generate.return_value = json.dumps({
             "chat_message": "아래 가게들을 확인해 보세요.",
             "result": {"items": [{"target_id": shop_id} for shop_id in ids]},

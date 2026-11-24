@@ -27,7 +27,8 @@ class KioskSearchContextTests(unittest.TestCase):
     def test_rainy_day_warm_food_has_all_four_priorities(self):
         question = "비 오는 날 따뜻한 음식 추천해줘."
         preferred = warm_food_recommendation_priorities(question, self.shops)
-        self.assertEqual([shop["name"] for shop in preferred], ["행운손만두", "옛날죽집", "장터빈대떡", "도깨비칼국수"])
+        self.assertTrue({"행운손만두", "옛날죽집", "장터빈대떡", "도깨비칼국수"}.issubset({shop["name"] for shop in preferred}))
+        self.assertGreater(len(preferred), 4)
         prompt = build_search_prompt(2, question, "ko", self.shops, [])
         for shop in preferred:
             self.assertIn(shop["id"], prompt)
@@ -42,8 +43,7 @@ class KioskSearchContextTests(unittest.TestCase):
         shops = [dict(shop) for shop in self.shops if shop["id"] != "585:28790"]
         next(shop for shop in shops if shop["id"] == "585:28762")["name"] = "변경된 만두 가게"
         preferred = warm_food_recommendation_priorities("비 오는 날 따뜻한 음식 추천해줘", shops)
-        self.assertEqual(len(preferred), 3)
-        self.assertEqual(preferred[0]["name"], "변경된 만두 가게")
+        self.assertTrue(any(shop["name"] == "변경된 만두 가게" for shop in preferred))
         self.assertNotIn("585:28790", {shop["id"] for shop in preferred})
 
     def test_side_dish_query_does_not_expand_to_all_food_shops(self):

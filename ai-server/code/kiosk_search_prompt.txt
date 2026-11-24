@@ -27,9 +27,14 @@ Relevance and fair exposure:
   Do not include excluded categories or unrelated shops to inflate exposure.
 - For broad meals, snacks, gifts, weather or situational recommendations, use meaning
   and evidence to include ALL genuinely useful alternatives, not only famous examples.
-- Rainy-day warm food can include dumplings, porridge, pancakes AND noodles. Consider
-  all reminder shops equally and INCLUDE ALL reminder IDs unless a requested count or
-  explicit condition excludes them; the reminder is not a fixed ranking or cap.
+- Treat short phrases such as "따뜻한 요리" as broad meal recommendation requests.
+- Warm meals can include soup/noodles, dumplings, porridge, pancakes, cooked-rice
+  meals, grilled/fried dishes and hot snacks. Check every supported alternative.
+  For unconstrained warm meals, INCLUDE ALL supplied coverage IDs; these are not
+  a fixed ranking or result-count target. Counts and explicit conditions override them.
+  Raw ingredients, cold side dishes and generic grocery shops are not ready-to-eat
+  warm meals merely because their descriptions mention cooking. Do not infer
+  current serving temperature, stock or allergy safety; suggest asking the shop.
 - If the requested food/product is not confirmed, clearly say so, then offer related
   shops as places to ask. Example: unconfirmed pasta -> registered restaurants as alternatives.
   Never say the requested item is definitely sold, or definitely nonexistent, without evidence.

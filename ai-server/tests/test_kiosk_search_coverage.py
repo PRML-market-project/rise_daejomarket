@@ -68,7 +68,9 @@ class KioskCoverageTests(unittest.TestCase):
     def test_rainy_food_omissions_are_repaired_without_overriding_constraints(self):
         answer = load_answer(self.shops, [], lambda *_a, **_kw: '{"chat_message":"가게를 확인해 보세요.","result":{"items":[]}}')
         query = "비 오는 날 따뜻한 음식 추천해줘"
-        self.assertEqual(len(json.loads(answer(1, query, "ko"))["result"]["items"]), 4)
+        expected = {shop["id"] for shop in required_recommendation_shops(query, self.shops)}
+        self.assertGreater(len(expected), 4)
+        self.assertEqual({item["target_id"] for item in json.loads(answer(1, query, "ko"))["result"]["items"]}, expected)
         for suffix in (" 한 곳만", " 채식으로", " 만두 말고", " 알레르기 있어", " 3곳만"):
             self.assertEqual(required_recommendation_shops(query + suffix, self.shops), [])
 

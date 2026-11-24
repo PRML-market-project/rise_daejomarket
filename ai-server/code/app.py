@@ -24,7 +24,7 @@ from urllib.request import Request as UrlRequest, urlopen
 from tts_text_normalizer import normalize_korean_tts_text
 from tts_voice_reference import build_voice_reference
 from qa_log import append_qa_log, summarize_answer
-from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_all_shop_listing, load_kiosk_context, parse_model_response, required_recommendation_shops, select_search_candidates
+from kiosk_search_context import broad_category_shops, build_search_prompt, format_chat_message, is_all_shop_listing, load_kiosk_context, parse_model_response, required_recommendation_shops, search_response_temperature, select_search_candidates
 
 
 # ==========================================
@@ -310,6 +310,7 @@ def answer_from_current_kiosk_data(intent, text, language):
     raw = generate_json_response(
         build_search_prompt(intent, text, language, shops, tags), text,
         max_tokens=max(1200, min(8192, 256 + len(candidates) * 40)),
+        temperature=search_response_temperature(intent, text),
     )
     try:
         answer = parse_model_response(raw)
@@ -432,7 +433,7 @@ def get_response_by_intent(intent, text, admin_id, kiosk_id, language):
     return answer_from_current_kiosk_data(intent, text, language)
 
 
-def generate_json_response(system_prompt, text, max_tokens=1200):
+def generate_json_response(system_prompt, text, max_tokens=1200, temperature=0.0):
     """Generate the existing /gpt JSON envelope with the local model first."""
     messages = [
         {"role": "system", "content": system_prompt},
@@ -442,7 +443,7 @@ def generate_json_response(system_prompt, text, max_tokens=1200):
     try:
         local_response = local_chat_completion(
             messages,
-            temperature=0.0,
+            temperature=temperature,
             max_tokens=max_tokens,
             json_mode=True,
         )
@@ -471,7 +472,7 @@ def generate_json_response(system_prompt, text, max_tokens=1200):
             return openai_chat_completion(
                 messages,
                 model="gpt-4o",
-                temperature=0.5,
+                temperature=temperature,
                 json_mode=True,
             )
         except Exception as secondary_openai_error:

@@ -1,0 +1,686 @@
+[
+  {
+    "variant": "baseline",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 4,
+    "count_range": [
+      4,
+      4
+    ],
+    "mean_seconds": 2.121,
+    "mean_source_model_seconds": 2.121,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 1,
+    "distinct_sets": 1,
+    "union_shops": 4,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "temp03",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 5.333333333333333,
+    "count_range": [
+      4,
+      8
+    ],
+    "mean_seconds": 2.406,
+    "mean_source_model_seconds": 2.406,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 2,
+    "union_shops": 8,
+    "mean_jaccard": 0.6666666666666666,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "temp06",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 5.333333333333333,
+    "count_range": [
+      4,
+      8
+    ],
+    "mean_seconds": 2.282,
+    "mean_source_model_seconds": 2.282,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 2,
+    "union_shops": 8,
+    "mean_jaccard": 0.6666666666666666,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "expand03",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 4.333333333333333,
+    "count_range": [
+      2,
+      6
+    ],
+    "mean_seconds": 1.896,
+    "mean_source_model_seconds": 1.896,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 3,
+    "union_shops": 7,
+    "mean_jaccard": 0.43492063492063493,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "coverage03",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 14.333333333333334,
+    "count_range": [
+      11,
+      18
+    ],
+    "mean_seconds": 4.695,
+    "mean_source_model_seconds": 4.695,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 3,
+    "union_shops": 21,
+    "mean_jaccard": 0.5068627450980392,
+    "meal_type_reference_fraction": 0.8837209302325582,
+    "weaker_evidence": [
+      "남도홍어",
+      "맥반석주전부리",
+      "신의주찹쌀순대"
+    ],
+    "constraints": []
+  },
+  {
+    "variant": "baseline",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 17,
+    "count_range": [
+      17,
+      17
+    ],
+    "mean_seconds": 4.78,
+    "mean_source_model_seconds": 4.78,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 2,
+    "union_shops": 19,
+    "mean_jaccard": 0.8596491228070176,
+    "meal_type_reference_fraction": 0.9411764705882353,
+    "weaker_evidence": [
+      "남도홍어",
+      "전라도김치"
+    ],
+    "constraints": []
+  },
+  {
+    "variant": "temp03",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 16.333333333333332,
+    "count_range": [
+      16,
+      17
+    ],
+    "mean_seconds": 5.224,
+    "mean_source_model_seconds": 5.224,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 3,
+    "union_shops": 18,
+    "mean_jaccard": 0.8856209150326797,
+    "meal_type_reference_fraction": 0.9795918367346939,
+    "weaker_evidence": [
+      "남도홍어"
+    ],
+    "constraints": []
+  },
+  {
+    "variant": "temp06",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 14,
+    "count_range": [
+      10,
+      17
+    ],
+    "mean_seconds": 4.694,
+    "mean_source_model_seconds": 4.694,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 3,
+    "union_shops": 19,
+    "mean_jaccard": 0.5906432748538012,
+    "meal_type_reference_fraction": 0.9285714285714286,
+    "weaker_evidence": [
+      "남도홍어",
+      "신의주찹쌀순대"
+    ],
+    "constraints": []
+  },
+  {
+    "variant": "expand03",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 16.333333333333332,
+    "count_range": [
+      16,
+      17
+    ],
+    "mean_seconds": 5.191,
+    "mean_source_model_seconds": 5.191,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 3,
+    "union_shops": 18,
+    "mean_jaccard": 0.8856209150326797,
+    "meal_type_reference_fraction": 0.9795918367346939,
+    "weaker_evidence": [
+      "남도홍어"
+    ],
+    "constraints": []
+  },
+  {
+    "variant": "coverage03",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 12.333333333333334,
+    "count_range": [
+      6,
+      19
+    ],
+    "mean_seconds": 4.856,
+    "mean_source_model_seconds": 4.856,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 3,
+    "union_shops": 20,
+    "mean_jaccard": 0.42206477732793524,
+    "meal_type_reference_fraction": 0.8918918918918919,
+    "weaker_evidence": [
+      "남도홍어",
+      "맥반석주전부리",
+      "신의주찹쌀순대"
+    ],
+    "constraints": []
+  },
+  {
+    "variant": "focused03",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 13,
+    "count_range": [
+      13,
+      13
+    ],
+    "mean_seconds": 4.291,
+    "mean_source_model_seconds": 4.291,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 1,
+    "union_shops": 13,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "union03",
+    "case": "warmshort",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 19,
+    "count_range": [
+      19,
+      19
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 4.291,
+    "mean_replay_processing_seconds": 0.004,
+    "distinct_messages": 3,
+    "distinct_sets": 1,
+    "union_shops": 19,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "focused03",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 13,
+    "count_range": [
+      13,
+      13
+    ],
+    "mean_seconds": 4.303,
+    "mean_source_model_seconds": 4.303,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 3,
+    "distinct_sets": 1,
+    "union_shops": 13,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "union03",
+    "case": "warmrecommend",
+    "runs": 3,
+    "errors": 0,
+    "mean_count": 19,
+    "count_range": [
+      19,
+      19
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 4.303,
+    "mean_replay_processing_seconds": 0.005,
+    "distinct_messages": 3,
+    "distinct_sets": 1,
+    "union_shops": 19,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "baseline",
+    "case": "rain",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 4,
+    "count_range": [
+      4,
+      4
+    ],
+    "mean_seconds": 2.654,
+    "mean_source_model_seconds": 2.654,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 1,
+    "union_shops": 4,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "focused03",
+    "case": "rain",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 4,
+    "count_range": [
+      4,
+      4
+    ],
+    "mean_seconds": 2.086,
+    "mean_source_model_seconds": 2.086,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 1,
+    "union_shops": 4,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "union03",
+    "case": "rain",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 19,
+    "count_range": [
+      19,
+      19
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 2.086,
+    "mean_replay_processing_seconds": 0.005,
+    "distinct_messages": 2,
+    "distinct_sets": 1,
+    "union_shops": 19,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": []
+  },
+  {
+    "variant": "baseline",
+    "case": "three",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 3,
+    "count_range": [
+      3,
+      3
+    ],
+    "mean_seconds": 2.401,
+    "mean_source_model_seconds": 2.401,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 1,
+    "union_shops": 3,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "focused03",
+    "case": "three",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 3,
+    "count_range": [
+      3,
+      3
+    ],
+    "mean_seconds": 1.628,
+    "mean_source_model_seconds": 1.628,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 1,
+    "union_shops": 3,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "union03",
+    "case": "three",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 3,
+    "count_range": [
+      3,
+      3
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 1.628,
+    "mean_replay_processing_seconds": 0.009,
+    "distinct_messages": 2,
+    "distinct_sets": 1,
+    "union_shops": 3,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "baseline",
+    "case": "warmthree",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 3,
+    "count_range": [
+      3,
+      3
+    ],
+    "mean_seconds": 2.545,
+    "mean_source_model_seconds": 2.545,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 1,
+    "distinct_sets": 1,
+    "union_shops": 3,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "focused03",
+    "case": "warmthree",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 3,
+    "count_range": [
+      3,
+      3
+    ],
+    "mean_seconds": 1.697,
+    "mean_source_model_seconds": 1.697,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 1,
+    "distinct_sets": 1,
+    "union_shops": 3,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "union03",
+    "case": "warmthree",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 3,
+    "count_range": [
+      3,
+      3
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 1.697,
+    "mean_replay_processing_seconds": 0.005,
+    "distinct_messages": 1,
+    "distinct_sets": 1,
+    "union_shops": 3,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "baseline",
+    "case": "exclude",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 5,
+    "count_range": [
+      5,
+      5
+    ],
+    "mean_seconds": 2.346,
+    "mean_source_model_seconds": 2.346,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 1,
+    "distinct_sets": 1,
+    "union_shops": 5,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "focused03",
+    "case": "exclude",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 6.5,
+    "count_range": [
+      5,
+      8
+    ],
+    "mean_seconds": 2.181,
+    "mean_source_model_seconds": 2.181,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 2,
+    "union_shops": 8,
+    "mean_jaccard": 0.625,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "union03",
+    "case": "exclude",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 6.5,
+    "count_range": [
+      5,
+      8
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 2.181,
+    "mean_replay_processing_seconds": 0.005,
+    "distinct_messages": 2,
+    "distinct_sets": 2,
+    "union_shops": 8,
+    "mean_jaccard": 0.625,
+    "meal_type_reference_fraction": 1.0,
+    "weaker_evidence": [],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "baseline",
+    "case": "allergy",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 7,
+    "count_range": [
+      7,
+      7
+    ],
+    "mean_seconds": 3.51,
+    "mean_source_model_seconds": 3.51,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 1,
+    "distinct_sets": 1,
+    "union_shops": 7,
+    "mean_jaccard": 1.0,
+    "meal_type_reference_fraction": 0.14285714285714285,
+    "weaker_evidence": [
+      "떡마을",
+      "맥반석주전부리",
+      "바로굼빵터",
+      "불광떡집",
+      "정민베이커리",
+      "종로복떡집"
+    ],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "focused03",
+    "case": "allergy",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 9.5,
+    "count_range": [
+      7,
+      12
+    ],
+    "mean_seconds": 3.909,
+    "mean_source_model_seconds": 3.909,
+    "mean_replay_processing_seconds": null,
+    "distinct_messages": 2,
+    "distinct_sets": 2,
+    "union_shops": 12,
+    "mean_jaccard": 0.5833333333333334,
+    "meal_type_reference_fraction": 0.3684210526315789,
+    "weaker_evidence": [
+      "떡마을",
+      "맥반석주전부리",
+      "바로굼빵터",
+      "불광떡집",
+      "정민베이커리",
+      "종로복떡집"
+    ],
+    "constraints": [
+      true,
+      true
+    ]
+  },
+  {
+    "variant": "union03",
+    "case": "allergy",
+    "runs": 2,
+    "errors": 0,
+    "mean_count": 9.5,
+    "count_range": [
+      7,
+      12
+    ],
+    "mean_seconds": null,
+    "mean_source_model_seconds": 3.909,
+    "mean_replay_processing_seconds": 0.008,
+    "distinct_messages": 2,
+    "distinct_sets": 2,
+    "union_shops": 12,
+    "mean_jaccard": 0.5833333333333334,
+    "meal_type_reference_fraction": 0.3684210526315789,
+    "weaker_evidence": [
+      "떡마을",
+      "맥반석주전부리",
+      "바로굼빵터",
+      "불광떡집",
+      "정민베이커리",
+      "종로복떡집"
+    ],
+    "constraints": [
+      true,
+      true
+    ]
+  }
+]
